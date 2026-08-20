@@ -43,3 +43,11 @@ output "sim_ticks_topic" {
 output "gateway_audit_topic" {
   value = module.prudently.gateway_audit_topic
 }
+
+output "api_url" {
+  value = module.prudently.api_url
+}
+
+output "web_url" {
+  value = module.prudently.web_url
+}

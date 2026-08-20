@@ -39,3 +39,4 @@ apps/web/.env*.local
 *.log
 dist/
 build/
+.local_output/
