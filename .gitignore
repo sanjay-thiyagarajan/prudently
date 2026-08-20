@@ -1,0 +1,41 @@
+# Secrets & credentials
+.env
+.env.local
+service-account*.json
+*.pem
+*.key
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!infra/terraform/envs/dev/terraform.tfvars.example
+.terraform/
+# .terraform.lock.hcl is intentionally NOT ignored — committed for reproducible provider versions
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+apps/web/.env*.local
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Misc
+*.log
+dist/
+build/
