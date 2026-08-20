@@ -17,3 +17,11 @@ output "sim_ticks_topic" {
 output "gateway_audit_topic" {
   value = module.pubsub.gateway_audit_topic
 }
+
+output "api_url" {
+  value = module.cloud_run_api.url
+}
+
+output "web_url" {
+  value = module.cloud_run_web.url
+}

@@ -40,6 +40,5 @@ omit = ["tests/*", "evals/*"]
 [tool.coverage.report]
 fail_under = 80
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.uv]
+package = false
