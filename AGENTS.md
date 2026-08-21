@@ -64,6 +64,20 @@ fifth AgentTool sub-agent (Chaos) later. `pylint agents` can't resolve these imp
 way (it isn't running under either sys.path condition) — see the `# pylint:
 disable-next=import-error,wrong-import-order` comments in `agents/coordinator/agent.py`.
 
+**Corollary — the flattened import means Coordinator has its own baked-in copy of every
+sub-agent's source, frozen at Coordinator's last deploy time, not a live reference.** `adk
+deploy`'s `--extra_packages` copies source into the image at deploy time; editing
+`agents/supply/agent.py` after Coordinator was last deployed does not change what the
+Coordinator's in-process `supply_chain_resiliency_agent` AgentTool actually runs, even though
+Supply Chain's *own* standalone Reasoning Engine picks up the change on its own next deploy.
+Caught live Day 5: Supply Chain's A2A wiring to Medical Representative was added and Supply
+Chain was redeployed, but Coordinator wasn't — so every "verified via A2A" claim up to that
+point had exercised Supply Chain's standalone engine, never the Coordinator → Supply Chain →
+Medical Representative path a real user/demo actually takes. **Whenever any AgentTool
+sub-agent's source changes, redeploy Coordinator too** (`--agent_engine_id=<coordinator-id>`,
+same `--extra_packages` set) — a green test suite and a successful standalone-engine
+verification do not imply the composed path works.
+
 **Genuine A2A: Supply Chain → Medical Representative.** Vertex AI Agent Engine has no native
 A2A transport (confirmed Day 5: no `a2a` fields anywhere in the Vertex SDK, no A2A flags on
 `adk deploy agent_engine`) — `stream_query` and A2A are two different transports for two
