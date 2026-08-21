@@ -12,7 +12,7 @@ products vs. local-emulated fallbacks.
 
 | Agent | Role | File | Reasoning Engine | Memory Bank scope | Firestore collections |
 |---|---|---|---|---|---|
-| Coordinator | root ADK agent, sole user-facing entry point | `apps/api/agents/coordinator/agent.py` | primary | `agent_name=coordinator, user=<session>` | `agent_registry` (read) |
+| Coordinator | root ADK agent, sole user-facing entry point — **deployed & verified** | `apps/api/agents/coordinator/agent.py` | primary | `agent_name=coordinator, user=<session>` | `agent_registry` (read) |
 | Shift Allocation | specialist (`AgentTool`) — **deployed & verified** | `apps/api/agents/shift/agent.py` | primary | `agent_name=shift_allocation_agent, user=<unit>` | `staff_roster`, `shift_history` |
 | Inventory Management | specialist (`AgentTool`) — tactical stock/par-level tracking — **deployed & verified** | `apps/api/agents/inventory/agent.py` | primary | `agent_name=inventory, user=<sku>` | `inventory` |
 | Supply Chain Resiliency | specialist (`AgentTool`) — strategic vendor/reorder decisions; calls Medical Representative via **A2A** — **deployed & verified** | `apps/api/agents/supply/agent.py` | primary | `agent_name=supply, user=<vendor>` | `vendors` |
@@ -45,6 +45,53 @@ Medical Representative, which is genuine Agent2Agent across the one boundary in 
 that actually warrants a separately-deployed, separately-identified agent (external-facing,
 untrusted by default). Every other specialist call flows through the Gateway interceptor.
 
+**Coordinator's sub-agents are in-process AgentTool wraps, not network calls — this relies on
+a flattened import that only works under two specific conditions, confirmed live Day 5.**
+`agents/coordinator/agent.py` does `from shift.agent import root_agent`, not
+`from agents.shift.agent import root_agent`. This resolves because:
+1. **Locally** (`adk run agents/coordinator`): ADK's own loader adds the agent's parent dir
+   (`agents/`) to `sys.path`, so every sibling folder (`shift`, `inventory`, `supply`, `hr`)
+   is importable by its bare name.
+2. **Deployed**: `adk deploy`'s `--extra_packages` stages each entry at `/app/<basename>`
+   (per its own `--help` text) — `--extra_packages=agents/shift` lands at `/app/shift`, not
+   `/app/agents/shift`. Deploying Coordinator needs `--extra_packages=agents/shift
+   --extra_packages=agents/inventory --extra_packages=agents/supply --extra_packages=agents/hr`
+   in addition to the usual `services`/`config.py`.
+
+Verified with a disposable one-sub-agent probe deploy before committing to the real four-agent
+Coordinator (see docs/build-plan.md Day 5) — worth repeating that pattern before adding a
+fifth AgentTool sub-agent (Chaos) later. `pylint agents` can't resolve these imports either
+way (it isn't running under either sys.path condition) — see the `# pylint:
+disable-next=import-error,wrong-import-order` comments in `agents/coordinator/agent.py`.
+
+**Genuine A2A: Supply Chain → Medical Representative.** Vertex AI Agent Engine has no native
+A2A transport (confirmed Day 5: no `a2a` fields anywhere in the Vertex SDK, no A2A flags on
+`adk deploy agent_engine`) — `stream_query` and A2A are two different transports for two
+different deployment shapes. Medical Representative is reached over A2A via
+`google.adk.a2a.utils.agent_to_a2a.to_a2a()`, mounted as a sub-route of the `prudently-api`
+Cloud Run service (`apps/api/app.py`, `/a2a/medrep`) rather than a separate Cloud Run service
+— its own Reasoning Engine deployment already satisfies "separately deployed, separately
+identified"; a third Cloud Run service would only buy structural purity, not anything a judge
+can observe. `config.py`'s `medrep_a2a_*` settings + `medrep_agent_card_url()` build the
+advertised card URL; `agents/supply/agent.py` reaches it via
+`AgentTool(RemoteA2aAgent(agent_card=medrep_agent_card_url()))` — Supply Chain has no special
+internal path to Medical Representative, it's the same public URL any A2A client would use.
+
+Two gotchas, both found live Day 5, both would silently 404/misbehave without the fix:
+1. **`to_a2a()`'s Starlette app attaches its JSON-RPC + agent-card routes inside its own
+   ASGI lifespan** (building the agent card is async), and `Starlette.mount()` does **not**
+   auto-forward the outer app's lifespan to a mounted sub-app. Without the fix, `app.mount()`
+   succeeds silently but every mounted route 404s. Fix: give the outer `FastAPI(...)` an
+   explicit `lifespan=` that does `async with medrep_a2a_app.router.lifespan_context(
+   medrep_a2a_app): yield` — see `app.py`.
+2. **The Cloud Run service and the Reasoning Engine runtime call Model Armor as two different
+   identities.** `prudently-api` runs as `coordinator-agent-sa` (see `modules/cloud_run_api`),
+   not the Reasoning Engine service agent — it needs its own `roles/modelarmor.user` grant
+   (`modules/iam/main.tf`'s `coordinator_sa_modelarmor_user`). Without it, every A2A call
+   through the mounted endpoint fails closed with `matched_filters=["armor_unavailable"]`
+   instead of the real filter result — indistinguishable from a real block unless you check
+   Cloud Run's own logs.
+
 **Deploy-time requirement, learned the hard way (Day 3):** `adk deploy agent_engine` resolves
 dependencies via plain `pip` against a `requirements.txt` **inside the agent's own folder**,
 not the shared `uv.lock` — the two resolvers can diverge. Every agent folder needs its own
@@ -72,17 +119,26 @@ every new agent before considering it done.
 
 ## Platform adapter layer
 
-`apps/api/services/platform/` implements five capabilities (Registry, Identity, Gateway,
-Model Armor, Observability) as a port/adapter pair: `<name>.py` defines the `Protocol`,
-`<name>_vertex.py` is the real-GCP-product implementation, `<name>_local.py` is the emulated
-fallback. Which one is active is controlled by env vars (`REGISTRY_BACKEND`, `IDENTITY_BACKEND`,
-`GATEWAY_BACKEND`, `ARMOR_BACKEND`, `OBSERVABILITY_BACKEND`, each `vertex|local`), decided by
-the Day-1 probe and recorded in `docs/day1-probe-results.md`. Agent Runtime and Memory Bank
-are confirmed real products and are implemented directly (`apps/api/services/memory.py`) —
-no adapter needed for those two. Model Armor (`services/platform/armor.py` /
-`armor_vertex.py` / `armor_local.py`) is the first of the five actually built, Day 4, wired
-into Medical Representative's ingestion tool (`agents/medrep/agent.py`); Registry, Identity,
-Gateway, Observability land Day 5 with the Coordinator.
+`apps/api/services/platform/` implements the five capabilities the Day-1 probe didn't confirm
+as distinct real GCP products (Registry, Identity, Gateway, Model Armor, Observability) behind
+a `<name>.py` Protocol. Only Model Armor has both a real (`armor_vertex.py`) and local
+(`armor_local.py`) implementation, selected by `ARMOR_BACKEND` — Registry, Identity, and
+Gateway are local-only by design (the Day-1 probe found no real GCP product backing any of
+them; see `docs/day1-probe-results.md` rows #3–5), so `registry.py`/`gateway.py` have no
+`_vertex.py` counterpart and raise loudly if `REGISTRY_BACKEND=vertex` is ever set. Agent
+Runtime and Memory Bank are confirmed real products and are implemented directly
+(`apps/api/services/memory.py`) — no adapter needed for those two. Status as of Day 5: Model
+Armor (Day 4, wired into `agents/medrep/agent.py`), Registry (`registry.py`/`registry_local.py`,
+Firestore `agent_registry` collection, seeded by `apps/api/scripts/seed_registry.py` /
+`make seed-registry`), Gateway (`gateway.py`/`gateway_local.py`, the Coordinator's
+`before_tool_callback` — Registry lookup → policy-table authorization → named-no-op
+Observability hook; Model Armor is deliberately *not* run on every Gateway call, see
+`gateway.py`'s module docstring), and Identity (`identity.py`, a thin resolver over the
+Terraform-provisioned per-agent SAs plus the one runtime service agent every deployed agent
+actually authenticates as — no runtime enforcement, that's infra-layer per the Day-1 probe's
+own "honest framing for judges") are all built. Observability's real OTel span creation is
+still Aug 27 scope; `gateway.py`'s `start_observability_span()` is the named hook already
+wired for that day to fill in.
 
 **Model Armor setup, Day 4:** `modelarmor.googleapis.com` had to be enabled by hand
 (`gcloud services enable modelarmor.googleapis.com`) — the Day-1 probe's claim that it was
@@ -102,10 +158,11 @@ Firestore gotcha above) needs `roles/modelarmor.user` — granted by hand Day 4
 ## Local dev
 
 ```
-make api-dev     # uv-run FastAPI app (apps/api), Firestore/Pub/Sub emulators expected running
-make web-dev      # Next.js dev server (apps/web)
-make seed         # regenerate synthetic data via packages/datagen and load into Firestore/emulator
-make dev          # api-dev + web-dev together
+make api-dev       # uv-run FastAPI app (apps/api), Firestore/Pub/Sub emulators expected running
+make web-dev       # Next.js dev server (apps/web)
+make seed          # regenerate synthetic data via packages/datagen and load into Firestore/emulator
+make dev           # api-dev + web-dev together
+cd apps/api && make seed-registry   # (re)seed the agent_registry Firestore collection the Gateway reads
 ```
 
 ## Running / deploying an agent via the ADK CLI

@@ -78,3 +78,16 @@ resource "google_project_iam_member" "reasoning_engine_service_agent_modelarmor_
   role    = "roles/modelarmor.user"
   member  = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
 }
+
+# Medical Representative's A2A endpoint is mounted inside the prudently-api Cloud Run service
+# (apps/api/app.py), which runs as coordinator-agent-sa (modules/cloud_run_api's
+# coordinator_agent_sa_email) — a separate identity from the Reasoning Engine service agent
+# above, and one that also calls Model Armor whenever Supply Chain reaches Medical
+# Representative over A2A. Found live Day 5: without this, VertexArmorService's fail-closed
+# handling silently blocked every A2A call with matched_filters=["armor_unavailable"] instead
+# of the real filter result.
+resource "google_project_iam_member" "coordinator_sa_modelarmor_user" {
+  project = var.project_id
+  role    = "roles/modelarmor.user"
+  member  = "serviceAccount:${google_service_account.agent["coordinator"].email}"
+}

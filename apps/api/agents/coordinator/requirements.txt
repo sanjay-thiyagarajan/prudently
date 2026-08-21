@@ -1,0 +1,5 @@
+google-adk[a2a]==2.7.1
+google-cloud-aiplatform[adk,agent_engines]
+google-cloud-firestore>=2.19
+google-cloud-secret-manager>=2.20
+pydantic-settings>=2.4
