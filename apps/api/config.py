@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     hr_agent_engine_id: str = "5467010957081313280"
     medrep_agent_engine_id: str = "6319035711584468992"
     chaos_agent_engine_id: str = ""
-    coordinator_agent_engine_id: str = ""
+    coordinator_agent_engine_id: str = "6956858008810815488"
 
     registry_backend: Backend = "local"
     identity_backend: Backend = "local"
@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     model_armor_location: str = "us-central1"
     model_armor_template_id: str = "prudently-vendor-ingest"
 
+    # Genuine A2A boundary (Day 5): Medical Representative is mounted as a sub-route of this
+    # same Cloud Run service (app.py) rather than a separate service — see AGENTS.md's A2A
+    # section for why. Vertex AI Agent Engine has no native A2A transport (confirmed Day 5: no
+    # `a2a` fields anywhere in the Vertex SDK, no A2A flags on `adk deploy agent_engine`), so
+    # any Reasoning Engine that needs to reach Medical Representative via A2A — Supply Chain —
+    # does so over the public internet at this URL, not an internal call.
+    medrep_a2a_host: str = "prudently-api-439570031916.us-central1.run.app"
+    medrep_a2a_protocol: str = "https"
+    medrep_a2a_rpc_path: str = "a2a/medrep"
+
     sim_seed: int = 42
     sim_speedup: int = 1440
     dry_run: bool = True
@@ -67,6 +77,14 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def medrep_agent_card_url() -> str:
+    settings = get_settings()
+    return (
+        f"{settings.medrep_a2a_protocol}://{settings.medrep_a2a_host}"
+        f"/{settings.medrep_a2a_rpc_path}/.well-known/agent-card.json"
+    )
 
 
 def bootstrap_gemini_credentials() -> None:

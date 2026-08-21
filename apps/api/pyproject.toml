@@ -7,7 +7,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "pydantic-settings>=2.4",
-    "google-adk>=1.31",
+    "google-adk[a2a]>=1.31",
     "google-cloud-aiplatform>=1.70",
     "google-cloud-firestore>=2.19",
     "google-cloud-pubsub>=2.25",
@@ -16,6 +16,7 @@ dependencies = [
     "opentelemetry-exporter-gcp-trace>=1.7",
     "opentelemetry-exporter-gcp-logging>=1.7",
     "google-cloud-modelarmor>=0.7.1",
+    "sse-starlette>=3.4.8",
 ]
 
 [dependency-groups]
