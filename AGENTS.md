@@ -17,7 +17,7 @@ products vs. local-emulated fallbacks.
 | Inventory Management | specialist (`AgentTool`) — tactical stock/par-level tracking — **deployed & verified** | `apps/api/agents/inventory/agent.py` | primary | `agent_name=inventory, user=<sku>` | `inventory` |
 | Supply Chain Resiliency | specialist (`AgentTool`) — strategic vendor/reorder decisions; calls Medical Representative via **A2A** — **deployed & verified** | `apps/api/agents/supply/agent.py` | primary | `agent_name=supply, user=<vendor>` | `vendors` |
 | HR | specialist (`AgentTool`) — credentialing + escalation target when Shift Allocation runs out of reallocation options — **deployed & verified** | `apps/api/agents/hr/agent.py` | primary | `agent_name=hr, user=<unit>` | `staff_roster` (read) |
-| Medical Representative | **deployed separately**, external-facing vendor/pharma liaison, owns Model Armor screening of inbound vendor comms | `apps/api/agents/medrep/agent.py` | **separate** (A2A boundary) | `agent_name=medrep, user=<vendor>` | none (ingestion only, writes via Supply Chain) |
+| Medical Representative | **deployed separately**, external-facing vendor/pharma liaison, owns Model Armor screening of inbound vendor comms — **deployed & verified** | `apps/api/agents/medrep/agent.py` | **separate** (A2A boundary) | not wired yet — see note below | none (ingestion only, writes via Supply Chain) |
 | Chaos & Continuity | specialist (`AgentTool`), dual mode (hospital what-if + fleet fault-injection) | `apps/api/agents/chaos/agent.py` | primary | `agent_name=chaos, user=<scenario>` | `chaos_experiments` |
 
 `staff_roster` also holds a per-diem coverage pool (`is_per_diem=true`, `staff_id` prefixed
@@ -32,6 +32,13 @@ volume is ~620 records) that `write_firestore` doesn't chunk for. Both are real,
 bugs — fix before relying on a from-scratch `make seed` (needed for the Aug 30 clean-clone
 test), not fixed yet because reseeding would perturb the already-deployed/verified Shift
 Allocation Agent's demo data with no benefit to Day 4 scope.
+
+**Medical Representative is deliberately not wired to Memory Bank yet.**
+`services/memory.py`'s `get_memory_service()` hardcodes `agent_engine_id` to Shift's engine —
+writing through it from Medical Representative would mean this external-facing, adversarial-
+input agent writes into Shift's memory store, inverting the trust boundary the agent exists
+to demonstrate. Revisit once Memory Bank scoping is per-agent rather than hardcoded (Day 5
+Coordinator/Gateway work).
 
 Coordinator → Gateway → specialist is hub-and-spoke for everything except Supply Chain ↔
 Medical Representative, which is genuine Agent2Agent across the one boundary in the design
@@ -72,7 +79,25 @@ fallback. Which one is active is controlled by env vars (`REGISTRY_BACKEND`, `ID
 `GATEWAY_BACKEND`, `ARMOR_BACKEND`, `OBSERVABILITY_BACKEND`, each `vertex|local`), decided by
 the Day-1 probe and recorded in `docs/day1-probe-results.md`. Agent Runtime and Memory Bank
 are confirmed real products and are implemented directly (`apps/api/services/memory.py`) —
-no adapter needed for those two.
+no adapter needed for those two. Model Armor (`services/platform/armor.py` /
+`armor_vertex.py` / `armor_local.py`) is the first of the five actually built, Day 4, wired
+into Medical Representative's ingestion tool (`agents/medrep/agent.py`); Registry, Identity,
+Gateway, Observability land Day 5 with the Coordinator.
+
+**Model Armor setup, Day 4:** `modelarmor.googleapis.com` had to be enabled by hand
+(`gcloud services enable modelarmor.googleapis.com`) — the Day-1 probe's claim that it was
+"enabled in this project" was wrong; discovery-doc inspection confirmed the API *exists*, not
+that it was turned on for `prudently-hackathon`. The `gcloud model-armor` CLI subcommand
+group returns spurious `PERMISSION_DENIED` on both reads and writes even under project
+Owner — confirmed a CLI/auth quirk, not a real permission gap, since the identical call
+succeeds via a direct REST call and via the `google-cloud-modelarmor` Python SDK immediately
+after; the template (`prudently-vendor-ingest`, `us-central1`, `pi_and_jailbreak` +
+`malicious_uri` + `rai` filters) was created via REST, everything else uses the SDK. The
+deployed Reasoning Engine runtime identity
+(`service-<project-number>@gcp-sa-aiplatform-re.iam.gserviceaccount.com`, same one from the
+Firestore gotcha above) needs `roles/modelarmor.user` — granted by hand Day 4
+(`gcloud projects add-iam-policy-binding`), also added to
+`infra/terraform/modules/iam/main.tf` for `terraform apply` to catch up.
 
 ## Local dev
 

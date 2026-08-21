@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     inventory_agent_engine_id: str = "6199971796435861504"
     supply_agent_engine_id: str = "6129884527234908160"
     hr_agent_engine_id: str = "5467010957081313280"
+    medrep_agent_engine_id: str = "6319035711584468992"
     chaos_agent_engine_id: str = ""
     coordinator_agent_engine_id: str = ""
 
@@ -48,6 +49,12 @@ class Settings(BaseSettings):
     gateway_backend: Backend = "local"
     armor_backend: Backend = "vertex"
     observability_backend: Backend = "local"
+
+    # Model Armor templates are regional, not multi-region — same "must match the region
+    # lock" pattern as memory_bank_location (see comment above), confirmed working directly
+    # against modelarmor.us-central1.rep.googleapis.com Day 4.
+    model_armor_location: str = "us-central1"
+    model_armor_template_id: str = "prudently-vendor-ingest"
 
     sim_seed: int = 42
     sim_speedup: int = 1440

@@ -4,7 +4,7 @@
 # authenticate as these SAs via Application Default Credentials.
 
 locals {
-  agent_names = ["coordinator", "shift", "supply", "chaos"]
+  agent_names = ["coordinator", "shift", "inventory", "supply", "hr", "medrep", "chaos"]
 }
 
 resource "google_service_account" "agent" {
@@ -65,5 +65,16 @@ data "google_project" "current" {
 resource "google_project_iam_member" "reasoning_engine_service_agent_datastore_user" {
   project = var.project_id
   role    = "roles/datastore.user"
+  member  = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
+}
+
+# Medical Representative's ingestion path calls Model Armor's sanitize APIs at runtime (Day
+# 4) — granted to the same shared Reasoning Engine service agent as above, since that's what
+# every deployed agent actually runs as (not the per-agent SAs), confirmed Day 3. Applied
+# manually via `gcloud projects add-iam-policy-binding` first to unblock Day 4 deploys before
+# `terraform apply` catches up — see AGENTS.md.
+resource "google_project_iam_member" "reasoning_engine_service_agent_modelarmor_user" {
+  project = var.project_id
+  role    = "roles/modelarmor.user"
   member  = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
 }

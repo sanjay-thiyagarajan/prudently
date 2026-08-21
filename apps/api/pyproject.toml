@@ -15,6 +15,7 @@ dependencies = [
     "opentelemetry-sdk>=1.27",
     "opentelemetry-exporter-gcp-trace>=1.7",
     "opentelemetry-exporter-gcp-logging>=1.7",
+    "google-cloud-modelarmor>=0.7.1",
 ]
 
 [dependency-groups]
@@ -40,7 +41,7 @@ source = [
     "agents.supply.reorder",
     "agents.hr.credentialing",
     "services.simclock",
-    "services.platform",
+    "services.platform.armor_local",
 ]
 omit = ["tests/*", "evals/*"]
 
