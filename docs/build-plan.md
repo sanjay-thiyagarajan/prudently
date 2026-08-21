@@ -2,17 +2,34 @@
 
 ## Context
 
-Sanjay is entering the **All Things Agentic Hackathon** (allthingsagentichackathon.devpost.com), targeting the **Fortified Enterprise Fleet** track ($20K track prize, also eligible for the $50K grand prize and bonus categories). Deadline is **Aug 31, 2026, 5pm PDT** — **11 days from today (Aug 20)**, working **solo, full-time**. The project directory `/Users/sanjay/Desktop/OpenSource/prudently` is currently empty — this is a greenfield build.
+Sanjay is entering the **All Things Agentic Hackathon** (allthingsagentichackathon.devpost.com), targeting the **Fortified Enterprise Fleet** track ($20K track prize, also eligible for the $50K grand prize and bonus categories). Deadline is **Aug 31, 2026, 5pm PDT**, working **solo, full-time**. The project directory `/Users/sanjay/Desktop/OpenSource/prudently` started completely empty on Aug 20 — this is a greenfield build.
 
-The track requires demonstrating seven specific "Gemini Enterprise Agent Platform" capabilities (Agent Registry, Agent Runtime, Memory Bank, Agent Identity, Agent Gateway, Model Armor, Agent Observability) plus the hackathon-wide mandatory stack (Gemini 3.5+, a Google Agent Framework, a GCP infra service). Only **Agent Runtime** and **Memory Bank** were confirmed in depth via their official docs during research; the other five are named in the track's resource table but not verified as distinct managed products in Sanjay's actual GCP project. This plan is built so that ambiguity doesn't block progress: every unverified capability gets a real vs. local-emulated adapter, resolved by a Day-1 verification spike, not guessed at architecture time.
+The track requires demonstrating seven specific "Gemini Enterprise Agent Platform" capabilities (Agent Registry, Agent Runtime, Memory Bank, Agent Identity, Agent Gateway, Model Armor, Agent Observability) plus the hackathon-wide mandatory stack (Gemini 3.5+, a Google Agent Framework, a GCP infra service). Every unverified capability gets a real vs. local-emulated adapter, resolved by a Day-1 verification spike — see `docs/day1-probe-results.md` for the binding table (Agent Runtime, Memory Bank, and Model Armor confirmed real; Registry, Identity, Gateway, Observability run as local-emulated adapters behind the same interface a real product would satisfy).
 
-The product concept — decided with Sanjay via clarifying questions and treated as fixed — is **Prudently**: an agent-monitored hospital operations fleet for a single hospital, single GCP region, demoed against a scripted flu-outbreak surge. Three specialist agents (Shift Allocation, Supply Chain Resiliency, Chaos & Continuity) sit behind a Coordinator agent that is the sole user-facing entry point, matching his chosen "central orchestrator + specialists" topology.
+The product concept is **Prudently**: an agent-monitored hospital operations fleet for a single hospital, single GCP region, demoed against a scripted flu-outbreak surge.
 
-Sanjay's existing repos (`nerifect-backend`, `nerifect-frontend`, `career-ops`) establish real conventions this project should follow: FastAPI + `google-adk` + `uv` + pytest-with-coverage-gate + Makefile-driven workflow on the backend; Next.js/React/TypeScript/MUI/Tailwind on the frontend; and — confirmed consistently in `nerifect-frontend` and `career-ops` — **`AGENTS.md` as the canonical AI-instruction file, with `CLAUDE.md` kept as a one-line `@AGENTS.md` pointer**. This project deliberately deviates from his usual split-repo habit (monorepo instead), because Devpost judging requires a single code repository with reproducible spin-up instructions — flagged explicitly below for his sign-off, not silently assumed.
+**Agent roster — expanded Aug 21, after Day 3 shipped.** The original plan had 3 specialists (Shift Allocation, Supply Chain Resiliency, Chaos & Continuity) behind a Coordinator. Sanjay asked mid-build to add an Inventory Management Agent, an HR Agent, and a Medical Representative Agent, with A2A used where it genuinely fits, and confirmed the Day 6 midpoint checkpoint should count the expanded roster as in-scope, not just the original three. The roster is now:
+
+| Agent | Role | Status |
+|---|---|---|
+| **Coordinator** | Root, sole user-facing entry point, routes through the Gateway | Not started |
+| **Shift Allocation** | Fatigue/overtime burndown → reallocation recommendations | **Deployed & verified, Day 3** |
+| **Inventory Management** | Tactical: SKU-level stock, par levels, expiry/consumption tracking | Not started |
+| **Supply Chain Resiliency** | Strategic: vendor lead times, reorder decisions, alternate sourcing | Not started |
+| **HR** | Credentialing, and the escalation target when Shift Allocation runs out of reallocation options (activate per-diem/travel pool) | Not started |
+| **Medical Representative** | External-facing vendor/pharma liaison; owns the Model Armor "poisoned vendor email" demo moment; talks to Supply Chain via genuine **Agent2Agent**, not the internal Gateway | Not started |
+| **Chaos & Continuity** | Hospital-domain what-if scenarios + fleet-domain fault injection | Not started |
+
+**Why these three, concretely:**
+- **Inventory Management** is a free split, not new scope: the original "Supply Chain Agent" conflated tactical stock-tracking with strategic vendor decisions. Splitting them was already the right call before the request; Day 4 hadn't started yet so nothing was rebuilt.
+- **Medical Representative** is a genuine upgrade over the original plan, not scope creep: the Model Armor "poisoned vendor email" beat was always going to live somewhere. Giving it a dedicated agent at an explicit external trust boundary — rather than bolting the screening logic onto Supply Chain's tool code — is architecturally more honest, and it turns A2A from a "stretch goal, maybe" into a load-bearing part of the design: Supply Chain ↔ Medical Representative is exactly the boundary where two separately-deployed agents with distinct identities makes sense.
+- **HR** is real value (an autonomous escalation path when Shift Allocation alone can't solve a critical burndown) but is explicitly the first thing cut if the schedule slips — see §5.
+
+Sanjay's existing repos (`nerifect-backend`, `nerifect-frontend`, `career-ops`) establish real conventions this project follows: FastAPI + `google-adk` + `uv` + pytest-with-coverage-gate + Makefile-driven workflow on the backend; Next.js/React/TypeScript/MUI/Tailwind on the frontend; `AGENTS.md` as the canonical AI-instruction file, `CLAUDE.md` as a one-line `@AGENTS.md` pointer. This project deliberately deviates from his usual split-repo habit (monorepo instead), because Devpost judging requires a single code repository with reproducible spin-up instructions.
 
 ## Goal
 
-Ship a submission-ready, GCP-deployed multi-agent system by Aug 31 that (a) satisfies all mandatory hackathon tech requirements, (b) visibly demonstrates all seven Fortified Enterprise Fleet capabilities (real or honestly-labeled local fallback), and (c) tells a coherent, judgeable story through a flu-surge demo scenario — including one visible Model Armor "blocked" moment.
+Ship a submission-ready, GCP-deployed multi-agent system by Aug 31 that (a) satisfies all mandatory hackathon tech requirements, (b) visibly demonstrates all seven Fortified Enterprise Fleet capabilities (real or honestly-labeled local fallback), (c) demonstrates genuine Agent2Agent between Supply Chain and Medical Representative, and (d) tells a coherent, judgeable story through a flu-surge demo scenario — including one visible Model Armor "blocked" moment.
 
 ## 1. Repo structure (monorepo — flagged deviation from Sanjay's usual split-repo pattern)
 
@@ -23,29 +40,27 @@ prudently/
 ├── README.md                      # judge-facing: architecture, spin-up, deploy
 ├── Makefile                       # root orchestrator, delegates into apps/api and apps/web
 ├── .env.example
-├── .gitignore                     # *.tfstate*, .env, service-account*.json
+├── .gitignore
 ├── docs/
 │   ├── architecture.png/.svg      # + editable source
-│   ├── day1-probe-results.md      # filled Day 1, drives adapter selection, committed
+│   ├── day1-probe-results.md      # capability findings, drives adapter selection
+│   ├── build-plan.md              # this file
 │   └── demo-script.md             # beat-by-beat video script (§6)
 ├── apps/
 │   ├── api/                       # FastAPI + ADK backend — mirrors nerifect-backend conventions
-│   │   ├── pyproject.toml         # uv, python >=3.12
-│   │   ├── uv.lock
+│   │   ├── pyproject.toml / uv.lock
 │   │   ├── app.py
-│   │   ├── config.py              # MODEL_REASONING/MODEL_FAST + *_BACKEND adapter selectors
+│   │   ├── config.py              # MODEL_REASONING/MODEL_FAST, *_BACKEND selectors, GCP_PROJECT_ID
 │   │   ├── Makefile
-│   │   ├── routes/
-│   │   │   ├── coordinator.py     # sole user-facing entry point
-│   │   │   ├── sim.py             # simulation clock control (start/pause/speed/reset)
-│   │   │   ├── armor_events.py    # feed for dashboard "blocked" panel
-│   │   │   └── health.py
+│   │   ├── routes/{sim.py, health.py, armor_events.py, coordinator.py}
 │   │   ├── agents/
-│   │   │   ├── runtime.py         # shared ADK runtime, modeled on nerifect's services/agents/runtime.py
 │   │   │   ├── coordinator/agent.py
-│   │   │   ├── shift/{agent.py, burndown.py}      # burndown.py = pure fatigue/overtime math
-│   │   │   ├── supply/{agent.py, reorder.py}      # reorder.py = pure consumption/lead-time math
-│   │   │   └── chaos/{agent.py, fault_injection.py}
+│   │   │   ├── shift/{agent.py, burndown.py, requirements.txt}         # deployed, Day 3
+│   │   │   ├── inventory/{agent.py, par_levels.py, requirements.txt}   # tactical stock
+│   │   │   ├── supply/{agent.py, reorder.py, requirements.txt}         # strategic vendor
+│   │   │   ├── hr/{agent.py, credentialing.py, requirements.txt}
+│   │   │   ├── medrep/{agent.py, requirements.txt}                     # separate Reasoning Engine, real A2A
+│   │   │   └── chaos/{agent.py, fault_injection.py, requirements.txt}
 │   │   ├── services/
 │   │   │   ├── platform/          # port/adapter layer — see §2
 │   │   │   │   ├── registry.py / registry_vertex.py / registry_local.py
@@ -53,114 +68,98 @@ prudently/
 │   │   │   │   ├── gateway.py / gateway_vertex.py / gateway_local.py
 │   │   │   │   ├── armor.py / armor_vertex.py / armor_local.py
 │   │   │   │   └── observability.py / observability_vertex.py / observability_local.py
-│   │   │   ├── memory.py          # VertexAiMemoryBankService wrapper: CreateMemory, GenerateMemories, search
+│   │   │   ├── memory.py          # VertexAiMemoryBankService wrapper — working, Day 3
 │   │   │   ├── simclock.py        # Pub/Sub tick publisher/subscriber, SIM_SEED, SIM_SPEEDUP
-│   │   │   └── state.py           # Firestore live-state accessors (distinct from Memory Bank)
+│   │   │   └── state.py           # Firestore live-state accessors
 │   │   ├── tests/{unit,integration}/
-│   │   └── evals/                 # agent eval harness, `make eval`, mirrors nerifect
+│   │   └── evals/
 │   └── web/                       # Next.js dashboard — mirrors nerifect-frontend conventions
-│       ├── package.json           # Next 16, React 19, TS, MUI v9, Tailwind v4, Jest+RTL, ESLint 9
-│       └── src/{app, components/{ui,layout,providers,workspace}, contexts, hooks, lib/{api,types,format,theme}}
+│       └── src/{app, components/{ui,layout,providers,workspace}, contexts, hooks, lib}
 ├── packages/
-│   └── datagen/                   # synthetic data generator, standalone uv package
-│       └── datagen/{roster.py, inventory.py, admissions.py, seed.py}
+│   └── datagen/                   # roster, inventory, admissions (scripted flu surge), seed
 └── infra/
     ├── terraform/
     │   ├── providers.tf, variables.tf, outputs.tf, main.tf
     │   ├── modules/{cloud_run_api, cloud_run_web, firestore, pubsub, iam, secrets}
     │   └── envs/dev/{backend.tf, terraform.tfvars}   # local tfstate — deliberate hackathon-scope choice
-    └── scripts/
-        ├── day1_capability_probe.sh
-        ├── enable_apis.sh
-        └── deploy.sh
+    └── scripts/{day1_capability_probe.sh, deploy.sh}
 ```
 
-**No `alembic/`/SQLAlchemy** (deviation from `nerifect-backend`): Prudently's state (roster, shifts, inventory, admissions, armor events, chaos results) is document-shaped and needs to be shared with Vertex tooling — Firestore replaces the relational layer entirely. No Cloud SQL needed; keeps infra surface smaller for 11 days.
+Each agent directory ships its own `requirements.txt` — required by `adk deploy agent_engine`, which resolves deploy-time dependencies via plain `pip` against that file, not the shared `uv.lock` (confirmed Day 3: the two resolvers can and do diverge).
 
-**Coverage gate, scoped not dropped:** keep `pytest --cov-fail-under=80` and the `make commit` staged-test convention, but scope it to `agents.shift.burndown`, `agents.supply.reorder`, `services.simclock`, `services.platform` (pure logic + adapter contracts) via `[tool.coverage.run] omit = ["tests/*", "infra/*", "packages/datagen/*"]`. Full-repo 80% including ADK orchestration glue isn't worth the schedule risk solo; the math and adapter contracts are exactly where an invisible bug would sink a live demo.
+**No `alembic/`/SQLAlchemy**: Prudently's state is document-shaped and needs to be shared with Vertex tooling — Firestore replaces the relational layer entirely.
 
-## 2. Capability → GCP mapping, Day-1 verification spike, fallback design
+**Coverage gate, scoped not dropped:** `pytest --cov-fail-under=80` scoped to pure-logic modules only — `agents.shift.burndown` (100% as of Day 3), `agents.inventory.par_levels`, `agents.supply.reorder`, `agents.hr.credentialing`, `services.simclock`, `services.platform`. ADK orchestration glue (`agent.py` files, `services/memory.py`, `services/state.py`) is excluded — proven Day 3 that even *importing* those modules under pytest triggers live GCP calls unless carefully guarded, which is exactly the kind of fragility the scoping was meant to avoid.
 
-| # | Capability | Confidence | Real backing if confirmed | Fallback (`_local.py`) |
+## 2. Capability → GCP mapping, fallback design
+
+| # | Capability | Status (confirmed Day 1) | Real backing | Fallback (`_local.py`) |
 |---|---|---|---|---|
-| 1 | Agent Runtime | Confirmed | Vertex AI Agent Engine (`ReasoningEngine`), ADK "Full Integration", `adk deploy agent_engine` | none needed |
-| 2 | Memory Bank | Confirmed | `VertexAiMemoryBankService`, `CreateMemory`+`GenerateMemories`, `us` residency, IAM `aiplatform.memoryViewer/Editor` | none needed |
-| 3 | Agent Registry | Unverified | Vertex AI Agent Builder registry/catalog resource, if present | Firestore `agent_registry` collection: `{agent_name, version, owner, description, endpoint_uri, capabilities[], approved}`; write restricted to a `platform-admin` SA |
-| 4 | Agent Identity | Unverified | Distinct "Agent Identity" product, if surfaced | Per-agent GCP service accounts (`shift-agent-sa@`, `supply-agent-sa@`, `chaos-agent-sa@`, `coordinator-agent-sa@`) via Terraform, least-privilege IAM conditions, ADC only — no downloaded keys |
-| 5 | Agent Gateway | Unverified | Apigee "agent gateway" product, if present | ADK `before_tool_callback`/`after_tool_callback` interceptor in the Coordinator: Registry lookup → Armor check → Observability span → per-agent rate-limit/tool-allowlist policy table |
-| 6 | Model Armor | Likely real (existing Vertex AI product) | `modelarmor.googleapis.com`, `sanitizeUserPrompt`/`sanitizeModelResponse` | Regex/heuristic injection + PII detector behind the same `ArmorVerdict{blocked, reason, category}` interface, `ARMOR_BACKEND=vertex\|local` |
-| 7 | Agent Observability | Unverified as a distinct dashboard | Any "Agent Observability" console surface | OpenTelemetry Python SDK → Cloud Trace + Cloud Logging exporters; spans on `gateway.route`, `agent.invoke`, `armor.check`, `memory.write`; trace ID stamped on every Firestore audit record |
+| 1 | Agent Runtime | **Confirmed** | Vertex AI Agent Engine (`ReasoningEngine`), ADK "Full Integration", `adk deploy agent_engine` | none needed |
+| 2 | Memory Bank | **Confirmed, working end-to-end** | `VertexAiMemoryBankService` — must use the *same region* as its `agent_engine_id` (confirmed Day 3: `us` 404s, `us-central1` works) | none needed |
+| 3 | Agent Registry | Not found as distinct product | — | Firestore `agent_registry` collection: `{agent_name, version, owner, description, endpoint_uri, capabilities[], approved}` |
+| 4 | Agent Identity | Not found as distinct product | Deployed agents run under Google's own `service-*@gcp-sa-aiplatform-re.iam.gserviceaccount.com`, confirmed Day 3 — **not** any custom per-agent SA; Agent Engine has no `--service_account` deploy flag | Per-agent SAs (`modules/iam`) still used for local dev / any future custom-SA support; the reasoning-engine service agent gets explicit IAM grants alongside them |
+| 5 | Agent Gateway | Not found as lightweight product | — | ADK `before_tool_callback`/`after_tool_callback` interceptor in the Coordinator |
+| 6 | Model Armor | **Confirmed real product** | `modelarmor.googleapis.com` | Regex/heuristic fallback behind the same `ArmorVerdict` interface |
+| 7 | Agent Observability | Not found as distinct dashboard | — | OpenTelemetry SDK → Cloud Trace + Cloud Logging |
 
-**Day-1 verification spike (literal first build step, before deeper architecture code):**
-1. `gcloud auth list && gcloud config get-value project`
-2. `gcloud services list --available --filter="name~aiplatform OR name~agent OR name~modelarmor OR name~apigee OR name~discoveryengine"`
-3. `curl -s "https://aiplatform.googleapis.com/\$discovery/rest?version=v1" | jq '.resources | keys'` — check for `reasoningEngines`, `memoryBanks`, `agents`, `registries`, `identities`
-4. Manual console pass: Vertex AI → Agent Builder / Agent Engine — check for Registry / Identity / Gateway / Observability tabs (console-only surfaces won't show in the discovery doc)
-5. `gcloud services enable aiplatform.googleapis.com firestore.googleapis.com pubsub.googleapis.com run.googleapis.com secretmanager.googleapis.com cloudtrace.googleapis.com logging.googleapis.com`
-6. Write findings to `docs/day1-probe-results.md` as a binding table (`capability → status/backend/env var`) — this file is committed and referenced by name in the architecture diagram and README; never overclaim a managed product judges can't find.
-7. **Region lock (one-way door, decide same day):** Firestore location is immutable post-creation and must match the Agent Runtime region and Memory Bank residency. Lock to **`us-central1`** for Cloud Run/Pub/Sub/Firestore/Reasoning Engine, **`us`** multi-region for Memory Bank, before the first `terraform apply`.
-
-`infra/scripts/day1_capability_probe.sh` implements steps 1–3 and 5; output feeds the probe-results doc.
+Two GCP-specific bugs were root-caused Day 3, both now fixed in code with comments explaining why (see `apps/api/services/state.py` and `apps/api/config.py`) — every subsequent agent inherits the fix automatically:
+1. Agent Engine auto-injects `GOOGLE_CLOUD_PROJECT` into the sandbox as the numeric **project number**, silently overriding pydantic-settings' default; Firestore's resource-path resolution rejects the numeric form. Fixed with a hardcoded `GCP_PROJECT_ID` constant, bypassed for anything building a GCP resource path.
+2. Memory Bank scoped to a specific Reasoning Engine must use that engine's own region.
 
 ## 3. GCP infra service selection
 
-- **Cloud Run** (`prudently-api`, `prudently-web`) — required by the track; `gcloud run deploy --source` (no separate Cloud Build/Artifact Registry pipeline needed for hackathon speed).
-- **Vertex AI Agent Engine (Reasoning Engine)** — hosts the multi-agent ADK app.
-- **Vertex AI Memory Bank** — long-term cross-session narrative memory, scoped per `(agent_name, user)`.
-- **Pub/Sub** — the simulation clock (`sim-ticks` topic, `SIM_SEED`/`SIM_SPEEDUP`) and Gateway-intercepted audit-event bus (topology stays hub-and-spoke through the Gateway, not peer-to-peer agent messaging).
-- **Firestore** (regional `us-central1`, Native mode) — live operational state: `staff_roster`, `shift_history`, `inventory`, `vendors`, `admissions_timeseries`, `agent_registry`, `armor_events`, `chaos_experiments`. Memory Bank = "what an agent remembers/reasoned about"; Firestore = "what is currently true."
-- **Secret Manager** — Gemini API key and any other credentials; no `.json` key files in-repo.
-- **Cloud Trace + Cloud Logging** — Observability fallback (OTel export).
-- **IAM** — per-agent service accounts (Identity fallback) with custom conditions scoping Firestore/Memory Bank access.
-
-**Architecture decision — single Reasoning Engine, Gateway as an in-process interceptor:** Deploy Coordinator + Shift + Supply + Chaos as **one** ADK multi-agent app (Coordinator as root agent, the three specialists as `AgentTool` sub-agents) to a single Vertex AI Agent Runtime. This is the ADK "Full Integration" tier and realistic solo in the time budget. The Gateway is `before_tool_callback`/`after_tool_callback` hooks wrapping every sub-agent call — a real routing/policy chokepoint without standing up and wiring A2A across four separately-deployed Reasoning Engines (higher risk, lower payoff at this scope). **Stretch, only if ahead of schedule after Day 6:** split Chaos into its own Reasoning Engine invoked via A2A to literally demonstrate the protocol.
+- **Cloud Run** (`prudently-api`, `prudently-web`) — deployed and live since Day 2.
+- **Vertex AI Agent Engine (Reasoning Engine)** — **two** engines, not one:
+  - **Primary engine**: Coordinator + Shift + Inventory + Supply Chain + HR as `AgentTool` sub-agents under one ADK app, Gateway as an in-process interceptor. This is still the right call for five of six specialists — real routing/policy chokepoint without the overhead of five separately-deployed engines.
+  - **Medical Representative engine**: deployed **separately**, invoked from Supply Chain via genuine Agent2Agent. This is no longer a "stretch goal" — it's committed scope, because it's the one boundary in the design that actually warrants a separate deployed identity (external-facing, untrusted-by-default).
+  - **Chaos & Continuity**: stays inside the primary engine (its fault-injection targets are internal to the fleet, no boundary-crossing rationale for a separate deployment).
+- **Vertex AI Memory Bank** — per-engine, region-matched (see §2).
+- **Pub/Sub** — simulation clock + Gateway-intercepted audit-event bus.
+- **Firestore** (regional `us-central1`, Native mode) — `staff_roster`, `shift_history`, `inventory`, `vendors`, `admissions_timeseries`, `agent_registry`, `armor_events`, `chaos_experiments`.
+- **Secret Manager** — Gemini API key, fetched at runtime by each agent (`config.bootstrap_gemini_credentials()`), never baked into a deploy bundle.
+- **Cloud Trace + Cloud Logging** — Observability fallback.
+- **IAM** — per-agent SAs (Identity fallback) *and* explicit grants to the real Agent Engine runtime identity (see §2 note #4).
 
 ## 4. AGENTS.md content outline
 
-Mirror the `nerifect-frontend`/`career-ops` pattern exactly: `AGENTS.md` canonical, `CLAUDE.md` = `@AGENTS.md` plus a note that Claude-specific content goes there only if `AGENTS.md` has no equivalent.
+`AGENTS.md` canonical, `CLAUDE.md` = `@AGENTS.md`. Sections: what Prudently is; agent roster table (now 7 rows, including which engine each deploys to and its Memory Bank scope key); the platform adapter layer; local dev commands; running/deploying an agent via ADK CLI (including the per-agent `requirements.txt` requirement and the two root-caused GCP gotchas from §2); service-account/IAM setup; Makefile targets; testing conventions; Terraform apply flow; simulation clock.
 
-Sections: (1) what Prudently is — one paragraph; (2) agent roster table (file location, ADK role, Memory Bank scope key, Firestore collections read/written); (3) the platform adapter layer — `*_vertex.py`/`*_local.py` split, point at `docs/day1-probe-results.md` as source of truth, list the `*_BACKEND` env vars; (4) local dev commands (`make api-dev`, `make web-dev`, `make seed`, emulator setup); (5) running an agent via ADK CLI (`adk web`, `adk run`); (6) service-account/IAM setup, "never commit a key file" rule; (7) full Makefile target list; (8) testing conventions (coverage scope per §1, `make test`, `make eval`); (9) Terraform apply flow, region-lock note; (10) simulation clock (`SIM_SEED`/`SIM_SPEEDUP`, reset/replay for reshooting the demo).
+## 5. Schedule
 
-Root `Makefile` targets: `dev`, `api-dev`, `web-dev`, `seed`, `probe`, `tf-plan`, `tf-apply`, `deploy`, `lint`, `test`, `eval`, `commit`.
+**Progress log (why the remaining schedule doesn't map 1:1 to "days since Aug 20"):** Days 0–3 of the original plan — scaffold, GCP provisioning + capability probe, first Cloud Run deploy + datagen + sim clock, and the Shift Allocation Agent fully deployed and verified with working Memory Bank — were all completed by the morning of **Aug 21**, well ahead of the original per-day calendar mapping. That buffer is what makes the roster expansion affordable. The schedule below is anchored to calendar dates going forward, not "Day N" labels.
 
-## 5. Day-by-day schedule (Aug 20 → Aug 31)
-
-- **Day 0 (Aug 20, tonight):** Plan approved → monorepo skeleton created (empty dirs, `pyproject.toml`, `package.json`, `AGENTS.md`/`CLAUDE.md`, root `Makefile`, `.gitignore`).
-- **Day 1 (Aug 21):** Verification spike (§2) run, `docs/day1-probe-results.md` written, region locked. APIs enabled. Terraform foundational resources applied (Firestore DB, Pub/Sub topics, per-agent SAs) — no Cloud Run yet.
-- **Day 2 (Aug 22):** Cloud Run modules + Secret Manager. Deploy hello-world API and web to Cloud Run — **first real GCP deployment done today**, not deferred. `packages/datagen` (roster/inventory/admissions with scripted flu surge, seed script). Sim clock skeleton with `DRY_RUN` stub mode to avoid burning Gemini quota during dev.
-- **Day 3 (Aug 23):** Shift Agent: `burndown.py` (unit-tested, coverage-gated) + ADK agent wired to Firestore state. Memory Bank wrapper live: `CreateMemory` at simulated-day boundaries, `GenerateMemories` from session events.
-- **Day 4 (Aug 24):** Supply Agent: `reorder.py` + ADK agent wired to inventory/vendor state, Memory Bank scoped per SKU/vendor. `services/platform/armor.py` Protocol + `armor_local.py` + `armor_vertex.py` stub.
-- **Day 5 (Aug 25):** Coordinator Agent (root, wraps Shift+Supply as `AgentTool` sub-agents). Gateway interceptor (Registry lookup → Armor check → Observability span → policy table). Registry (`registry_local.py`, seeded with all 4 agents) + Identity (per-agent SAs via Terraform, IAM conditions).
-- **Day 6 (Aug 26) — MIDPOINT CHECKPOINT:** Full vertical slice (Coordinator + Shift + Supply, no Chaos yet) deployed as one Reasoning Engine, fronted by Cloud Run, dashboard reading live Firestore, sim clock driving a compressed flu-surge sequence end-to-end **on GCP**. If not running on GCP by end of day, cut in this order: (1) fleet-mode fault injection, (2) Chaos agent entirely, (3) Supply's alternate-vendor reasoning depth, (4) dashboard polish → fall back to ADK web UI + console screenshots. **Never cut:** Memory Bank, the Model Armor blocked moment, the Cloud Run deployment, the video itself.
-- **Day 7 (Aug 27):** Model Armor end-to-end: poisoned-vendor-email prompt-injection scenario in Supply's ingestion path, blocked *before* reaching LLM context or Memory Bank, `armor_events` persisted, dashboard "BLOCKED" banner. Observability wired: OTel spans, Cloud Trace visible, trace ID on Firestore audit records.
-- **Day 8 (Aug 28):** Chaos & Continuity Agent — hospital-domain what-if (through Coordinator/Gateway, not peer-to-peer) + fleet-domain fault injection (kill-agent-mid-task, poisoned Memory Bank write attempt also caught by Armor, Gateway latency injection). Run once for real against the deployed stack, persist to `chaos_experiments`. Never re-run live during recording — dashboard replays the persisted run.
-- **Day 9 (Aug 29):** Dashboard build-out (fleet overview, registry list, live charts, armor_events feed, chaos_experiments replay, observability/trace panel — use the `dataviz` skill for chart/color conventions). Architecture diagram finalized, annotated real-vs-emulated per probe results. README spin-up draft.
-- **Day 10 (Aug 30):** Clean-clone reproducibility test in a scratch dir (`git clone` → README verbatim → fix breakage). Record the ~4 min demo video (§6). Capture GCP Console B-roll (Cloud Run revisions, Reasoning Engine detail, Firestore data, Cloud Trace waterfall).
-- **Day 11 (Aug 31, submit by noon PDT):** Devpost submission (description, tech, learnings), video upload, hosted URL + repo link, final checklist (§7), submit.
+- **Aug 21 (afternoon/evening) – Aug 22:** Inventory Management Agent (`par_levels.py`, tested) + Supply Chain Resiliency Agent (`reorder.py`, tested), both deployed to the primary engine and verified with real queries against live Firestore, mirroring the exact verification discipline from Shift (a real query with tool-call output, not just deploy exit code 0).
+- **Aug 23:** HR Agent (`credentialing.py` + escalation-from-Shift logic) + Medical Representative Agent, deployed **separately** to its own Reasoning Engine. Model Armor screening (`services/platform/armor.py` real + local adapters) built into Medical Representative's ingestion path from the start, not bolted on later.
+- **Aug 24–25:** Coordinator Agent (root, wraps Shift/Inventory/Supply/HR as `AgentTool` sub-agents) + Gateway interceptor (Registry lookup → Armor check → Observability span → policy table) + Registry (seeded with all 7 agents) + Identity (per-agent SA IAM grants, plus the real Agent Engine runtime identity per §2) + Supply Chain ↔ Medical Representative A2A wiring.
+- **Aug 25/26 — MIDPOINT CHECKPOINT (expanded scope, per explicit confirmation):** Coordinator + Shift + Inventory + Supply Chain + HR + Medical Representative (via A2A) all deployed and working end-to-end **on GCP**, dashboard reading live Firestore, sim clock driving a compressed flu-surge sequence. Chaos is intentionally not part of this checkpoint. **Cut order if behind:** (1) HR Agent — first cut, per the honest scope assessment above, (2) fleet-mode fault injection (Chaos, still Aug 27 scope, unaffected by this checkpoint), (3) Supply Chain's alternate-vendor reasoning depth, (4) dashboard polish. **Never cut:** Memory Bank, the Model Armor blocked moment, the Medical Representative A2A path (it's now load-bearing for the track's own "cross-department" and "Agent2Agent" story), the Cloud Run deployment, the video.
+- **Aug 27:** Model Armor end-to-end: poisoned-vendor-email prompt injection hits Medical Representative's ingestion path, blocked *before* reaching LLM context, Memory Bank, or Supply Chain via A2A; `armor_events` persisted; dashboard "BLOCKED" banner. Observability wired: OTel spans across the Gateway *and* the A2A hop, Cloud Trace visible, trace ID on Firestore audit records.
+- **Aug 28:** Chaos & Continuity Agent — hospital-domain what-if (through Coordinator/Gateway) + fleet-domain fault injection (kill-agent-mid-task, attempted Memory Bank poisoning also caught by Armor, Gateway latency injection). Run once for real against the deployed stack, persist to `chaos_experiments`, replay from there for the demo — never re-run live during recording.
+- **Aug 29–30:** Dashboard build-out — fleet overview (7 registry entries), Inventory panel (stock/par-level/expiry), Supply Chain panel (vendor/reorder recommendations, kept visually distinct from Inventory), HR escalation feed, **A2A trace panel** showing Supply Chain ↔ Medical Representative exchanges distinctly from internal Gateway-routed calls, armor_events feed, chaos_experiments replay, observability/trace panel (`dataviz` skill for chart/color conventions). Architecture diagram finalized (7 agents, 2 Reasoning Engines, A2A hop annotated). README spin-up draft.
+- **Aug 30 (late) – Aug 31 (morning):** Clean-clone reproducibility test from a bare `git clone`. Record the ~4 min demo video (§6). Capture GCP Console B-roll (Cloud Run revisions, both Reasoning Engine detail pages, Firestore data, Cloud Trace waterfall including the A2A span).
+- **Aug 31, submit by noon PDT:** Devpost submission (description, tech, learnings — the two root-caused bugs from §2 are a legitimate, judge-credible "learnings" story), video upload, hosted URL + repo link, final checklist (§7), submit.
 
 ## 6. Demo video narrative beats (~4 min)
 
 1. **0:00–0:30** — Problem/value prop: ops manager's view, burnout risk + stockout risk + no fleet coordination today; name the track.
-2. **0:30–1:15** — Fleet overview: Coordinator + 3 specialists, Agent Registry entries, calm-baseline Firestore state.
-3. **1:15–2:15** — Flu surge, compressed sim clock: Shift Agent flags rising fatigue/overtime burndown → reallocation recommendation; Supply Agent flags accelerating consumption vs. lead time → reorder recommendation; both flow through the Gateway with trace IDs; Memory Bank timeline advancing across "weeks" in seconds.
-4. **2:15–2:45** — **Model Armor blocked moment:** poisoned vendor email hits Supply's ingestion path, dashboard shows red "BLOCKED" banner + `armor_events` entry; narrate that the block happened before reaching LLM context or Memory Bank.
-5. **2:45–3:20** — Chaos & Continuity, both modes: hospital-domain what-if (mass-casualty influx) routed through Coordinator; fleet-domain fault-injection results (killed agent, attempted memory poisoning also caught by Armor, injected latency) replayed from the persisted run.
-6. **3:20–3:50** — Proof of GCP deployment: Cloud Run console, Vertex AI Agent Engine detail page, Cloud Trace waterfall for one full Coordinator→Gateway→Specialist→Armor→Memory Bank chain.
-7. **3:50–4:00** — Close: architecture diagram, one honest sentence on which capabilities were real managed GCP products vs. local-emulated fallbacks (a credibility beat, not a weakness to hide).
+2. **0:30–1:15** — Fleet overview: Coordinator + 6 specialists, Agent Registry entries, calm-baseline Firestore state. Call out Medical Representative's separate deployment explicitly — this is the A2A boundary.
+3. **1:15–2:15** — Flu surge, compressed sim clock: Shift Agent flags rising burndown → reallocation; if reallocation options run out, escalates to HR (activate per-diem pool); Inventory flags falling stock → Supply Chain decides to reorder; all flow through the Gateway with trace IDs; Memory Bank timeline advancing across "weeks" in seconds.
+4. **2:15–2:50** — **Model Armor blocked moment:** poisoned vendor email hits Medical Representative's ingestion path, dashboard shows red "BLOCKED" banner + `armor_events` entry; narrate that the block happened before the payload could reach Supply Chain via A2A, LLM context, or Memory Bank.
+5. **2:50–3:20** — Chaos & Continuity, both modes: hospital-domain what-if (mass-casualty influx) routed through Coordinator; fleet-domain fault-injection results (killed agent, attempted memory poisoning also caught by Armor, injected latency) replayed from the persisted run.
+6. **3:20–3:50** — Proof of GCP deployment: Cloud Run console, **both** Vertex AI Agent Engine detail pages, Cloud Trace waterfall for one full chain including the Supply Chain → Medical Representative A2A span.
+7. **3:50–4:00** — Close: architecture diagram, one honest sentence on real-vs-emulated capabilities (a credibility beat, not a weakness to hide).
 
 ## 7. Submission-readiness checklist
 
 - **Hosted project URL** — `prudently-web` Cloud Run URL, reachable at submission time.
-- **Code repository + README** — monorepo root on GitHub; README verified via the Day 10 clean-clone test; includes `terraform apply`, `make seed`, `make dev`/`make deploy`, region-lock note.
-- **Architecture diagram** — annotated real-vs-emulated per `docs/day1-probe-results.md`.
-- **~4 min demo video** — per §6, including explicit GCP deployment proof.
-- **Text description** (features/tech/data/learnings) — drafted Day 9, referencing the probe-results table honestly in "learnings."
+- **Code repository + README** — monorepo root on GitHub; README verified via the clean-clone test; includes `terraform apply`, `make seed`, `make dev`/`make deploy`, region-lock note, both Reasoning Engine IDs.
+- **Architecture diagram** — 7 agents, 2 Reasoning Engines, A2A hop, real-vs-emulated per `docs/day1-probe-results.md`.
+- **~4 min demo video** — per §6, including explicit GCP deployment proof for both engines.
+- **Text description** (features/tech/data/learnings) — the two root-caused Day 3 bugs and the Inventory/Supply split and MedRep A2A rationale are legitimate "learnings" content.
 
 ## Verification
 
-- Day 1: `docs/day1-probe-results.md` exists and every capability row is filled with a definitive `confirmed`/`not-found` status.
-- Day 2: `curl` the deployed Cloud Run API/web URLs and confirm 200s; this is the first real GCP deployment proof artifact.
-- Day 3–5: `make test` passes with the scoped 80% coverage gate on `burndown.py`/`reorder.py`/`simclock`/`platform` adapters.
-- Day 6: End-to-end smoke test — trigger the sim clock against the deployed Cloud Run API and confirm Shift/Supply recommendations appear in the dashboard and Memory Bank facts accumulate, all running on GCP (not localhost).
-- Day 7: Manually submit the poisoned-vendor-email payload and confirm it's blocked and logged before touching Memory Bank.
-- Day 10: Clean-clone reproducibility test must succeed end-to-end from a bare `git clone` following only the README.
+- Every agent deploy: a **real query with tool-call output** against the deployed engine, not just `adk deploy` exit code 0 — proven Day 3 that exit 0 does not mean working (3 of 6 Shift deploys "succeeded" while broken).
+- Midpoint checkpoint: end-to-end smoke test triggering the sim clock against the deployed Cloud Run API, confirming Shift/Inventory/Supply/HR recommendations appear in the dashboard, Memory Bank facts accumulate, and the Supply Chain ↔ Medical Representative A2A call is visible in Cloud Trace — all running on GCP, not localhost.
+- Model Armor day: manually submit the poisoned-vendor-email payload and confirm it's blocked and logged before touching Memory Bank or crossing the A2A boundary.
+- Final: clean-clone reproducibility test must succeed end-to-end from a bare `git clone` following only the README.
