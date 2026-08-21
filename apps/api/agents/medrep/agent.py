@@ -1,9 +1,20 @@
 """Medical Representative Agent — deployed separately from the primary Reasoning Engine
 (unlike every other specialist), reached via genuine Agent2Agent by Supply Chain Resiliency
 (A2A wiring lands Day 5, not here). External-facing vendor/pharma liaison; owns Model Armor
-screening of every inbound vendor communication on its ingestion path, before any content
-reaches LLM context, Memory Bank, or crosses back over the A2A boundary — see
-services/platform/armor.py.
+screening of every inbound vendor communication — see services/platform/armor.py.
+
+IMPORTANT, known gap: screen_vendor_message is a FunctionTool, which means the model has
+already read the raw message text into its own context to extract the tool call arguments
+*before* Model Armor ever sees it — screening here happens after LLM context exposure, not
+before it. What this tool DOES guarantee: the model is instructed to never act on, repeat, or
+propagate blocked content (verified live, Day 4 — the model correctly refused to execute an
+injected instruction after a 'blocked' tool result). What it does NOT guarantee: that the raw
+poisoned text never reached LLM context, or that a differently-prompted/compromised model
+couldn't ignore that instruction. A real pre-LLM boundary — screening in a FastAPI ingestion
+route or an ADK before_model_callback, before the message is ever handed to the model — is
+required before the Aug 27 Model Armor E2E day, which explicitly claims 'blocked before
+reaching LLM context.' Keep this tool as a second, defense-in-depth layer once that lands;
+don't remove it.
 
 Deliberately not wired to Memory Bank in this pass: services/memory.py's
 get_memory_service() hardcodes agent_engine_id to Shift's engine, so writing through it here
