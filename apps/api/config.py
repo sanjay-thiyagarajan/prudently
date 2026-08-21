@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     identity_backend: Backend = "local"
     gateway_backend: Backend = "local"
     armor_backend: Backend = "vertex"
-    observability_backend: Backend = "local"
+    observability_backend: Backend = "vertex"
 
     # Model Armor templates are regional, not multi-region — same "must match the region
     # lock" pattern as memory_bank_location (see comment above), confirmed working directly

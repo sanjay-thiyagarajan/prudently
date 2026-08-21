@@ -40,3 +40,11 @@ def get_inventory() -> list[dict]:
 
 def get_vendors() -> list[dict]:
     return [doc.to_dict() for doc in get_client().collection("vendors").stream()]
+
+
+def write_armor_event(event: dict) -> None:
+    """Appends one Model Armor screening outcome to the `armor_events` collection — the
+    dashboard's BLOCKED-banner feed (Aug 27, docs/build-plan.md §5) reads this. Auto-ID'd
+    (`.add`, not `.set`): events have no natural key, and a screening can legitimately repeat
+    for the same vendor/message pair (retries, replay)."""
+    get_client().collection("armor_events").add(event)
