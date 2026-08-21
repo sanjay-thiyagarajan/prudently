@@ -11,7 +11,11 @@ Armor's job is screening content at the one boundary where untrusted input actua
 (Medical Representative's ingestion tool, services/platform/armor.py). Running a sanitize
 round trip on every internal hop would cost real latency on the demo's hot path for no
 security benefit. `_ARMOR_SCREENED_AGENTS` is the opt-in list for the rare Gateway-routed call
-that should get it anyway — empty by default.
+that should get it anyway — empty by default. Adding a name to that set makes Coordinator's
+own deployed sandbox import `armor_vertex.py`, which imports `observability.py` — Coordinator's
+`requirements.txt` must list `opentelemetry-sdk`/`opentelemetry-exporter-gcp-trace` (it does,
+Day 5) or that branch fails the same silent-truncation way the Observability rollout itself
+did the first time (see AGENTS.md's "two deploy paths are not symmetric" note).
 
 The Observability step wraps the whole decision (registry lookup, policy check, optional
 Armor) in one real OTel span via services/platform/observability.py, not just a point-in-time
