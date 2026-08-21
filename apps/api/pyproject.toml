@@ -34,7 +34,13 @@ target-version = ["py312"]
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["agents.shift.burndown", "agents.supply.reorder", "services.simclock", "services.platform"]
+source = [
+    "agents.shift.burndown",
+    "agents.inventory.par_levels",
+    "agents.supply.reorder",
+    "services.simclock",
+    "services.platform",
+]
 omit = ["tests/*", "evals/*"]
 
 [tool.coverage.report]

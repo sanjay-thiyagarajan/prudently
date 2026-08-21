@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     # Reasoning Engine resource IDs, filled in after each agent's first `adk deploy
     # agent_engine` — see docs/build-plan.md Day 3-5. Empty string until deployed.
     shift_agent_engine_id: str = "6191105334669475840"
-    supply_agent_engine_id: str = ""
+    inventory_agent_engine_id: str = "6199971796435861504"
+    supply_agent_engine_id: str = "6129884527234908160"
     chaos_agent_engine_id: str = ""
     coordinator_agent_engine_id: str = ""
 
