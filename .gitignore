@@ -24,6 +24,10 @@ htmlcov/
 .ruff_cache/
 *.egg-info/
 
+# ADK deploy temp artifacts (adk deploy agent_engine creates these transiently)
+apps/api/agents/*_tmp*/
+apps/api/agents/*/.adk/
+
 # Node / Next.js
 node_modules/
 .next/

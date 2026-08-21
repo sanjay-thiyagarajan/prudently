@@ -45,3 +45,25 @@ resource "google_project_iam_member" "platform_admin_datastore_user" {
   role    = "roles/datastore.user"
   member  = "serviceAccount:${google_service_account.platform_admin.email}"
 }
+
+# Agents read/write Firestore live state (services/state.py) directly, not just through
+# platform-admin — grant every agent SA the same access.
+resource "google_project_iam_member" "agent_datastore_user" {
+  for_each = google_service_account.agent
+  project  = var.project_id
+  role     = "roles/datastore.user"
+  member   = "serviceAccount:${each.value.email}"
+}
+
+# Deployed agents on Vertex AI Agent Engine run under Google's own Reasoning Engine service
+# agent, not the custom per-agent SAs above (see modules/secrets/main.tf for the same
+# finding/caveat re: Agent Identity, Day 5). It needs Firestore access too.
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
+resource "google_project_iam_member" "reasoning_engine_service_agent_datastore_user" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
+}
