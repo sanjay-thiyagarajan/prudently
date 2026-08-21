@@ -50,13 +50,24 @@ def _filter_matched(filter_result: modelarmor_v1.FilterResult) -> bool:
 
 class VertexArmorService:  # pylint: disable=too-few-public-methods
     def screen(self, text: str) -> ArmorResult:
-        request = modelarmor_v1.SanitizeUserPromptRequest(
-            name=_template_name(),
-            user_prompt_data=modelarmor_v1.DataItem(text=text),
-        )
-        response = _client().sanitize_user_prompt(request=request)
-        result = response.sanitization_result
+        # Fail closed: a security screen that raises and takes the demo down with it is worse
+        # than one that blocks conservatively. This session hit transient network resets
+        # against other Google endpoints (stream_query) more than once — treat the same class
+        # of failure here as "couldn't verify it's safe," not "assume it's fine."
+        try:
+            request = modelarmor_v1.SanitizeUserPromptRequest(
+                name=_template_name(),
+                user_prompt_data=modelarmor_v1.DataItem(text=text),
+            )
+            response = _client().sanitize_user_prompt(request=request)
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            return ArmorResult(
+                blocked=True,
+                matched_filters=("armor_unavailable",),
+                reason=f"Model Armor call failed, failing closed: {exc}",
+            )
 
+        result = response.sanitization_result
         blocked = result.filter_match_state == modelarmor_v1.FilterMatchState.MATCH_FOUND
         matched = tuple(
             name
