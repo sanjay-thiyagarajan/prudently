@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     supply_agent_engine_id: str = "6129884527234908160"
     hr_agent_engine_id: str = "5467010957081313280"
     medrep_agent_engine_id: str = "6319035711584468992"
-    chaos_agent_engine_id: str = ""
+    chaos_agent_engine_id: str = "2682941962436214784"
     coordinator_agent_engine_id: str = "6956858008810815488"
 
     registry_backend: Backend = "local"
