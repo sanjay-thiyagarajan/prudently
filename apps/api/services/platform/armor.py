@@ -21,6 +21,11 @@ class ArmorResult:
     blocked: bool
     matched_filters: tuple[str, ...]
     reason: str | None
+    # True only when Model Armor itself couldn't be reached (fail-closed path in
+    # armor_vertex.py) — distinct from a genuine content match. Callers (dashboard,
+    # armor_events) must not render this the same as a real block: an outage rendered as a
+    # successful security demo is a wrong narration, not a security win.
+    service_error: bool = False
 
 
 class ArmorService(Protocol):  # pylint: disable=too-few-public-methods

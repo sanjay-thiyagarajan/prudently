@@ -6,7 +6,7 @@ from __future__ import annotations
 from google.adk.agents.context import Context
 from google.adk.tools.base_tool import BaseTool
 
-from .gateway import start_observability_span  # pylint: disable=cyclic-import
+from .observability import get_observability_service  # pylint: disable=cyclic-import
 from .registry import get_registry_service  # pylint: disable=cyclic-import
 
 # Coordinator → specialist authorization — a fixed allow-list rather than a Firestore table,
@@ -37,23 +37,32 @@ class LocalGatewayService:  # pylint: disable=too-few-public-methods
         caller = tool_context.agent_name
         target = tool.name
 
-        entry = get_registry_service().get_agent(target)
-        if entry is None:
-            return _blocked(f"Gateway: '{target}' is not a registered agent.")
-        if entry.status != "active":
-            return _blocked(f"Gateway: '{target}' is registered but not active ({entry.status}).")
+        with get_observability_service().span(
+            "gateway.before_tool_call", {"gateway.caller": caller, "gateway.target": target}
+        ) as span:
+            entry = get_registry_service().get_agent(target)
+            if entry is None:
+                span.set_attribute("gateway.decision", "blocked_unregistered")
+                return _blocked(f"Gateway: '{target}' is not a registered agent.")
+            if entry.status != "active":
+                span.set_attribute("gateway.decision", "blocked_inactive")
+                return _blocked(
+                    f"Gateway: '{target}' is registered but not active ({entry.status})."
+                )
 
-        allowed_targets = _POLICY_TABLE.get(caller)
-        if allowed_targets is None or target not in allowed_targets:
-            return _blocked(f"Gateway: '{caller}' is not authorized to call '{target}'.")
+            allowed_targets = _POLICY_TABLE.get(caller)
+            if allowed_targets is None or target not in allowed_targets:
+                span.set_attribute("gateway.decision", "blocked_unauthorized")
+                return _blocked(f"Gateway: '{caller}' is not authorized to call '{target}'.")
 
-        if target in _ARMOR_SCREENED_AGENTS:
-            # pylint: disable-next=import-outside-toplevel,cyclic-import
-            from .armor import get_armor_service
+            if target in _ARMOR_SCREENED_AGENTS:
+                # pylint: disable-next=import-outside-toplevel,cyclic-import
+                from .armor import get_armor_service
 
-            result = get_armor_service().screen(str(args))
-            if result.blocked:
-                return _blocked(f"Gateway: Model Armor flagged this call — {result.reason}")
+                result = get_armor_service().screen(str(args))
+                if result.blocked:
+                    span.set_attribute("gateway.decision", "blocked_armor")
+                    return _blocked(f"Gateway: Model Armor flagged this call — {result.reason}")
 
-        start_observability_span(caller, target)
-        return None
+            span.set_attribute("gateway.decision", "allowed")
+            return None

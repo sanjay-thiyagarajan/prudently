@@ -4,3 +4,5 @@ google-cloud-firestore>=2.19
 google-cloud-secret-manager>=2.20
 google-cloud-modelarmor>=0.7.1
 pydantic-settings>=2.4
+opentelemetry-sdk>=1.27
+opentelemetry-exporter-gcp-trace>=1.7

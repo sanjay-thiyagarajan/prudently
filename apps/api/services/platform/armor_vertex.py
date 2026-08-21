@@ -16,6 +16,7 @@ from google.cloud import modelarmor_v1
 from config import GCP_PROJECT_ID, get_settings
 
 from .armor import ArmorResult  # pylint: disable=cyclic-import
+from .observability import get_observability_service  # pylint: disable=cyclic-import
 
 
 @lru_cache
@@ -50,6 +51,15 @@ def _filter_matched(filter_result: modelarmor_v1.FilterResult) -> bool:
 
 class VertexArmorService:  # pylint: disable=too-few-public-methods
     def screen(self, text: str) -> ArmorResult:
+        with get_observability_service().span("armor.sanitize_user_prompt") as span:
+            result = self._screen(text)
+            span.set_attribute("armor.blocked", result.blocked)
+            span.set_attribute("armor.service_error", result.service_error)
+            if result.matched_filters:
+                span.set_attribute("armor.matched_filters", ",".join(result.matched_filters))
+            return result
+
+    def _screen(self, text: str) -> ArmorResult:
         # Fail closed: a security screen that raises and takes the demo down with it is worse
         # than one that blocks conservatively. This session hit transient network resets
         # against other Google endpoints (stream_query) more than once — treat the same class
@@ -65,6 +75,7 @@ class VertexArmorService:  # pylint: disable=too-few-public-methods
                 blocked=True,
                 matched_filters=("armor_unavailable",),
                 reason=f"Model Armor call failed, failing closed: {exc}",
+                service_error=True,
             )
 
         result = response.sanitization_result

@@ -17,7 +17,7 @@ products vs. local-emulated fallbacks.
 | Inventory Management | specialist (`AgentTool`) — tactical stock/par-level tracking — **deployed & verified** | `apps/api/agents/inventory/agent.py` | primary | `agent_name=inventory, user=<sku>` | `inventory` |
 | Supply Chain Resiliency | specialist (`AgentTool`) — strategic vendor/reorder decisions; calls Medical Representative via **A2A** — **deployed & verified** | `apps/api/agents/supply/agent.py` | primary | `agent_name=supply, user=<vendor>` | `vendors` |
 | HR | specialist (`AgentTool`) — credentialing + escalation target when Shift Allocation runs out of reallocation options — **deployed & verified** | `apps/api/agents/hr/agent.py` | primary | `agent_name=hr, user=<unit>` | `staff_roster` (read) |
-| Medical Representative | **deployed separately**, external-facing vendor/pharma liaison, owns Model Armor screening of inbound vendor comms — **deployed & verified** | `apps/api/agents/medrep/agent.py` | **separate** (A2A boundary) | not wired yet — see note below | none (ingestion only, writes via Supply Chain) |
+| Medical Representative | **deployed separately**, external-facing vendor/pharma liaison, owns Model Armor screening of inbound vendor comms — **deployed & verified** | `apps/api/agents/medrep/agent.py` | **separate** (A2A boundary) | not wired yet — see note below | `armor_events` (write, one doc per screening call) |
 | Chaos & Continuity | specialist (`AgentTool`), dual mode (hospital what-if + fleet fault-injection) | `apps/api/agents/chaos/agent.py` | primary | `agent_name=chaos, user=<scenario>` | `chaos_experiments` |
 
 `staff_roster` also holds a per-diem coverage pool (`is_per_diem=true`, `staff_id` prefixed
@@ -114,6 +114,25 @@ not the shared `uv.lock` — the two resolvers can diverge. Every agent folder n
 transitively need — e.g. `google-cloud-firestore`, `google-cloud-secret-manager`,
 `pydantic-settings`).
 
+**The two deploy paths are not symmetric — confirmed the hard way again, Day 5.** Cloud Run's
+`prudently-api` builds from `apps/api/Dockerfile`, which runs `uv sync` against
+`pyproject.toml` — it picks up every dependency listed there automatically. `adk deploy
+agent_engine` does not: it only installs what that agent's own `requirements.txt` lists, full
+stop, regardless of what's in `pyproject.toml`. Adding `opentelemetry-sdk` +
+`opentelemetry-exporter-gcp-trace` to `pyproject.toml` for the Observability work (below) was
+enough for Cloud Run but silently left Coordinator's and Medical Representative's
+`requirements.txt` (and therefore their deployed sandboxes) without those packages. Symptom
+was severe and non-obvious: `services/platform/observability_vertex.py` failing to import
+inside `before_tool_callback` didn't raise a visible exception through `stream_query` — it
+just truncated the event stream after the tool call with no error text at all, so *every*
+Coordinator delegation broke, not just the one path being changed. Caught by testing the
+simplest possible query (a plain `hr_agent` call, no A2A involved) after the actual A2A path
+under test stalled, which isolated the regression from Observability generally rather than
+from A2A specifically. Whenever a new dependency is added for `services/platform/` or any
+other module a deployed agent imports, add it to that agent's `requirements.txt` too — adding
+it to `pyproject.toml` alone is silently insufficient for anything deployed via `adk deploy
+agent_engine`.
+
 **Two root-caused GCP gotchas that will bite every agent, not just Shift** (full story in
 `apps/api/services/state.py` and `apps/api/config.py` comments):
 1. Agent Engine auto-injects `GOOGLE_CLOUD_PROJECT` into the sandbox as the numeric project
@@ -135,24 +154,35 @@ every new agent before considering it done.
 
 `apps/api/services/platform/` implements the five capabilities the Day-1 probe didn't confirm
 as distinct real GCP products (Registry, Identity, Gateway, Model Armor, Observability) behind
-a `<name>.py` Protocol. Only Model Armor has both a real (`armor_vertex.py`) and local
-(`armor_local.py`) implementation, selected by `ARMOR_BACKEND` — Registry, Identity, and
-Gateway are local-only by design (the Day-1 probe found no real GCP product backing any of
-them; see `docs/day1-probe-results.md` rows #3–5), so `registry.py`/`gateway.py` have no
-`_vertex.py` counterpart and raise loudly if `REGISTRY_BACKEND=vertex` is ever set. Agent
-Runtime and Memory Bank are confirmed real products and are implemented directly
-(`apps/api/services/memory.py`) — no adapter needed for those two. Status as of Day 5: Model
-Armor (Day 4, wired into `agents/medrep/agent.py`), Registry (`registry.py`/`registry_local.py`,
-Firestore `agent_registry` collection, seeded by `apps/api/scripts/seed_registry.py` /
-`make seed-registry`), Gateway (`gateway.py`/`gateway_local.py`, the Coordinator's
-`before_tool_callback` — Registry lookup → policy-table authorization → named-no-op
-Observability hook; Model Armor is deliberately *not* run on every Gateway call, see
-`gateway.py`'s module docstring), and Identity (`identity.py`, a thin resolver over the
-Terraform-provisioned per-agent SAs plus the one runtime service agent every deployed agent
-actually authenticates as — no runtime enforcement, that's infra-layer per the Day-1 probe's
-own "honest framing for judges") are all built. Observability's real OTel span creation is
-still Aug 27 scope; `gateway.py`'s `start_observability_span()` is the named hook already
-wired for that day to fill in.
+a `<name>.py` Protocol. Model Armor and Observability each have both a real (`_vertex.py`) and
+local (`_local.py`) implementation, selected by `ARMOR_BACKEND` / `OBSERVABILITY_BACKEND`
+(both default `vertex`) — Registry, Identity, and Gateway are local-only by design (the Day-1
+probe found no real GCP product backing any of them; see `docs/day1-probe-results.md` rows
+#3–5), so `registry.py`/`gateway.py` have no `_vertex.py` counterpart and raise loudly if
+`REGISTRY_BACKEND=vertex` is ever set. Agent Runtime and Memory Bank are confirmed real
+products and are implemented directly (`apps/api/services/memory.py`) — no adapter needed for
+those two. Status as of Day 5: Model Armor (Day 4, wired into `agents/medrep/agent.py`),
+Registry (`registry.py`/`registry_local.py`, Firestore `agent_registry` collection, seeded by
+`apps/api/scripts/seed_registry.py` / `make seed-registry`), Gateway
+(`gateway.py`/`gateway_local.py`, the Coordinator's `before_tool_callback` — Registry lookup →
+policy-table authorization → real Observability span, all inside one span covering the whole
+decision; Model Armor is deliberately *not* run on every Gateway call, see `gateway.py`'s
+module docstring), Identity (`identity.py`, a thin resolver over the Terraform-provisioned
+per-agent SAs plus the one runtime service agent every deployed agent actually authenticates
+as — no runtime enforcement, that's infra-layer per the Day-1 probe's own "honest framing for
+judges"), and Observability (`observability.py`/`_local.py`/`_vertex.py`, real OTel spans
+exported to Cloud Trace via `CloudTraceSpanExporter`, `SimpleSpanProcessor` not
+`BatchSpanProcessor` — see `observability_vertex.py`'s docstring for why) are all built.
+`armor_vertex.py`'s real Model Armor call and `gateway_local.py`'s whole decision are each
+wrapped in their own span; `medrep/agent.py`'s `screen_vendor_message` wraps both in an outer
+`medrep.screen_vendor_message` span and writes the resulting `trace_id` onto the
+`armor_events` Firestore record it persists (`services/state.py`'s `write_armor_event`) — so a
+blocked event in Firestore can be pivoted straight to its Cloud Trace detail. **Known gap:**
+that trace_id is only valid within the process that created it — there is no cross-process
+trace-context propagation across the A2A HTTP hop yet (would need
+`opentelemetry-instrumentation-httpx` on `RemoteA2aAgent`'s `httpx_client` plus ASGI
+instrumentation on the Cloud Run mount), so Supply Chain's own trace and Medical
+Representative's trace are two separate, unlinked traces today, not one distributed trace.
 
 **Model Armor setup, Day 4:** `modelarmor.googleapis.com` had to be enabled by hand
 (`gcloud services enable modelarmor.googleapis.com`) — the Day-1 probe's claim that it was

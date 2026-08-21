@@ -13,9 +13,9 @@ round trip on every internal hop would cost real latency on the demo's hot path 
 security benefit. `_ARMOR_SCREENED_AGENTS` is the opt-in list for the rare Gateway-routed call
 that should get it anyway — empty by default.
 
-The Observability step is a named no-op today — real OTel span creation is Aug 27 scope (see
-docs/build-plan.md §5) — kept as an explicit call so wiring it in later is a one-line change,
-not a new interception point."""
+The Observability step wraps the whole decision (registry lookup, policy check, optional
+Armor) in one real OTel span via services/platform/observability.py, not just a point-in-time
+marker at the end — see gateway_local.py."""
 
 from __future__ import annotations
 
@@ -38,8 +38,3 @@ def get_gateway_service() -> GatewayService:
     from .gateway_local import LocalGatewayService
 
     return LocalGatewayService()
-
-
-def start_observability_span(caller: str, target: str) -> None:  # pylint: disable=unused-argument
-    """No-op placeholder for the OTel span the Gateway will emit once Observability lands
-    (docs/build-plan.md Aug 27) — call site is wired now so that day's change is additive."""

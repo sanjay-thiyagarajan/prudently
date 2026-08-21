@@ -91,3 +91,19 @@ resource "google_project_iam_member" "coordinator_sa_modelarmor_user" {
   role    = "roles/modelarmor.user"
   member  = "serviceAccount:${google_service_account.agent["coordinator"].email}"
 }
+
+# Observability (Day 5): both runtime identities that create OTel spans need
+# roles/cloudtrace.agent to export them via CloudTraceSpanExporter — granted to both
+# proactively, before writing any span code, having learned from the modelarmor.user gap
+# above that a missing grant here fails silently (a dropped span, not a raised exception).
+resource "google_project_iam_member" "reasoning_engine_service_agent_cloudtrace_agent" {
+  project = var.project_id
+  role    = "roles/cloudtrace.agent"
+  member  = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "coordinator_sa_cloudtrace_agent" {
+  project = var.project_id
+  role    = "roles/cloudtrace.agent"
+  member  = "serviceAccount:${google_service_account.agent["coordinator"].email}"
+}
