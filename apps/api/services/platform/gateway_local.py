@@ -20,6 +20,7 @@ _POLICY_TABLE: dict[str, frozenset[str]] = {
             "inventory_management_agent",
             "supply_chain_resiliency_agent",
             "hr_agent",
+            "chaos_continuity_agent",
         }
     ),
 }

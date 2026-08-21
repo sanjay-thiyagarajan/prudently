@@ -59,7 +59,7 @@ REGISTRY: list[dict] = [
     {
         "agent_name": "chaos_continuity_agent",
         "role": "hospital what-if + fleet fault injection",
-        "status": "planned",
+        "status": "active",
         "reasoning_engine_id": None,
         "firestore_collections": ["chaos_experiments"],
     },
@@ -71,6 +71,7 @@ _ENGINE_ID_SETTINGS_FIELD = {
     "supply_chain_resiliency_agent": "supply_agent_engine_id",
     "hr_agent": "hr_agent_engine_id",
     "medical_representative_agent": "medrep_agent_engine_id",
+    "chaos_continuity_agent": "chaos_agent_engine_id",
     "coordinator": "coordinator_agent_engine_id",
 }
 
