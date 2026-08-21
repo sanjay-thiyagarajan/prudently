@@ -48,3 +48,10 @@ def write_armor_event(event: dict) -> None:
     (`.add`, not `.set`): events have no natural key, and a screening can legitimately repeat
     for the same vendor/message pair (retries, replay)."""
     get_client().collection("armor_events").add(event)
+
+
+def write_chaos_experiment(event: dict) -> None:
+    """Appends one Chaos & Continuity experiment outcome to the `chaos_experiments`
+    collection — run once for real, replayed from here for the demo rather than re-run live
+    (docs/build-plan.md §5, Aug 28). Auto-ID'd for the same reason as `write_armor_event`."""
+    get_client().collection("chaos_experiments").add(event)
