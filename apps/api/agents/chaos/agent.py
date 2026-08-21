@@ -100,17 +100,24 @@ def run_mass_casualty_whatif(additional_patients: int, unit: str, surge_days: in
 
 def inject_kill_agent_fault(target_agent: str) -> dict:
     """Fleet-domain fault injection: simulates `target_agent` being unreachable mid-task by
-    calling the real Gateway exactly as Coordinator would, and reporting whether it blocked
-    the call and why. Does not take any real Reasoning Engine offline — see this module's
-    docstring for why that's deliberately out of scope. Most informative against an agent the
-    Gateway will genuinely refuse (e.g. one registered but not yet active, or one no caller is
-    authorized to reach directly) — a fabricated agent name proves nothing about the real
-    Gateway."""
+    calling the real Gateway exactly as if Chaos itself, not Coordinator, tried to reach it
+    directly — and reporting whether the Gateway blocked the call and why. Does not take any
+    real Reasoning Engine offline — see this module's docstring for why that's deliberately
+    out of scope. Always blocks by design, on the caller-authorization rule (the Gateway's
+    policy table only authorizes 'coordinator' as a caller — see gateway_local.py — so no
+    other caller can ever reach a specialist directly, regardless of any agent's own registry
+    status). Deliberately not keyed off `target_agent`'s registry status: that field can
+    change out from under this tool on a later redeploy (an agent moving from 'planned' to
+    'active' would silently flip this experiment from blocked to allowed), where the
+    caller-authorization rule cannot — Chaos is never added to the policy table as an
+    authorized caller."""
     with get_observability_service().span(
         "chaos.kill_agent_fault", {"target_agent": target_agent}
     ) as span:
         simulated_tool = SimpleNamespace(name=target_agent)
-        simulated_context = SimpleNamespace(agent_name="coordinator")
+        # Not "coordinator": simulating Chaos itself attempting a direct specialist call,
+        # which the Gateway's policy table never authorizes — see docstring above.
+        simulated_context = SimpleNamespace(agent_name="chaos_continuity_agent")
         gateway_result = get_gateway_service().before_tool_call(
             simulated_tool, {}, simulated_context
         )
