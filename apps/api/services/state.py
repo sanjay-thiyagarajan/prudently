@@ -32,3 +32,11 @@ def get_staff_roster() -> list[dict]:
 
 def get_shift_history() -> list[dict]:
     return [doc.to_dict() for doc in get_client().collection("shift_history").stream()]
+
+
+def get_inventory() -> list[dict]:
+    return [doc.to_dict() for doc in get_client().collection("inventory").stream()]
+
+
+def get_vendors() -> list[dict]:
+    return [doc.to_dict() for doc in get_client().collection("vendors").stream()]
