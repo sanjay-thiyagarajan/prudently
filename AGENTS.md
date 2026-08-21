@@ -18,7 +18,7 @@ products vs. local-emulated fallbacks.
 | Supply Chain Resiliency | specialist (`AgentTool`) — strategic vendor/reorder decisions; calls Medical Representative via **A2A** — **deployed & verified** | `apps/api/agents/supply/agent.py` | primary | `agent_name=supply, user=<vendor>` | `vendors` |
 | HR | specialist (`AgentTool`) — credentialing + escalation target when Shift Allocation runs out of reallocation options — **deployed & verified** | `apps/api/agents/hr/agent.py` | primary | `agent_name=hr, user=<unit>` | `staff_roster` (read) |
 | Medical Representative | **deployed separately**, external-facing vendor/pharma liaison, owns Model Armor screening of inbound vendor comms — **deployed & verified** | `apps/api/agents/medrep/agent.py` | **separate** (A2A boundary) | not wired yet — see note below | `armor_events` (write, one doc per screening call) |
-| Chaos & Continuity | specialist (`AgentTool`), dual mode (hospital what-if + fleet fault-injection) | `apps/api/agents/chaos/agent.py` | primary | `agent_name=chaos, user=<scenario>` | `chaos_experiments` |
+| Chaos & Continuity | specialist (`AgentTool`), dual mode (hospital what-if + fleet fault-injection) — **deployed & verified** | `apps/api/agents/chaos/agent.py` | primary | `agent_name=chaos, user=<scenario>` | `chaos_experiments` (write) |
 
 `staff_roster` also holds a per-diem coverage pool (`is_per_diem=true`, `staff_id` prefixed
 `pd-`, one unit's worth of shift_history-free staff — see `packages/datagen/datagen/roster.py`
@@ -59,10 +59,11 @@ a flattened import that only works under two specific conditions, confirmed live
    in addition to the usual `services`/`config.py`.
 
 Verified with a disposable one-sub-agent probe deploy before committing to the real four-agent
-Coordinator (see docs/build-plan.md Day 5) — worth repeating that pattern before adding a
-fifth AgentTool sub-agent (Chaos) later. `pylint agents` can't resolve these imports either
-way (it isn't running under either sys.path condition) — see the `# pylint:
-disable-next=import-error,wrong-import-order` comments in `agents/coordinator/agent.py`.
+Coordinator (see docs/build-plan.md Day 5), and the same "verify live, not just exit code 0"
+discipline applied again adding Chaos as the fifth (`--extra_packages=agents/chaos`, Day 6).
+`pylint agents` can't resolve these imports either way (it isn't running under either sys.path
+condition) — see the `# pylint: disable-next=import-error,wrong-import-order` comments in
+`agents/coordinator/agent.py`.
 
 **Corollary — the flattened import means Coordinator has its own baked-in copy of every
 sub-agent's source, frozen at Coordinator's last deploy time, not a live reference.** `adk
