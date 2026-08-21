@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     shift_agent_engine_id: str = "6191105334669475840"
     inventory_agent_engine_id: str = "6199971796435861504"
     supply_agent_engine_id: str = "6129884527234908160"
+    hr_agent_engine_id: str = "5467010957081313280"
     chaos_agent_engine_id: str = ""
     coordinator_agent_engine_id: str = ""
 

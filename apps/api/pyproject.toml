@@ -38,6 +38,7 @@ source = [
     "agents.shift.burndown",
     "agents.inventory.par_levels",
     "agents.supply.reorder",
+    "agents.hr.credentialing",
     "services.simclock",
     "services.platform",
 ]

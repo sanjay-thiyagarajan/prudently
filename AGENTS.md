@@ -16,9 +16,22 @@ products vs. local-emulated fallbacks.
 | Shift Allocation | specialist (`AgentTool`) — **deployed & verified** | `apps/api/agents/shift/agent.py` | primary | `agent_name=shift_allocation_agent, user=<unit>` | `staff_roster`, `shift_history` |
 | Inventory Management | specialist (`AgentTool`) — tactical stock/par-level tracking — **deployed & verified** | `apps/api/agents/inventory/agent.py` | primary | `agent_name=inventory, user=<sku>` | `inventory` |
 | Supply Chain Resiliency | specialist (`AgentTool`) — strategic vendor/reorder decisions; calls Medical Representative via **A2A** — **deployed & verified** | `apps/api/agents/supply/agent.py` | primary | `agent_name=supply, user=<vendor>` | `vendors` |
-| HR | specialist (`AgentTool`) — credentialing + escalation target when Shift Allocation runs out of reallocation options | `apps/api/agents/hr/agent.py` | primary | `agent_name=hr, user=<unit>` | `staff_roster` (read) |
+| HR | specialist (`AgentTool`) — credentialing + escalation target when Shift Allocation runs out of reallocation options — **deployed & verified** | `apps/api/agents/hr/agent.py` | primary | `agent_name=hr, user=<unit>` | `staff_roster` (read) |
 | Medical Representative | **deployed separately**, external-facing vendor/pharma liaison, owns Model Armor screening of inbound vendor comms | `apps/api/agents/medrep/agent.py` | **separate** (A2A boundary) | `agent_name=medrep, user=<vendor>` | none (ingestion only, writes via Supply Chain) |
 | Chaos & Continuity | specialist (`AgentTool`), dual mode (hospital what-if + fleet fault-injection) | `apps/api/agents/chaos/agent.py` | primary | `agent_name=chaos, user=<scenario>` | `chaos_experiments` |
+
+`staff_roster` also holds a per-diem coverage pool (`is_per_diem=true`, `staff_id` prefixed
+`pd-`, one unit's worth of shift_history-free staff — see `packages/datagen/datagen/roster.py`
+`_generate_perdiem_pool`) and a `credential_expiry` field per staff member, both added Day 4
+for the HR Agent. Deployed via a scoped one-off script (`merge=True` into existing docs, plain
+`set` for the new per-diem docs) rather than a full `make seed` reseed — `shift_history` has a
+pre-existing doc-ID collision bug (all ~26 days of one staff member's shifts share a single
+Firestore doc, since `write_firestore`'s `doc_id` falls back to bare `staff_id` for any
+collection without its own unique key) plus a >500-write batch limit (real shift_history
+volume is ~620 records) that `write_firestore` doesn't chunk for. Both are real, still-open
+bugs — fix before relying on a from-scratch `make seed` (needed for the Aug 30 clean-clone
+test), not fixed yet because reseeding would perturb the already-deployed/verified Shift
+Allocation Agent's demo data with no benefit to Day 4 scope.
 
 Coordinator → Gateway → specialist is hub-and-spoke for everything except Supply Chain ↔
 Medical Representative, which is genuine Agent2Agent across the one boundary in the design
