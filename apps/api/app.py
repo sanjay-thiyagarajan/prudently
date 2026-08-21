@@ -3,10 +3,12 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
 
 from agents.medrep.agent import root_agent as medrep_agent
 from config import get_settings
+from routes.dashboard import router as dashboard_router
 from routes.sim import router as sim_router
 
 # Medical Representative's genuine A2A endpoint (see config.py's medrep_a2a_* settings and
@@ -36,7 +38,19 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Prudently API", lifespan=lifespan)
+
+# Public demo API for judging, no real patient data or auth behind it (same framing as
+# modules/cloud_run_api's public-invoker grant) — the dashboard (prudently-web, a different
+# Cloud Run origin) needs to fetch /dashboard/overview cross-origin.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
 app.include_router(sim_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health")

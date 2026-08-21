@@ -42,6 +42,37 @@ def get_vendors() -> list[dict]:
     return [doc.to_dict() for doc in get_client().collection("vendors").stream()]
 
 
+def get_agent_registry() -> list[dict]:
+    """Every `agent_registry` doc, unordered — the dashboard's fleet overview panel reads
+    this directly rather than through services/platform/registry.py's `get_agent(name)`
+    single-doc lookup, since the panel wants the whole roster, not one entry at a time."""
+    return [doc.to_dict() for doc in get_client().collection("agent_registry").stream()]
+
+
+def get_armor_events(limit: int = 20) -> list[dict]:
+    """Most recent `armor_events` docs, newest first — the dashboard's BLOCKED-banner feed."""
+    docs = (
+        get_client()
+        .collection("armor_events")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    return [doc.to_dict() for doc in docs]
+
+
+def get_chaos_experiments(limit: int = 20) -> list[dict]:
+    """Most recent `chaos_experiments` docs, newest first — the dashboard's replay feed."""
+    docs = (
+        get_client()
+        .collection("chaos_experiments")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    return [doc.to_dict() for doc in docs]
+
+
 def write_armor_event(event: dict) -> None:
     """Appends one Model Armor screening outcome to the `armor_events` collection — the
     dashboard's BLOCKED-banner feed (Aug 27, docs/build-plan.md §5) reads this. Auto-ID'd
