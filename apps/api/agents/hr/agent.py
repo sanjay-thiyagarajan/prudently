@@ -12,6 +12,8 @@ from google.adk.agents import Agent
 from google.adk.tools import FunctionTool
 
 from config import bootstrap_gemini_credentials, get_settings
+from services.platform.approvals import perform_or_request
+from services.platform.observability import get_observability_service
 from services.state import get_staff_roster
 
 from .credentialing import compliance_summary, compute_credential_status, perdiem_coverage_for_unit
@@ -44,6 +46,37 @@ def find_perdiem_coverage(unit: str) -> dict:
     return {"unit": unit, "eligible_perdiem_staff": eligible}
 
 
+def notify_staff_credential_escalation(staff_id: str, message: str) -> dict:
+    """Sends a credential/escalation notice to a specific staff member — call this after
+    get_credential_compliance or find_perdiem_coverage to actually notify someone, not to
+    decide who to notify. Gated behind manager approval by default (reconfigurable from the
+    dashboard's policy editor); if approval is required, this returns a pending_approval
+    status, not a confirmation the staff member was notified — report that honestly. For demo
+    safety, the actual email always routes to the operations mailbox rather than the staff
+    member's own address (staff_roster carries no real contact email in this dataset — see
+    AGENTS.md's Gmail/approvals section), but the staff member's real name is shown to the
+    manager throughout."""
+    with get_observability_service().span(
+        "hr.notify_staff_credential_escalation", {"staff_id": staff_id}
+    ) as span:
+        staff = {member["staff_id"]: member for member in get_staff_roster()}
+        member = staff.get(staff_id)
+        if member is None:
+            span.set_attribute("hr.notify.error", "unknown_staff_id")
+            return {"error": f"Unknown staff_id '{staff_id}'."}
+
+        result = perform_or_request(
+            task_type="notify_staff_credential_escalation",
+            to=get_settings().manager_email,
+            recipient_label=f"{member['name']} ({member['unit']})",
+            subject=f"Credential/escalation notice for {member['name']}",
+            body=message,
+            requested_by="hr_agent",
+        )
+        span.set_attribute("hr.notify.status", result.get("status", "error"))
+        return result
+
+
 root_agent = Agent(
     model=get_settings().model_fast,
     name="hr_agent",
@@ -59,7 +92,15 @@ root_agent = Agent(
         "same-unit reallocation options for a critical-risk staff member — call "
         "find_perdiem_coverage for that unit and recommend a named, credential-compliant "
         "per-diem staff member to activate. If find_perdiem_coverage returns no eligible "
-        "staff, say so plainly rather than suggesting someone who isn't compliant."
+        "staff, say so plainly rather than suggesting someone who isn't compliant. To actually "
+        "notify a staff member about a credential issue or an escalation, call "
+        "notify_staff_credential_escalation — this may require manager approval first, in "
+        "which case the tool returns a pending_approval status; report that plainly "
+        "('awaiting manager approval') rather than claiming the notice was sent."
     ),
-    tools=[FunctionTool(get_credential_compliance), FunctionTool(find_perdiem_coverage)],
+    tools=[
+        FunctionTool(get_credential_compliance),
+        FunctionTool(find_perdiem_coverage),
+        FunctionTool(notify_staff_credential_escalation),
+    ],
 )

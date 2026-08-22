@@ -16,6 +16,7 @@ from agents.shift.burndown import compute_burndown, unit_summary
 from agents.supply.reorder import compute_reorders, vendor_summary
 from services.state import (
     get_agent_registry,
+    get_approvals,
     get_armor_events,
     get_chaos_experiments,
     get_inventory,
@@ -61,4 +62,15 @@ def overview() -> dict:
         },
         "armor_events": get_armor_events(limit=20),
         "chaos_experiments": get_chaos_experiments(limit=20),
+        "approvals": [
+            {
+                "task_type": a["task_type"],
+                "status": a["status"],
+                "recipient_label": a.get("recipient_label", a.get("to")),
+                "subject": a["subject"],
+                "requested_by": a["requested_by"],
+                "timestamp": a["timestamp"],
+            }
+            for a in get_approvals(limit=20)
+        ],
     }

@@ -17,6 +17,14 @@ Backend = Literal["vertex", "local"]
 # get_settings().google_cloud_project.
 GCP_PROJECT_ID = "prudently-hackathon"
 
+# Same treatment, same reason: an approval-gated tool running inside a Reasoning Engine
+# sandbox needs to write an absolute approve/reject link into an email body, and a plain
+# constant can't be clobbered by Agent Engine's env injection the way a Settings field could.
+# Confirmed live (Day 1, this feature) via `gcloud run services describe prudently-api
+# --format='value(status.url)'` — this is the canonical, currently-resolving hostname (matches
+# apps/web/Dockerfile's NEXT_PUBLIC_API_BASE_URL default).
+PUBLIC_API_BASE_URL = "https://prudently-api-jnpvbtwpwa-uc.a.run.app"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -49,6 +57,17 @@ class Settings(BaseSettings):
     gateway_backend: Backend = "local"
     armor_backend: Backend = "vertex"
     observability_backend: Backend = "vertex"
+    # Flipped to "gmail" after the Day 1 throwaway-probe send succeeded live (real email
+    # received) — same pattern as armor_backend/observability_backend only flipping to
+    # "vertex" once each was independently verified.
+    email_backend: Literal["gmail", "local"] = "gmail"
+
+    # Manager/approver defaults for the email-approval workflow (this feature). Same account
+    # for both sender and default approver by deliberate choice — see AGENTS.md's Gmail setup
+    # section.
+    manager_email: str = "sanjayipscoc@gmail.com"
+    gmail_sender_email: str = "sanjayipscoc@gmail.com"
+    gmail_app_password_secret: str = "prudently-gmail-app-password"
 
     # Model Armor templates are regional, not multi-region — same "must match the region
     # lock" pattern as memory_bank_location (see comment above), confirmed working directly

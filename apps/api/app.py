@@ -8,7 +8,9 @@ from google.adk.a2a.utils.agent_to_a2a import to_a2a
 
 from agents.medrep.agent import root_agent as medrep_agent
 from config import get_settings
+from routes.approvals import router as approvals_router
 from routes.dashboard import router as dashboard_router
+from routes.policy import router as policy_router
 from routes.sim import router as sim_router
 
 # Medical Representative's genuine A2A endpoint (see config.py's medrep_a2a_* settings and
@@ -39,18 +41,25 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Prudently API", lifespan=lifespan)
 
-# Public demo API for judging, no real patient data or auth behind it (same framing as
-# modules/cloud_run_api's public-invoker grant) — the dashboard (prudently-web, a different
-# Cloud Run origin) needs to fetch /dashboard/overview cross-origin.
+# /dashboard/overview and /approvals/* stay unauthenticated on purpose (see routes/policy.py's
+# docstring for the write-surface that isn't): judges need the hosted URL reachable without
+# the user present, and the approval links must be clickable straight from an email with no
+# dashboard login. The overview's approvals list is projected down to task_type/status/
+# recipient_label/subject/requested_by/timestamp in routes/dashboard.py specifically so this
+# public feed never exposes the manager's real email address or full request/email bodies.
+# /policy/* is real Firebase-Auth-gated manager config, which is why allow_methods now needs
+# POST/PUT, not just GET.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
 
 app.include_router(sim_router)
 app.include_router(dashboard_router)
+app.include_router(approvals_router)
+app.include_router(policy_router)
 
 
 @app.get("/health")

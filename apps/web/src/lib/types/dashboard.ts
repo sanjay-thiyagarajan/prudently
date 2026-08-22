@@ -77,6 +77,23 @@ export interface ArmorEvent {
   timestamp: string;
 }
 
+export interface Approval {
+  task_type: string;
+  status: "pending" | "approved" | "rejected";
+  recipient_label: string;
+  subject: string;
+  requested_by: string;
+  timestamp: string;
+}
+
+export interface ApprovalPolicy {
+  task_type: string;
+  requires_approval: boolean;
+  approver_email: string | null;
+  notify_emails: string[];
+  notify_on_complete: boolean;
+}
+
 export interface ChaosExperiment {
   experiment_type:
     | "hospital_whatif"
@@ -110,4 +127,5 @@ export interface DashboardOverview {
   };
   armor_events: ArmorEvent[];
   chaos_experiments: ChaosExperiment[];
+  approvals: Approval[];
 }

@@ -14,8 +14,20 @@ RUN npm install
 # config.py's GCP_PROJECT_ID/FIRESTORE_PROJECT_ID.
 FROM node:22-slim AS build
 WORKDIR /app
-ARG NEXT_PUBLIC_API_BASE_URL=https://prudently-api-439570031916.us-central1.run.app
+ARG NEXT_PUBLIC_API_BASE_URL=https://prudently-api-jnpvbtwpwa-uc.a.run.app
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+# Firebase web config is designed to be public by Google's own model (it identifies the
+# project, it doesn't authorize anything on its own) — same ARG/ENV pair pattern as
+# NEXT_PUBLIC_API_BASE_URL above, for the identical build-time-vs-runtime reason. Defaults
+# match src/lib/auth/firebase-client.ts's own fallback values.
+ARG NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyAv71Sf18UXwwt1BH0kWtx4VmaBNFwkI4A
+ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=prudently-hackathon.firebaseapp.com
+ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID=prudently-hackathon
+ARG NEXT_PUBLIC_FIREBASE_APP_ID=1:439570031916:web:5b263c08f9ba2493abb889
+ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY
+ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ENV NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

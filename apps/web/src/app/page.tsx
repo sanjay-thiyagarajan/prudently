@@ -3,12 +3,15 @@
 import { motion } from "framer-motion";
 import { Loader2, TriangleAlert } from "lucide-react";
 
+import { RequireAuth } from "@/components/auth/RequireAuth";
 import { Header } from "@/components/layout/Header";
+import { ApprovalsFeed } from "@/components/workspace/ApprovalsFeed";
 import { ArmorFeed } from "@/components/workspace/ArmorFeed";
 import { ChaosReplay } from "@/components/workspace/ChaosReplay";
 import { FleetOverview } from "@/components/workspace/FleetOverview";
 import { HRPanel } from "@/components/workspace/HRPanel";
 import { InventoryPanel } from "@/components/workspace/InventoryPanel";
+import { PolicyEditor } from "@/components/workspace/PolicyEditor";
 import { ShiftPanel } from "@/components/workspace/ShiftPanel";
 import { SupplyPanel } from "@/components/workspace/SupplyPanel";
 import { useDashboardOverview } from "@/lib/api/dashboard";
@@ -27,6 +30,14 @@ function SectionLabel({ eyebrow, title }: { eyebrow: string; title: string }) {
 }
 
 export default function Home() {
+  return (
+    <RequireAuth>
+      <Dashboard />
+    </RequireAuth>
+  );
+}
+
+function Dashboard() {
   const { data, error, isLoading } = useDashboardOverview();
 
   if (isLoading) {
@@ -96,6 +107,17 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <ArmorFeed events={data.armor_events} />
             <ChaosReplay experiments={data.chaos_experiments} />
+          </div>
+        </section>
+
+        <section>
+          <SectionLabel
+            eyebrow="Manager in the loop"
+            title="Approvals & notification policy"
+          />
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <ApprovalsFeed approvals={data.approvals} />
+            <PolicyEditor />
           </div>
         </section>
       </div>
