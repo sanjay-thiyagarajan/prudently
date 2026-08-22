@@ -1,9 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity } from "lucide-react";
+import { Activity, LogOut } from "lucide-react";
 
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   asOf: string;
@@ -14,6 +15,8 @@ interface HeaderProps {
 }
 
 export function Header({ asOf, activeAgents, totalAgents, criticalAlerts, isLive }: HeaderProps) {
+  const { user, signOut } = useAuth();
+
   return (
     <header className="relative overflow-hidden border-b border-[var(--color-border)] px-6 py-10 sm:px-10">
       <div
@@ -74,6 +77,16 @@ export function Header({ asOf, activeAgents, totalAgents, criticalAlerts, isLive
               <Activity size={10} /> critical alerts
             </p>
           </div>
+          {user && (
+            <button
+              type="button"
+              onClick={() => signOut()}
+              title={user.email ?? "Sign out"}
+              className="flex items-center gap-1.5 self-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-3.5 py-3.5 text-[10px] font-medium tracking-wide text-[var(--color-ink-muted)] uppercase backdrop-blur-sm transition-colors hover:text-[var(--color-ink-primary)]"
+            >
+              <LogOut size={14} />
+            </button>
+          )}
         </motion.div>
       </div>
     </header>

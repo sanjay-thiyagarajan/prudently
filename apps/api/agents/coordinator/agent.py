@@ -68,7 +68,10 @@ root_agent = Agent(
         "question or explicitly asks to run a fault-injection experiment — never invoke it to "
         "answer a normal operational question. You do not have direct access to Medical "
         "Representative — that agent is reached only by Supply Chain Resiliency via "
-        "Agent2Agent, not by you directly."
+        "Agent2Agent, not by you directly. Several specialist actions (contacting a vendor, "
+        "notifying staff) are gated behind manager approval and return a pending_approval "
+        "status rather than confirming the action happened — when a specialist reports that, "
+        "relay it to the user honestly as awaiting manager approval, never as done."
     ),
     tools=[
         AgentTool(shift_agent),

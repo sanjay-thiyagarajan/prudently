@@ -86,3 +86,67 @@ def write_chaos_experiment(event: dict) -> None:
     collection — run once for real, replayed from here for the demo rather than re-run live
     (docs/build-plan.md §5, Aug 28). Auto-ID'd for the same reason as `write_armor_event`."""
     get_client().collection("chaos_experiments").add(event)
+
+
+def get_approval_policy(task_type: str) -> dict | None:
+    """Single-doc read by fixed key (task_type) — the first "get one doc by ID" helper in this
+    file; every other reader here is either read-all or read-recent. `services/platform/
+    approvals.py`'s check_policy() treats `None` as "no policy configured" and fails closed."""
+    doc = get_client().collection("approval_policy").document(task_type).get()
+    return doc.to_dict() if doc.exists else None
+
+
+def get_approval_policies() -> list[dict]:
+    """Every `approval_policy` doc — the dashboard's policy-editor panel reads this to render
+    the full per-task-type table."""
+    return [doc.to_dict() for doc in get_client().collection("approval_policy").stream()]
+
+
+def write_approval_policy(task_type: str, policy: dict) -> None:
+    """Full overwrite on a fixed doc ID (task_type) — safe to re-run, same `set()` semantics as
+    `scripts/seed_registry.py`. The dashboard's policy-editor Save button and
+    `scripts/seed_policy.py` both call this."""
+    get_client().collection("approval_policy").document(task_type).set(policy)
+
+
+def get_approval(token: str) -> dict | None:
+    """Single-doc read by the approval's own token (used as the Firestore doc ID — a bearer
+    capability, see approvals.py). `routes/approvals.py`'s confirm-page GET and mutating POST
+    handlers both read through this."""
+    doc = get_client().collection("approvals").document(token).get()
+    return doc.to_dict() if doc.exists else None
+
+
+def write_approval(token: str, record: dict) -> None:
+    """Creates one `approvals` doc with the token as its ID — `.set()`, not `.add()`, since the
+    token (not an auto-ID) is the identifier the emailed approve/reject links carry."""
+    get_client().collection("approvals").document(token).set(record)
+
+
+def update_approval(token: str, patch: dict) -> None:
+    """Partial update of an existing `approvals` doc by token — the first "update by ID"
+    helper in this file. Used by `services/platform/approvals.py`'s resolve_approval() to
+    transition a record from `pending` to `approved`/`rejected`."""
+    get_client().collection("approvals").document(token).update(patch)
+
+
+def get_approvals(limit: int = 20) -> list[dict]:
+    """Most recent `approvals` docs, newest first — the dashboard's Approvals feed. Fetches
+    unfiltered (no `where(status == ...)`) and lets the caller group by status in Python,
+    matching every other feed in this file — a `where` combined with `order_by` would need a
+    composite Firestore index this project doesn't have."""
+    docs = (
+        get_client()
+        .collection("approvals")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    return [doc.to_dict() for doc in docs]
+
+
+def write_email_log(record: dict) -> None:
+    """Appends one send-attempt outcome (approval-request emails and the real downstream
+    sends alike) to the `email_log` collection — an audit trail, same shape/rationale as
+    `write_armor_event`. Auto-ID'd: a send attempt has no natural key."""
+    get_client().collection("email_log").add(record)

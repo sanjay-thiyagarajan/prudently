@@ -318,3 +318,143 @@ visually via a throwaway headless-Chromium (`playwright`) screenshot script inst
 skipping visual verification. Both `prudently-api` and `prudently-web` are deployed and
 verified live end-to-end (zero console errors, real fleet data) against their actual Cloud Run
 URLs, not just `npm run build` exiting 0.
+
+## Manager approval workflow + auth (Gmail, Firebase)
+
+Added after the fleet build was already complete and deployed. The user's original ask was
+much larger (Gmail integration "for all agents", a full enterprise command-center with
+payroll/attendance/admissions pages, real auth) — scoped down deliberately after a direct
+conversation about the Aug 31 deadline: **agentic story first** (email approval-before-action +
+manager-configurable policy, for actions that already exist), the four new enterprise CRUD
+domains explicitly skipped (this track is judged on agent behavior, not CRUD breadth), auth
+added with a judge-accessible path.
+
+**Which agents, and why not all 7:** Supply Chain (`contact_vendor_for_reorder`), HR
+(`notify_staff_credential_escalation`), Shift (`notify_staff_reallocation`), Medical
+Representative (`send_vendor_reply`, only after `screen_vendor_message` returns `accepted`).
+Inventory and Chaos deliberately excluded — Inventory has no natural outbound contact (internal
+stock computation only), and Chaos's fault-injection tools simulate faults against the fleet
+itself and never take real consequential actions; giving it a real-email tool would blur a line
+this codebase has deliberately kept sharp (see `agents/chaos/agent.py`'s own docstring).
+Coordinator gets no new tool of its own — delegation to the four specialists above covers it —
+but its instruction now has one sentence about relaying a `pending_approval` status honestly
+rather than claiming an action already happened.
+
+**Gmail: SMTP + app password, not OAuth/the Gmail API.** Originally designed as OAuth (a
+personal gmail.com account, no Workspace domain, so no domain-wide delegation), then switched
+after weighing it directly: an app password needs no consent-screen configuration, no client
+ID, and no refresh-token "Testing vs. In production" expiry trap (a Testing-status OAuth client
+issues tokens that expire in ~7 days — with judging happening after Aug 31, a token minted
+early in the build could be dead by judging day). It also needs zero new pip dependency —
+`smtplib`/`email.mime.text` are stdlib, so `google-api-python-client`/`google-auth` never
+entered the dependency-table risk that bit this project twice already (Aug 27's
+`requirements.txt`-vs-`pyproject.toml` gap). Setup (manual, one-time, requires 2-Step
+Verification already on for the sending account): generate an app password at
+`myaccount.google.com/apppasswords`, then `gcloud secrets create prudently-gmail-app-password`
+(value provided interactively, never through chat/history — see the git log for how this was
+actually done). `sanjayipscoc@gmail.com` is both the sender and the default `manager_email` —
+deliberate, not an oversight (reads well on camera: "the manager checks their inbox and clicks
+approve"). Every subject line is prefixed `[Prudently] ` (`email.py`'s `SUBJECT_TAG`) so the
+account owner can set up one Gmail filter (Subject contains `[Prudently]` → apply a label) to
+keep agent mail visually separated — a personal Gmail label is not access-restricted, so this
+is organizational only, not a security boundary.
+
+**Day 1 de-risking, before any other code was written:** a throwaway probe agent
+(`agents/probe_email`, deployed then deleted — same "verify live with a disposable deploy
+first" precedent as Coordinator's own build) sent one real email from inside an actual
+Reasoning Engine sandbox, confirming the Secret Manager IAM grant and outbound SMTP egress both
+work under the Reasoning Engine service agent's real runtime identity, not just under a local
+dev ADC identity. Caught nothing broken, but this was the single biggest unknown in the whole
+feature and was verified before `services/platform/email.py` was written on top of the
+assumption.
+
+**Approval design — why GET renders, POST mutates.** `services/platform/gateway.py`'s
+`before_tool_call` is fully synchronous with no pending/wait/queue mechanism anywhere in this
+codebase, and is wired only on Coordinator — so an approval-gated tool call can't pause
+mid-turn. `services/platform/approvals.py`'s `perform_or_request` (called directly from inside
+each new tool's body, mirroring `agents/chaos/agent.py`'s existing direct-call-to-platform-
+services pattern, not `before_tool_callback`) either sends immediately or writes a pending
+`approvals/{token}` Firestore doc (`token = secrets.token_urlsafe(24)` used as the doc ID — a
+bearer capability, no signing library needed) and emails the approver two links. Those links
+are a `GET` that only *renders* a confirm page — the actual mutation happens on the button's
+`POST` (`routes/approvals.py`) — because mail clients and security scanners prefetch links for
+safe-link scanning, and a plain mutating `GET` could fire before a human ever clicks it. This
+was verified for real (Day 1 of this feature): a live approval-shaped link was sent and the
+Firestore record confirmed still `pending` immediately after, before any click.
+
+**`recipient_label` vs. `to`:** neither `staff_roster` nor `vendors` carries a real contact
+email in this dataset (confirmed by reading the datagen schema directly), and fabricating one
+risks emailing an address nobody controls. Every approval-gated send therefore routes `to` the
+operations mailbox (`manager_email`) regardless of who the "real" recipient conceptually is,
+but carries a separate `recipient_label` (e.g. `"MedSupply Primary"`, `"Tech ER-00 (ER)"`) that
+the Firestore record, the confirm page, and the pending-approval message all show instead — so
+the demo reads as "contacting the vendor," not "contacting the ops mailbox," while the actual
+send target stays safe. `check_policy()` fails closed: a task type with no `approval_policy`
+doc requires approval, so an unconfigured task never silently auto-sends.
+
+**Auth: Firebase Authentication (Email/Password), one demo/judge account, inline gating — no
+new route.** `RequireAuth` swaps what `page.tsx`'s single route renders (a login form vs. the
+dashboard) rather than adding a `/login` page, deliberately preserving the "scroll position is
+the navigation" design philosophy from the Dashboard section above instead of contradicting it
+on the very next feature. `/dashboard/overview` and `/approvals/*` stay unauthenticated (judges
+need the URL reachable without the user present; the approval links must be clickable from a
+phone with no dashboard login; the feed has never carried real PII) — only `/policy/*`
+(manager-facing config writes) is gated, via `services/auth.py`'s `require_firebase_auth`
+FastAPI dependency. `firebase_admin.initialize_app()` is called with an **explicit**
+`projectId` (not inferred from the environment) — the same numeric-project-number-injection
+bug that has already cost two incidents this build (see `services/state.py`'s
+`FIRESTORE_PROJECT_ID` docstring) would otherwise silently verify tokens against the wrong
+audience. The Firebase project itself (attached to `prudently-hackathon`, Email/Password
+provider enabled, one demo account created) is a manual, one-time step done via the Firebase
+Console — not scriptable from here, same treatment as the Model Armor template and the Gemini
+secret. Demo/judge credentials: `manager@prudently.app` / see the submission text or ask the
+repo owner — deliberately not written in plaintext into a committed file.
+
+**Fallback, written down but not built (auth worked on the first pass):** a single shared
+password → server-set signed cookie checked by a small FastAPI dependency, no new GCP product,
+no `firebase-admin`, no new npm package — the plan for if Firebase Auth hadn't been working
+end-to-end by roughly day 6 of the 9-day window.
+
+**Dependency table** (the actual failure-prone part, per the `requirements.txt`-vs-
+`pyproject.toml` asymmetry documented above): `opentelemetry-sdk` +
+`opentelemetry-exporter-gcp-trace` added to `agents/supply`, `agents/hr`, `agents/shift`'s
+`requirements.txt` (they didn't have it — their new tools call `get_observability_service()`
+for the first time); `firebase-admin` added to `apps/api/pyproject.toml` **only**, never to any
+agent's `requirements.txt` (never imported by agent code, dead weight in a sandbox).
+`google-auth-oauthlib`/`google-api-python-client` were never added anywhere — the OAuth design
+was abandoned before either was needed.
+
+**Deploy order, same discipline as every prior milestone:** Supply, HR, Shift, MedRep
+redeployed and individually smoke-tested standalone via `stream_query` first, Coordinator last
+(`--extra_packages=agents/shift --extra_packages=agents/inventory --extra_packages=agents/
+supply --extra_packages=agents/hr --extra_packages=agents/chaos`), to avoid the stale-bundled-
+copy bug that has already hit this project twice. `EMAIL_BACKEND` stayed `local` (no-op) through
+the entire backend-build phase, flipped to `gmail` only after the whole redeploy wave, which
+meant a *second* full redeploy wave (config.py changes propagate the same way any other code
+change does — confirmed, not assumed). Two more transient `Connection reset by peer` failures
+hit during this second wave (same class as documented elsewhere in this file) — both resolved
+by checking live `update_time` on the Reasoning Engine before retrying, not by blindly retrying
+into a race.
+
+**Live end-to-end verification, not exit-code-0:** a real `contact_vendor_for_reorder` call
+created a real pending `approvals` doc, a real email arrived (subject `[Prudently] Approval
+needed: ...`), clicking through the confirm page and hitting Approve flipped Firestore to
+`approved` and sent a real second email — all confirmed by reading the actual Firestore
+documents afterward, not by trusting the click. Test records deleted afterward so the
+dashboard's Approvals feed starts empty for the real demo, same "delete probe/test data before
+demo day" discipline as the Model Armor and Chaos milestones.
+
+**Known gap:** the four new tools were verified directly (calling the Python function against
+real Firestore/Secret Manager/SMTP) rather than exclusively through natural LLM conversation,
+because the current simulated dataset has no low-stock SKU or at-risk staff member to trigger
+one organically without the model correctly refusing a fabricated scenario (a good sign, not a
+bug — see the guardrail behavior in Supply Chain's own instruction text). Re-verify once the
+sim clock has advanced into a real surge.
+
+**Known gap:** the policy editor's `requires_approval`, `approver_email`, and `notify_emails`
+fields are all manager-editable from the dashboard (PUT verified live end-to-end: unchecked
+"Requires manager approval" on `contact_vendor_for_reorder`, saved, confirmed `False` in the
+actual Firestore doc, then restored to the demo default `True`). `notify_on_complete` is stored
+per-policy and read on every save, but has no UI control yet — it always round-trips unchanged.
+The "whom should be notified" half of the requirement is covered by `notify_emails`; toggling
+*whether* to notify on completion is the piece left for a future pass.

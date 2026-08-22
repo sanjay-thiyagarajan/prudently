@@ -17,6 +17,7 @@ dependencies = [
     "opentelemetry-exporter-gcp-logging>=1.7",
     "google-cloud-modelarmor>=0.7.1",
     "sse-starlette>=3.4.8",
+    "firebase-admin>=6.5",
 ]
 
 [dependency-groups]

@@ -1,4 +1,4 @@
-.PHONY: dev lint test eval seed-registry
+.PHONY: dev lint test eval seed-registry seed-policy
 
 dev:
 	uv run uvicorn app:app --reload --port 8000
@@ -15,3 +15,6 @@ eval:
 
 seed-registry:
 	uv run python -m scripts.seed_registry
+
+seed-policy:
+	uv run python -m scripts.seed_policy

@@ -29,3 +29,29 @@ resource "google_secret_manager_secret_iam_member" "reasoning_engine_service_age
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
 }
+
+# Gmail app password (SMTP send for approval-gated agent email), created manually the same way
+# as the Gemini key -- see apps/api/AGENTS.md's Gmail setup section for the app-password
+# generation + `gcloud secrets create` steps. Same two-identity grant shape as above: the
+# Reasoning Engine service agent (what deployed agents actually run as) and, separately, every
+# per-agent SA (for local dev / future custom-SA support, matching the Gemini key's own grant
+# set exactly).
+data "google_secret_manager_secret" "gmail_app_password" {
+  project   = var.project_id
+  secret_id = var.gmail_app_password_secret_id
+}
+
+resource "google_secret_manager_secret_iam_member" "agent_access_gmail" {
+  for_each  = var.accessor_sa_emails
+  project   = var.project_id
+  secret_id = data.google_secret_manager_secret.gmail_app_password.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${each.value}"
+}
+
+resource "google_secret_manager_secret_iam_member" "reasoning_engine_service_agent_access_gmail" {
+  project   = var.project_id
+  secret_id = data.google_secret_manager_secret.gmail_app_password.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
+}

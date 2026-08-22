@@ -14,14 +14,17 @@ const STATUS_TONE: Record<string, Tone> = {
   active: "safe",
   accepted: "safe",
   allowed: "safe",
+  approved: "safe",
   elevated: "elevated",
   low: "elevated",
   expiring_soon: "elevated",
   planned: "elevated",
+  pending: "elevated",
   critical: "critical",
   expired: "critical",
   blocked: "critical",
   retired: "critical",
+  rejected: "critical",
 };
 
 export function StatusPill({ status, label }: { status: string; label?: string }) {
