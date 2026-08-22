@@ -231,31 +231,42 @@ That's unambiguous: `HTTPXClientInstrumentor` is instrumenting the right client,
 real W3C `traceparent`, and `OpenTelemetryMiddleware` on the Cloud Run mount is extracting and
 honoring it.
 
-**Separate, pre-existing gap found while verifying the above, with a now-identified likely root
-cause:** Reasoning-Engine-hosted spans (Coordinator, Supply Chain's own deployed engine, Medical
-Representative's *standalone* engine — as opposed to the Cloud Run A2A mount, which the test
-above confirms exports correctly) aren't reaching Cloud Trace at all right now, confirmed with a
-plain HR query that touches none of this session's code, so it isn't something introduced today.
-IAM checks out (`coordinator-agent-sa` and the Reasoning Engine's shared service agent both hold
+**Separate gap found while verifying the above, since closed (Aug 22):** Reasoning-Engine-hosted
+spans (Coordinator, Supply Chain's own deployed engine, Medical Representative's *standalone*
+engine — as opposed to the Cloud Run A2A mount, which the test above confirms exports correctly)
+weren't reaching Cloud Trace at all, confirmed with a plain HR query that touches none of this
+session's code, so it wasn't something introduced that day. IAM checked out
+(`coordinator-agent-sa` and the Reasoning Engine's shared service agent both hold
 `roles/cloudtrace.agent`); `SimpleSpanProcessor` swallows exporter failures without surfacing
-them, which is exactly why this went unnoticed while tool calls kept working. Likely cause,
-found by reading `vertexai/agent_engines/templates/adk.py` (the template Agent Engine actually
-serves `AdkApp` through): its own telemetry setup calls `_override_active_span_processor(
-tracer_provider, SynchronousMultiSpanProcessor())` on whatever `TracerProvider` is globally
-active — wiping out any span processor already attached (ours, `SimpleSpanProcessor` +
-`CloudTraceSpanExporter`) and replacing it with its own OTLP-based one, regardless of which
-provider instance ends up "winning" the `set_tracer_provider` race with our own
-`observability_vertex.py::_tracer()`. Cloud Run never runs this template code at all (it's a
-plain FastAPI app, not an `AdkApp`-served Reasoning Engine), which is consistent with Cloud Run
-exporting fine while every Reasoning Engine doesn't. Not fixed — `adk deploy agent_engine
---otel_to_cloud` is an unexplored, plausible lever (none of this build's deploys have passed it)
-but confirming that requires its own deploy-and-verify pass. Practical effect: Cloud Trace
-pivoting from an `armor_events` record only reliably shows the Cloud Run-side half of a trace
-today (still a real, useful waterfall — `medrep.pre_llm_screen` through
-`armor.sanitize_user_prompt` — just not extended back through Coordinator's own
-`gateway.before_tool_call`). Worth a follow-up pass before relying on the full
-Coordinator-to-MedRep waterfall for the demo video's Cloud Trace beat (§6 of
-`docs/build-plan.md`).
+them, which is exactly why this went unnoticed while tool calls kept working.
+
+First hypothesis — that `vertexai/agent_engines/templates/adk.py`'s own telemetry setup calls
+`_override_active_span_processor(...)` and wipes out our span processor — was wrong, and
+disproven directly: that override only runs from inside
+`_default_instrumentor_builder`, which returns `None` immediately when `enable_tracing` and
+`enable_logging` are both falsy. The real cause is simpler — nothing was turning Agent Engine's
+own telemetry pipeline on at all. `_tracing_enabled()`'s truth table requires an explicit
+`enable_tracing=True`, wired through the `adk deploy agent_engine --otel_to_cloud` CLI flag (or
+an env-var + adk-version combination); without it, Agent Engine's `AdkApp` serving template never
+sets up tracing, our span processor included, so there was nothing to wipe out.
+
+Confirmed by redeploying HR's Reasoning Engine with `--otel_to_cloud` and querying it twice: the
+resulting Cloud Trace traces contain real Agent-Engine-native spans (`invoke_workflow hr_agent`,
+`invoke_agent hr_agent`, `call_llm`, `generate_content gemini-3.5-flash`, `execute_tool
+get_credential_compliance`) *and* our own custom spans
+(`hr.notify_staff_credential_escalation`, `approvals.perform_or_request`, `email.send`) correctly
+nested inside the same trace — proving the flag doesn't just enable Agent Engine's own spans, it
+coexists cleanly with `observability_vertex.py`'s custom instrumentation rather than overriding
+it. Cloud Run never runs this template code at all (it's a plain FastAPI app, not an
+`AdkApp`-served Reasoning Engine), which is consistent with Cloud Run having exported fine the
+whole time while every Reasoning Engine didn't. Rolled out to every Reasoning Engine (Aug 22,
+same session) and confirmed live: driving the real demo path (Coordinator → Gateway → Supply
+Chain → genuine A2A → Cloud Run → MedRep's pre-LLM screen, real prompt-injection payload) and
+pulling the resulting `armor_events` doc's trace_id produced one 81-span trace containing
+`gateway.before_tool_call` (`gateway.decision=allowed`) all the way down to
+`armor.sanitize_user_prompt` (`armor.blocked=true`, `matched_filters=pi_and_jailbreak`) —
+Cloud Trace pivoting from an `armor_events` record now genuinely shows the *full*
+Coordinator-to-MedRep waterfall in one trace, not stitched together after the fact.
 
 **Model Armor setup, Day 4:** `modelarmor.googleapis.com` had to be enabled by hand
 (`gcloud services enable modelarmor.googleapis.com`) — the Day-1 probe's claim that it was
@@ -299,6 +310,32 @@ adk deploy agent_engine agents/shift \
 `--extra_packages` stages `services/` and `config.py` alongside the agent so its
 `from services.state import ...` / `from config import ...` absolute imports resolve inside
 the deployed sandbox. Run from `apps/api/` (relative agent path).
+
+**Coordinator's deploy command is different — it needs every specialist folder staged too,
+not just `services`/`config.py`** (found the hard way, Aug 22: deploying Coordinator with only
+the generic form above produces a clean `exit 0` and a real `stream_query` response — because
+Agent Engine served a stale warm sandbox from the *previous* deploy for a few calls — then
+fails outright on the next cold start with `ModuleNotFoundError: No module named 'chaos'`,
+`stream_query` finally surfacing the error instead of silently truncating the event stream
+this time). Coordinator's `agent.py` imports `chaos.agent`, `hr.agent`, `inventory.agent`,
+`shift.agent`, `supply.agent` as flattened top-level modules (see that file's own docstring),
+so its real deploy command is:
+
+```
+adk deploy agent_engine agents/coordinator \
+  --project=prudently-hackathon --region=us-central1 \
+  --agent_engine_id=<id-to-update-in-place> \
+  --display_name="coordinator" \
+  --extra_packages=services --extra_packages=config.py \
+  --extra_packages=agents/chaos --extra_packages=agents/hr \
+  --extra_packages=agents/inventory --extra_packages=agents/shift \
+  --extra_packages=agents/supply
+```
+
+Confirmed live: the incomplete command deploys "successfully" (the stale-sandbox window makes
+`exit 0` doubly untrustworthy here — even a live smoke-test call can pass on old code before
+the real breakage shows up), so treat a Coordinator redeploy as unverified until a *fresh*
+`stream_query` call against it round-trips cleanly, not just the first one after deploying.
 
 ## Service accounts / IAM
 
@@ -351,9 +388,10 @@ replay.
 
 ## Dashboard (apps/web)
 
-A single scrolling page (`src/app/page.tsx`), not a multi-route app — the demo's own
-narration is linear (docs/build-plan.md §6), so scroll position is a better instrument than
-navigation. Polls `GET /dashboard/overview` (new, `apps/api/routes/dashboard.py`) every 4s via
+**Was a single scrolling page through Aug 22 morning; rebuilt into a multi-route app with a
+persistent sidebar the same day** — see "Multi-page enterprise UI" below for the full design
+and the four real bugs found building it. `/` (the fleet overview) still polls
+`GET /dashboard/overview` (new, `apps/api/routes/dashboard.py`) every 4s via
 SWR (`src/lib/api/dashboard.ts`) rather than a Firestore realtime listener — the API is the
 only place with Firestore credentials, and polling means the demo operator controls exactly
 what the page shows when a listener firing mid-narration would not. The endpoint itself is a
@@ -631,3 +669,129 @@ against `hours_worked x hourly_rate` by reading the actual Firestore document (e
 $47.89/hr = $5555.24, exact), mark-paid transitions `status` to `paid` with a real `paid_at`
 timestamp, all with zero console errors. Test records deleted from both local and production
 Firestore afterward. 97/97 unit tests passing (81 prior + 16 new), lint 10.00/10 on both apps.
+
+## Multi-page enterprise UI + real activity log + Cloud Trace/Logging in the UI (Aug 22)
+
+The single scrolling page (see the Dashboard section above) became a persistent-sidebar,
+multi-route app the same day, at the user's explicit request — clicking an agent's card now
+opens `/agents/[agentName]`, showing that agent's activities, approvals, pending
+responsibilities, and permissions (the policy editor, moved off the old single page onto each
+agent's own detail page) in one place. Two more explicit choices, both overriding a smaller
+recommendation: a *real* new `activity_log` collection rather than reusing existing feeds, and
+genuine Cloud Trace/Logging data surfaced in the UI rather than left as an outbound link.
+
+**`activity_log` — narrow by design.** Written from exactly 5 call sites:
+`services/platform/approvals.py`'s `perform_or_request`/`resolve_approval` (covers every
+approval-gated tool across Shift/Supply/HR/MedRep), `gateway_local.py`'s `before_tool_call`
+(every Coordinator routing decision — Coordinator has no tool functions of its own, so this is
+its *only* form of activity), `medrep/agent.py`'s `screen_vendor_message`/
+`_pre_llm_vendor_screen`, and `chaos/agent.py`'s `_persist` (covers all 4 chaos tools, one call
+site). Deliberately does **not** log the 5 read-only "recommendation" tools every specialist
+has (`get_shift_burndown`, par-levels, reorder recommendations, credential compliance,
+per-diem coverage) — the LLM calls these on nearly every turn regardless of what the user
+actually asked, and logging them would drown the feed in query telemetry rather than the
+"activities performed, approvals provided" the request asked for. Each agent's live computed
+state is already shown in its own "current responsibilities" panel, sourced from
+`/dashboard/overview`'s existing per-agent slices, not from this log.
+
+**`GET /agents/{agent_name}`** (`routes/agents.py`, public — same rationale as
+`/dashboard/overview`) reuses `routes/dashboard.py`'s `build_overview()` rather than
+re-deriving the same Firestore reads, and reuses its `project_approval()` helper (factored out
+during this pass) so the manager's real email and full request/email bodies can't leak here
+either — the first draft of this route returned raw `get_approvals()` docs before that
+factoring, caught by re-reading `app.py`'s own comment about why the public overview projects
+its approvals list down, not by any runtime failure. `_AGENT_TASK_TYPE`/
+`_AGENT_LIVE_STATE_KEYS` are hardcoded maps, same rationale as the frontend's own
+`TASK_LABEL` and `gateway_local.py`'s `_POLICY_TABLE` — the agent set is small and fixed.
+
+**`routes/traces.py`** — `GET /traces/{trace_id}` fetches one trace on demand (only when a
+manager clicks a specific `activity_log` entry that carries a trace_id — never polled, matching
+this project's existing "public feed, not a background listener" philosophy). `GET
+/agents/{agent_name}/logs` filters Cloud Logging by `resource.labels.reasoning_engine_id`,
+confirmed present on every `aiplatform.googleapis.com/ReasoningEngine` log entry via a direct
+`gcloud logging read` before designing the filter around it, not assumed. Same caveat as
+Coordinator's own logs generally: its engine bundles Shift/Inventory/Supply/HR/Chaos's
+flattened logic (see "Running / deploying an agent" below), so log/trace entries for those
+agents when reached *through* Coordinator are engine-scoped, not cleanly agent-scoped — labeled
+as such in the UI rather than implying more precision than the infrastructure actually has.
+`google-cloud-trace`/`google-cloud-logging` added as explicit `pyproject.toml` deps (were only
+transitive via the OTel exporters before) — this code runs in `prudently-api`'s Cloud Run
+container specifically, which reads `pyproject.toml` via its own Dockerfile, not any agent's
+`requirements.txt`, so no deploy-staging risk here the way the Aug 27 `requirements.txt` gap
+had.
+
+**Frontend**: `src/app/(dashboard)/layout.tsx` wraps every page in `RequireAuth` + the new
+persistent `Sidebar` (Fleet/Payroll/Admissions/Security & Resilience/Approvals). `AGENT_META`
+(icons/labels/blurbs/accent colors) factored out of `FleetOverview.tsx` into
+`src/lib/agentMeta.ts` so the sidebar and the agent detail page share one source of truth
+instead of drifting. The agent detail page reuses the *existing* Shift/Inventory/Supply/HR/
+Armor/Chaos/GuestDoctorHours panels against the new per-agent payload rather than duplicating
+them — only genuinely new components were `ActivityFeed`, `TraceViewer` (a simple waterfall,
+spans sorted by start time with a relative-offset bar, not a full parent/child tree — judged
+enough for a demo dashboard), `AgentLogViewer`, and `AgentPolicyEditor` (a thin wrapper around
+`PolicyEditor.tsx`'s existing `PolicyRow` + save logic, scoped to one `task_type`, exported for
+reuse rather than copied). The top-level Approvals page keeps only the fleet-wide feed now —
+the policy editor lives exclusively on each agent's own page, per the request.
+
+**Full `--otel_to_cloud` rollout closed in this pass** (flagged as unfinished, HR-only, in the
+Observability section above): every Reasoning Engine (Shift, Inventory, Supply, HR, Chaos,
+MedRep standalone + Cloud Run, Coordinator) redeployed with the flag, each smoke-tested live
+via `stream_query` before moving to the next, Coordinator last. Driving the real demo path
+afterward (Coordinator → Gateway → Supply Chain → genuine A2A → Cloud Run → MedRep's pre-LLM
+screen, real prompt-injection payload) and pulling the resulting trace via the new
+`/traces/{id}` endpoint produced one 81-span trace: `invoke_workflow coordinator` →
+`gateway.before_tool_call` (`gateway.decision=allowed`) → `invoke_workflow
+supply_chain_resiliency_agent` → the real A2A hop (`POST /a2a/medrep`) → Cloud Run's ASGI
+handling → `medrep.pre_llm_screen` → `armor.sanitize_user_prompt`
+(`armor.blocked=true`, `matched_filters=pi_and_jailbreak`) — the full waterfall the demo script
+wants to narrate is now demonstrated, not aspirational (see docs/build-plan.md §6).
+
+**Four real bugs found and fixed getting here, each a different failure class:**
+
+1. **Coordinator's deploy command was silently incomplete** — see "Running / deploying an
+   agent via the ADK CLI" above for the full root-cause and the corrected command. Worth
+   restating the shape of the bug here: `exit 0`, plus a *correct* `stream_query` answer on the
+   first call, both looked like success — the container was still serving the previous deploy's
+   warm sandbox. Only a cold-start call surfaced `ModuleNotFoundError: No module named
+   'chaos'`. Root-caused with a temporary `print(..., file=sys.stderr)`, a redeploy, and reading
+   the real traceback in Cloud Logging — not guessed at.
+2. **A new write on the Gateway's hot path broke `test_gateway_local.py`'s deliberate
+   hermeticity.** That test's own comment says it stays "hermetic for CI/clean-clone, no GCP
+   credentials or network call needed" by monkeypatching Registry and Observability — it didn't
+   know about the new `log_activity` call inside `before_tool_call` and started writing real
+   test data (`ghost_agent`, synthetic caller/target pairs) into production Firestore on every
+   `pytest` run. Same gap in `test_approvals.py`. Fixed by monkeypatching `log_activity` to a
+   no-op in both files; the 24 test-probe docs already written before the fix were found (by
+   pattern-matching the synthetic agent/task names) and deleted from the real collection.
+3. **A permission-denied 500 looked exactly like a CORS bug.** The browser console showed
+   "blocked by CORS policy: No 'Access-Control-Allow-Origin' header" for `/agents/{name}/logs`
+   and (transiently) `/traces/{id}`, even though `app.py`'s CORS middleware allows `*`
+   globally — FastAPI/Starlette's CORS middleware only attaches headers to responses that
+   complete normally through the stack, so an unhandled exception's response never gets them,
+   and the browser reports it as a CORS failure. Reading Cloud Run's own logs directly (not the
+   browser) showed the real error: `google.api_core.exceptions.PermissionDenied`.
+   `coordinator-agent-sa` — `prudently-api`'s Cloud Run runtime identity, confirmed via `gcloud
+   run services describe` to be a *different* identity from the Reasoning Engines' shared
+   `service-<project-number>@gcp-sa-aiplatform-re.iam.gserviceaccount.com` — had
+   `roles/cloudtrace.agent` (write spans, granted for the Observability work) but not
+   `roles/cloudtrace.user` (read traces) or `roles/logging.viewer` (read logs). Granted live,
+   verified against real trace/log data returned with `200`, then backfilled into
+   `infra/terraform/modules/iam/main.tf` so a future `terraform apply` doesn't silently revert
+   the live grant.
+4. **The new public agent-detail route almost leaked what the public overview deliberately
+   doesn't.** First draft of `routes/agents.py` returned raw `get_approvals()` docs — including
+   the manager's real email and full request/email bodies — before `project_approval()` was
+   factored out of `routes/dashboard.py` and reused. Caught by re-reading `app.py`'s own CORS
+   comment (which explains *why* the public overview's approvals list is projected down) before
+   shipping, not by a scanner or a runtime failure.
+
+**Verified live, not exit-code-0, at every layer:** 97/97 unit tests, lint 10.00/10 on every
+changed file; the full 7-engine + Cloud Run redeploy wave smoke-tested one at a time; the
+multi-page frontend clicked through end-to-end via Playwright both on `localhost` and against
+the deployed `prudently-web`/`prudently-api` Cloud Run URLs — sidebar nav, all four section
+pages, an agent detail page's activity feed → trace modal → Cloud Logging viewer, zero console
+errors on either environment. The CORS-shaped IAM bug above was caught by this production
+Playwright pass specifically, not by local testing (the local dev API runs under the
+operator's own `gcloud` credentials, which already have every role) — a reminder that
+"verified locally" and "verified in the deployed identity's own permissions" are genuinely
+different checks for anything IAM-gated.

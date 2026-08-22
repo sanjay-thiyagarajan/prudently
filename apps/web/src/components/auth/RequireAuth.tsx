@@ -5,10 +5,10 @@ import { useState, type FormEvent, type ReactNode } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 
-// Inline gating rather than a /login route, deliberately: this dashboard is a single scrolling
-// page by design (see AGENTS.md — "scroll position is a better instrument than navigation"),
-// and a second route for the login form would be the first crack in that stated philosophy for
-// no real benefit. RequireAuth just swaps what page.tsx's single route renders.
+// Inline gating rather than a /login route: every page under app/(dashboard) wraps its
+// content in this component (see (dashboard)/layout.tsx) rather than redirecting to a
+// separate route, so an unauthenticated deep link to any page — including an agent detail
+// page — lands on the same sign-in form instead of a redirect round-trip.
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading, signIn } = useAuth();
   const [email, setEmail] = useState("");

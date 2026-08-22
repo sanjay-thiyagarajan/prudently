@@ -44,6 +44,7 @@ from services.state import (
     get_inventory,
     get_shift_history,
     get_staff_roster,
+    log_activity,
     write_chaos_experiment,
 )
 
@@ -64,6 +65,21 @@ def _persist(experiment_type: str, summary: str, result: dict, trace_id: str | N
                 "trace_id": trace_id,
                 "timestamp": firestore.SERVER_TIMESTAMP,
             }
+        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
+    # Deliberately duplicated at each log_activity call site rather than factored into a
+    # shared wrapper — same rationale as approvals.py's _log: this best-effort try/except is
+    # five lines, not worth the fragility of sharing across agent-folder boundaries.
+    # pylint: disable-next=duplicate-code
+    try:
+        log_activity(
+            "chaos_continuity_agent",
+            "chaos_experiment",
+            summary,
+            tool_name=experiment_type,
+            trace_id=trace_id,
         )
     except Exception:  # pylint: disable=broad-exception-caught
         pass

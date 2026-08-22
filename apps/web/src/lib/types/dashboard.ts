@@ -150,6 +150,56 @@ export interface ChaosExperiment {
   timestamp: string;
 }
 
+export interface ActivityLogEntry {
+  id: string;
+  agent_name: string;
+  activity_type:
+    | "action_requested"
+    | "action_sent"
+    | "action_resolved"
+    | "routing_decision"
+    | "screening"
+    | "chaos_experiment";
+  tool_name: string | null;
+  summary: string;
+  status: string | null;
+  trace_id: string | null;
+  timestamp: string;
+}
+
+export interface AgentDetail {
+  agent: FleetAgent;
+  activity_log: ActivityLogEntry[];
+  approvals: Approval[];
+  policy: ApprovalPolicy | null;
+  live_state: Record<string, unknown>;
+}
+
+export interface TraceSpan {
+  span_id: string;
+  parent_span_id: string | null;
+  name: string;
+  start_time: string | null;
+  end_time: string | null;
+  labels: Record<string, string>;
+}
+
+export interface TraceData {
+  trace_id: string;
+  spans: TraceSpan[];
+}
+
+export interface AgentLogEntry {
+  timestamp: string | null;
+  severity: string | null;
+  text: string;
+}
+
+export interface AgentLogsData {
+  agent_name: string;
+  logs: AgentLogEntry[];
+}
+
 export interface DashboardOverview {
   as_of: string;
   fleet: FleetAgent[];

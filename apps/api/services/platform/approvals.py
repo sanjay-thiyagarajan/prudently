@@ -24,6 +24,7 @@ from services.platform.observability import get_observability_service
 from services.state import (
     get_approval,
     get_approval_policy,
+    log_activity,
     update_approval,
     write_approval,
     write_email_log,
@@ -118,6 +119,20 @@ def _request_approval(
     )
     _log(task_type, approver_email, f"Approval needed: {subject}", request_result, trace_id)
 
+    # Best-effort, same as write_armor_event/write_chaos_experiment: a Firestore write failing
+    # must never take down the approval request itself, which already happened.
+    try:
+        log_activity(
+            requested_by,
+            "action_requested",
+            subject,
+            tool_name=task_type,
+            status="pending_approval",
+            trace_id=trace_id,
+        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
     return {
         "status": "pending_approval",
         "approval_id": token,
@@ -153,6 +168,17 @@ def perform_or_request(
             notify = policy["notify_emails"] if policy["notify_on_complete"] else None
             result = get_email_service().send(to, subject, body, cc=notify)
             _log(task_type, to, subject, result, span.trace_id)
+            try:
+                log_activity(
+                    requested_by,
+                    "action_sent",
+                    subject,
+                    tool_name=task_type,
+                    status="sent",
+                    trace_id=span.trace_id,
+                )
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
             return {
                 "status": "sent",
                 "sent": result.sent,
@@ -199,6 +225,17 @@ def resolve_approval(token: str, decision: str) -> dict:
                 },
             )
             span.set_attribute("approvals.outcome", "approved")
+            try:
+                log_activity(
+                    record["requested_by"],
+                    "action_resolved",
+                    record["subject"],
+                    tool_name=record["task_type"],
+                    status="approved",
+                    trace_id=span.trace_id,
+                )
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
             return {
                 "status": "approved",
                 "sent": result.sent,
@@ -207,4 +244,15 @@ def resolve_approval(token: str, decision: str) -> dict:
 
         update_approval(token, {"status": "rejected", "decided_at": firestore.SERVER_TIMESTAMP})
         span.set_attribute("approvals.outcome", "rejected")
+        try:
+            log_activity(
+                record["requested_by"],
+                "action_resolved",
+                record["subject"],
+                tool_name=record["task_type"],
+                status="rejected",
+                trace_id=span.trace_id,
+            )
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
         return {"status": "rejected"}

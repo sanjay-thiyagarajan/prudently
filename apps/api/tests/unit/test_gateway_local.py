@@ -55,6 +55,9 @@ def _patch_registry(monkeypatch, entries: dict[str, RegistryEntry]) -> None:
         "services.platform.gateway_local.get_observability_service",
         lambda: LocalObservabilityService(),
     )
+    # Same hermeticity goal — every decision branch now also calls log_activity, which would
+    # otherwise hit real Firestore on every test run.
+    monkeypatch.setattr("services.platform.gateway_local.log_activity", lambda *a, **kw: None)
 
 
 def test_allows_registered_active_authorized_target(monkeypatch):

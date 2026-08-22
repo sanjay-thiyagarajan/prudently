@@ -6,6 +6,8 @@ from __future__ import annotations
 from google.adk.agents.context import Context
 from google.adk.tools.base_tool import BaseTool
 
+from services.state import log_activity
+
 from .observability import get_observability_service  # pylint: disable=cyclic-import
 from .registry import get_registry_service  # pylint: disable=cyclic-import
 
@@ -33,6 +35,24 @@ def _blocked(reason: str) -> dict:
     return {"gateway_blocked": True, "reason": reason}
 
 
+def _log_routing_decision(
+    caller: str, target: str, decision: str, reason: str, trace_id: str | None
+) -> None:
+    # Best-effort, same as every other audit-log write in this codebase: a Firestore write
+    # failing must never take down the routing decision itself, which already happened.
+    try:
+        log_activity(
+            caller,
+            "routing_decision",
+            reason,
+            tool_name=target,
+            status=decision,
+            trace_id=trace_id,
+        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
+
 class LocalGatewayService:  # pylint: disable=too-few-public-methods
     def before_tool_call(self, tool: BaseTool, args: dict, tool_context: Context) -> dict | None:
         caller = tool_context.agent_name
@@ -44,17 +64,21 @@ class LocalGatewayService:  # pylint: disable=too-few-public-methods
             entry = get_registry_service().get_agent(target)
             if entry is None:
                 span.set_attribute("gateway.decision", "blocked_unregistered")
-                return _blocked(f"Gateway: '{target}' is not a registered agent.")
+                reason = f"Gateway: '{target}' is not a registered agent."
+                _log_routing_decision(caller, target, "blocked_unregistered", reason, span.trace_id)
+                return _blocked(reason)
             if entry.status != "active":
                 span.set_attribute("gateway.decision", "blocked_inactive")
-                return _blocked(
-                    f"Gateway: '{target}' is registered but not active ({entry.status})."
-                )
+                reason = f"Gateway: '{target}' is registered but not active ({entry.status})."
+                _log_routing_decision(caller, target, "blocked_inactive", reason, span.trace_id)
+                return _blocked(reason)
 
             allowed_targets = _POLICY_TABLE.get(caller)
             if allowed_targets is None or target not in allowed_targets:
                 span.set_attribute("gateway.decision", "blocked_unauthorized")
-                return _blocked(f"Gateway: '{caller}' is not authorized to call '{target}'.")
+                reason = f"Gateway: '{caller}' is not authorized to call '{target}'."
+                _log_routing_decision(caller, target, "blocked_unauthorized", reason, span.trace_id)
+                return _blocked(reason)
 
             if target in _ARMOR_SCREENED_AGENTS:
                 # pylint: disable-next=import-outside-toplevel,cyclic-import
@@ -63,7 +87,12 @@ class LocalGatewayService:  # pylint: disable=too-few-public-methods
                 result = get_armor_service().screen(str(args))
                 if result.blocked:
                     span.set_attribute("gateway.decision", "blocked_armor")
-                    return _blocked(f"Gateway: Model Armor flagged this call — {result.reason}")
+                    reason = f"Gateway: Model Armor flagged this call — {result.reason}"
+                    _log_routing_decision(caller, target, "blocked_armor", reason, span.trace_id)
+                    return _blocked(reason)
 
             span.set_attribute("gateway.decision", "allowed")
+            _log_routing_decision(
+                caller, target, "allowed", f"Routed '{caller}' → '{target}'.", span.trace_id
+            )
             return None

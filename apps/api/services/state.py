@@ -192,3 +192,60 @@ def get_payroll_record(record_id: str) -> dict | None:
 
 def update_payroll_record(record_id: str, patch: dict) -> None:
     get_client().collection("payroll_records").document(record_id).update(patch)
+
+
+def write_activity_log(entry: dict) -> None:
+    """Appends one consequential agent action to the `activity_log` collection — the audit
+    trail behind each agent's detail page. Auto-ID'd, same rationale as `write_armor_event`:
+    an activity has no natural key and the same agent can log the same kind of event many
+    times. Deliberately narrow: only approval requests/resolutions, MedRep's screening
+    decisions, Gateway routing decisions, and Chaos experiments write here — not every
+    read-only tool call, which would drown the feed in query telemetry the LLM generates on
+    nearly every turn."""
+    get_client().collection("activity_log").add(entry)
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def log_activity(
+    agent_name: str,
+    activity_type: str,
+    summary: str,
+    *,
+    tool_name: str | None = None,
+    status: str | None = None,
+    trace_id: str | None = None,
+) -> None:
+    """Convenience wrapper around write_activity_log for the ~5 call sites that log a
+    consequential action inline (approvals, Gateway routing, MedRep screening, Chaos
+    experiments) — spares each call site from spelling out the dict shape and
+    SERVER_TIMESTAMP by hand."""
+    write_activity_log(
+        {
+            "agent_name": agent_name,
+            "activity_type": activity_type,
+            "summary": summary,
+            "tool_name": tool_name,
+            "status": status,
+            "trace_id": trace_id,
+            "timestamp": firestore.SERVER_TIMESTAMP,
+        }
+    )
+
+
+def get_activity_log(agent_name: str | None = None, limit: int = 100) -> list[dict]:
+    """Most recent `activity_log` docs, newest first. Filters by agent_name in Python rather
+    than a Firestore `where`, matching `get_approvals`' rationale — a `where` combined with
+    `order_by` needs a composite index this project doesn't provision, and the collection is
+    small enough that reading `limit` recent docs and filtering client-side is fine for a
+    dashboard feed."""
+    docs = (
+        get_client()
+        .collection("activity_log")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    entries = [{**doc.to_dict(), "id": doc.id} for doc in docs]
+    if agent_name is not None:
+        entries = [entry for entry in entries if entry.get("agent_name") == agent_name]
+    return entries
