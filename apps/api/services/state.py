@@ -150,3 +150,45 @@ def write_email_log(record: dict) -> None:
     sends alike) to the `email_log` collection — an audit trail, same shape/rationale as
     `write_armor_event`. Auto-ID'd: a send attempt has no natural key."""
     get_client().collection("email_log").add(record)
+
+
+def get_admissions(limit: int = 100) -> list[dict]:
+    """Every `admissions_timeseries` doc up to `limit` (63 exist today: 21 sim-days x 3
+    units) — the dashboard's Admissions panel aggregates/sorts in Python, matching every
+    other feed's "read, then shape" split. Unordered: doc IDs already encode sim_day+unit,
+    there's no natural Firestore sort key worth an index for this."""
+    docs = get_client().collection("admissions_timeseries").limit(limit).stream()
+    return [doc.to_dict() for doc in docs]
+
+
+def get_payroll_records(limit: int = 50) -> list[dict]:
+    """Most recent `payroll_records` docs, newest first — the payroll panel's list view.
+    `doc.to_dict()` never includes the doc's own ID (Firestore doesn't embed it), so it's
+    added explicitly here — the frontend needs a real id per record for its list `key` and to
+    address the mark-paid endpoint, and every payroll record dict should carry it the same
+    way regardless of which route returned it."""
+    docs = (
+        get_client()
+        .collection("payroll_records")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    return [{**doc.to_dict(), "id": doc.id} for doc in docs]
+
+
+def write_payroll_record(record: dict) -> str:
+    """Auto-ID'd — a payroll record has no natural key (one staff member can have many pay
+    periods). Returns the new doc's ID so the caller can echo it back to the client."""
+    _, doc_ref = get_client().collection("payroll_records").add(record)
+    return doc_ref.id
+
+
+def get_payroll_record(record_id: str) -> dict | None:
+    """Same "always carries its own id" treatment as get_payroll_records — see its docstring."""
+    doc = get_client().collection("payroll_records").document(record_id).get()
+    return {**doc.to_dict(), "id": doc.id} if doc.exists else None
+
+
+def update_payroll_record(record_id: str, patch: dict) -> None:
+    get_client().collection("payroll_records").document(record_id).update(patch)

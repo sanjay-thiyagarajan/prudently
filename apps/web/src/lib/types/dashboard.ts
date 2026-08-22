@@ -94,6 +94,50 @@ export interface ApprovalPolicy {
   notify_on_complete: boolean;
 }
 
+export interface AdmissionsDay {
+  sim_day: number;
+  calendar_date: string;
+  unit: string;
+  admissions: number;
+}
+
+export interface UnitAdmissionsTotal {
+  unit: string;
+  total_admissions: number;
+}
+
+export interface GuestDoctorHours {
+  staff_id: string;
+  name: string;
+  unit: string;
+  role: string;
+  hours: number;
+}
+
+export interface PayrollStaffOption {
+  staff_id: string;
+  name: string;
+  unit: string;
+  role: string;
+  hourly_rate: number;
+}
+
+export interface PayrollRecord {
+  id: string;
+  staff_id: string;
+  staff_name: string;
+  unit: string;
+  role: string;
+  pay_period_start: string;
+  pay_period_end: string;
+  hours_worked: number;
+  hourly_rate: number;
+  gross_pay: number;
+  status: "pending" | "paid";
+  timestamp: string;
+  paid_at: string | null;
+}
+
 export interface ChaosExperiment {
   experiment_type:
     | "hospital_whatif"
@@ -125,6 +169,11 @@ export interface DashboardOverview {
     records: CredentialRecord[];
     unit_summary: Record<string, Record<CredentialStatus, number>>;
   };
+  admissions: {
+    trend: AdmissionsDay[];
+    unit_totals: UnitAdmissionsTotal[];
+  };
+  guest_doctor_hours: GuestDoctorHours[];
   armor_events: ArmorEvent[];
   chaos_experiments: ChaosExperiment[];
   approvals: Approval[];

@@ -46,6 +46,8 @@ source = [
     "agents.hr.credentialing",
     "services.simclock",
     "services.platform.armor_local",
+    "services.admissions",
+    "services.payroll",
 ]
 omit = ["tests/*", "evals/*"]
 

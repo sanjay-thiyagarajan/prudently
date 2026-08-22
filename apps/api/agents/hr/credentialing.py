@@ -86,3 +86,35 @@ def perdiem_coverage_for_unit(staff: list[dict], unit: str, as_of: date) -> list
             }
         )
     return eligible
+
+
+def guest_doctor_hours_summary(
+    staff: list[dict], shifts: list[dict], as_of: date, window_days: int = 28
+) -> list[dict]:
+    """Trailing-window hours worked by the per-diem/guest-doctor pool — same trailing-window
+    math as agents/shift/burndown.py's compute_burndown, scoped to is_per_diem staff only.
+    Explicit output fields (never a raw roster dict passthrough) — this feeds the dashboard's
+    public overview, and hourly_rate/credential_expiry must never leak through it."""
+    perdiem_ids = {member["staff_id"] for member in staff if member.get("is_per_diem")}
+    hours_by_staff: dict[str, float] = {staff_id: 0.0 for staff_id in perdiem_ids}
+
+    for shift in shifts:
+        staff_id = shift["staff_id"]
+        if staff_id not in hours_by_staff:
+            continue
+        shift_date = _parse_date(shift["shift_date"])
+        age_days = (as_of - shift_date).days
+        if 0 <= age_days < window_days:
+            hours_by_staff[staff_id] += shift["hours"]
+
+    lookup = {member["staff_id"]: member for member in staff}
+    return [
+        {
+            "staff_id": staff_id,
+            "name": lookup[staff_id]["name"],
+            "unit": lookup[staff_id]["unit"],
+            "role": lookup[staff_id]["role"],
+            "hours": hours_by_staff[staff_id],
+        }
+        for staff_id in sorted(perdiem_ids)
+    ]

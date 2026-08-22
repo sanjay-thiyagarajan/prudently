@@ -15,6 +15,7 @@ const STATUS_TONE: Record<string, Tone> = {
   accepted: "safe",
   allowed: "safe",
   approved: "safe",
+  paid: "safe",
   elevated: "elevated",
   low: "elevated",
   expiring_soon: "elevated",
