@@ -15,6 +15,7 @@ from __future__ import annotations
 from google.adk.agents import Agent
 from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
 from google.adk.tools import AgentTool, FunctionTool
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
 from config import bootstrap_gemini_credentials, get_settings, medrep_agent_card_url
 from services.platform.approvals import perform_or_request
@@ -24,6 +25,18 @@ from services.state import get_inventory, get_vendors
 from .reorder import compute_reorders, vendor_summary
 
 bootstrap_gemini_credentials()
+
+# Force the Cloud-Trace-exporting TracerProvider (services/platform/observability_vertex.py)
+# to become the process-global OTel provider, then instrument httpx so the outbound A2A call
+# to Medical Representative — made internally by RemoteA2aAgent's own httpx.AsyncClient, no
+# hook of ours wraps it — carries a real W3C traceparent header. This is the sender half of
+# closing the "two separate traces, never linked" gap; app.py's OpenTelemetryMiddleware on the
+# Cloud Run A2A mount is the receiver half. HTTPXClientInstrumentor patches the httpx.AsyncClient
+# class itself, so this covers the client RemoteA2aAgent lazily creates later, regardless of
+# import order — confirmed by reading remote_a2a_agent.py's _ensure_httpx_client.
+with get_observability_service().span("supply.bootstrap_tracing", {}):
+    pass
+HTTPXClientInstrumentor().instrument()
 
 medical_representative_agent = RemoteA2aAgent(
     name="medical_representative_agent",

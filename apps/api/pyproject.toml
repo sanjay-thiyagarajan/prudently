@@ -18,6 +18,8 @@ dependencies = [
     "google-cloud-modelarmor>=0.7.1",
     "sse-starlette>=3.4.8",
     "firebase-admin>=6.5",
+    "opentelemetry-instrumentation-httpx>=0.63b1",
+    "opentelemetry-instrumentation-asgi>=0.63b1",
 ]
 
 [dependency-groups]

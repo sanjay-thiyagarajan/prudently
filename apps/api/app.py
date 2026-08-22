@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
+from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 
 from agents.medrep.agent import root_agent as medrep_agent
 from config import get_settings
@@ -12,6 +13,7 @@ from routes.approvals import router as approvals_router
 from routes.dashboard import router as dashboard_router
 from routes.policy import router as policy_router
 from routes.sim import router as sim_router
+from services.platform.observability import get_observability_service
 
 # Medical Representative's genuine A2A endpoint (see config.py's medrep_a2a_* settings and
 # AGENTS.md's A2A section for why this lives here rather than a separate Cloud Run service).
@@ -77,7 +79,22 @@ def root() -> dict:
     return {"service": "prudently-api", "status": "day-2-scaffold"}
 
 
+# Force our Cloud-Trace-exporting TracerProvider (services/platform/observability_vertex.py)
+# to become the process-global OTel provider before wrapping the A2A mount in ASGI
+# instrumentation — OpenTelemetryMiddleware resolves its tracer provider once, at wrap time,
+# not lazily per request, so this must run first. This closes the "two separate traces, never
+# linked" gap (docs/build-plan.md, Aug 27 entry): an incoming A2A request from Supply Chain —
+# whose httpx client is instrumented the same way, see agents/supply/agent.py — now carries a
+# real W3C traceparent header, so medrep's own spans (medrep.pre_llm_screen,
+# medrep.screen_vendor_message, armor.sanitize_user_prompt) nest as children of Supply Chain's
+# trace instead of starting a new root trace on every A2A hop.
+with get_observability_service().span("api.bootstrap_tracing", {}):
+    pass
+
 # Registered last, after every FastAPI-native route above: Starlette matches routes in
 # registration order, and Mount("/") matches any path, so it must come after the routes it
-# should never shadow.
-app.mount("/", medrep_a2a_app)
+# should never shadow. Wrapped in OpenTelemetryMiddleware rather than instrumenting the outer
+# `app` — the outer app's own routes (dashboard/approvals/policy/sim) don't need or want an
+# incoming traceparent header trusted from arbitrary public callers; only the genuine A2A
+# boundary does.
+app.mount("/", OpenTelemetryMiddleware(medrep_a2a_app))

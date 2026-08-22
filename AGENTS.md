@@ -178,12 +178,84 @@ exported to Cloud Trace via `CloudTraceSpanExporter`, `SimpleSpanProcessor` not
 wrapped in their own span; `medrep/agent.py`'s `screen_vendor_message` wraps both in an outer
 `medrep.screen_vendor_message` span and writes the resulting `trace_id` onto the
 `armor_events` Firestore record it persists (`services/state.py`'s `write_armor_event`) — so a
-blocked event in Firestore can be pivoted straight to its Cloud Trace detail. **Known gap:**
-that trace_id is only valid within the process that created it — there is no cross-process
-trace-context propagation across the A2A HTTP hop yet (would need
-`opentelemetry-instrumentation-httpx` on `RemoteA2aAgent`'s `httpx_client` plus ASGI
-instrumentation on the Cloud Run mount), so Supply Chain's own trace and Medical
-Representative's trace are two separate, unlinked traces today, not one distributed trace.
+blocked event in Firestore can be pivoted straight to its Cloud Trace detail.
+
+**Pre-LLM Model Armor boundary (closed Aug 22, was an open gap since Aug 23):** the original
+design only screened inside `screen_vendor_message`, a `FunctionTool` — the model had already
+read the raw message into its own context to build that tool call before Model Armor ever saw
+it, so "blocked before reaching LLM context" wasn't literally true. Fixed with
+`_pre_llm_vendor_screen`, an ADK `before_model_callback` on `medical_representative_agent`
+(`agents/medrep/agent.py`) — ADK runs this before the underlying Gemini call for every turn, and
+returning an `LlmResponse` from it skips that model call entirely, so a blocked message never
+reaches the model at all. Verified live against the deployed engine: a raw poisoned message
+produces a single event (blocked, no tool call ever made); a clean message proceeds normally
+and `screen_vendor_message` still runs as a second, defense-in-depth layer. That second layer
+turned out to matter in practice, not just in theory: verified live through the real
+Coordinator → Supply Chain → A2A path (not a synthetic direct call), Supply Chain's own
+instruction has it *paraphrase* an inbound report before delegating ("Verify if this is
+anomalous... Message received: '&lt;quoted text&gt;'") — Model Armor's real classifier scored
+that wrapped framing as clean, letting the pre-LLM layer pass it through, and it was
+`screen_vendor_message`'s re-screen of the *isolated* quoted excerpt the model itself extracted
+that caught it. Net result was still a correct block; see `agents/medrep/agent.py`'s docstring
+for the full finding. First deploy of this fix reported exit 0 but was actually still stale
+server-side (the "adk deploy... exit 0 doesn't mean working" pattern recurring) — caught by
+testing live rather than trusting the CLI output, confirmed via `update_time` and a clean
+redeploy.
+
+**Cross-process trace linking over the A2A hop (closed Aug 22, was an open gap through the
+Aug 29–30 dashboard build):** `opentelemetry-instrumentation-httpx` instruments Supply Chain's
+outbound `RemoteA2aAgent` calls (`agents/supply/agent.py` — `HTTPXClientInstrumentor().
+instrument()` at module import, after a warm-up span forces our Cloud-Trace-exporting
+`TracerProvider` to become the process-global one, since instrumentors resolve their tracer
+once at `instrument()` time, not lazily); `opentelemetry.instrumentation.asgi.
+OpenTelemetryMiddleware` wraps the Cloud Run A2A mount (`app.py`, same warm-up-then-instrument
+ordering).
+
+First verification attempt (querying the deployed Coordinator → Supply Chain → A2A path and
+checking the resulting trace_id) produced a trace containing every Medical Representative span
+plus non-zero `parent_span_id`s pointing outside the trace — suggestive, but not conclusive on
+its own (see below: Reasoning-Engine spans don't export at all right now, so "the parent isn't
+in this trace" doesn't distinguish "propagated from a real caller" from "propagated from
+somewhere whose spans never appear anyway"). **The actual proof is a local discriminating
+test**, run directly against the same instrumented `medical_representative_agent`
+(`RemoteA2aAgent`) object from a local process — where span export is independently confirmed
+working (`supply.bootstrap_tracing` lands in Cloud Trace every time) — hitting the real, deployed
+Cloud Run A2A endpoint: the resulting trace shows a real httpx client span (`POST`, id
+`13547533483764031046`) that Cloud Run's own ASGI root span (`/a2a/medrep`) lists as its exact
+`parent_span_id`, with the rest of the chain (`invoke_agent medical_representative_agent` →
+`a2a.client.transports.jsonrpc.JsonRpcTransport.send_message` → the httpx `POST` span → Cloud
+Run's `/a2a/medrep` → the a2a.server.* machinery → `medrep.pre_llm_screen` →
+`armor.sanitize_user_prompt` → `execute_tool screen_vendor_message` → `medrep.screen_vendor_message`
+→ a second `armor.sanitize_user_prompt`) all landing in one trace, correctly nested end to end.
+That's unambiguous: `HTTPXClientInstrumentor` is instrumenting the right client, injecting a
+real W3C `traceparent`, and `OpenTelemetryMiddleware` on the Cloud Run mount is extracting and
+honoring it.
+
+**Separate, pre-existing gap found while verifying the above, with a now-identified likely root
+cause:** Reasoning-Engine-hosted spans (Coordinator, Supply Chain's own deployed engine, Medical
+Representative's *standalone* engine — as opposed to the Cloud Run A2A mount, which the test
+above confirms exports correctly) aren't reaching Cloud Trace at all right now, confirmed with a
+plain HR query that touches none of this session's code, so it isn't something introduced today.
+IAM checks out (`coordinator-agent-sa` and the Reasoning Engine's shared service agent both hold
+`roles/cloudtrace.agent`); `SimpleSpanProcessor` swallows exporter failures without surfacing
+them, which is exactly why this went unnoticed while tool calls kept working. Likely cause,
+found by reading `vertexai/agent_engines/templates/adk.py` (the template Agent Engine actually
+serves `AdkApp` through): its own telemetry setup calls `_override_active_span_processor(
+tracer_provider, SynchronousMultiSpanProcessor())` on whatever `TracerProvider` is globally
+active — wiping out any span processor already attached (ours, `SimpleSpanProcessor` +
+`CloudTraceSpanExporter`) and replacing it with its own OTLP-based one, regardless of which
+provider instance ends up "winning" the `set_tracer_provider` race with our own
+`observability_vertex.py::_tracer()`. Cloud Run never runs this template code at all (it's a
+plain FastAPI app, not an `AdkApp`-served Reasoning Engine), which is consistent with Cloud Run
+exporting fine while every Reasoning Engine doesn't. Not fixed — `adk deploy agent_engine
+--otel_to_cloud` is an unexplored, plausible lever (none of this build's deploys have passed it)
+but confirming that requires its own deploy-and-verify pass. Practical effect: Cloud Trace
+pivoting from an `armor_events` record only reliably shows the Cloud Run-side half of a trace
+today (still a real, useful waterfall — `medrep.pre_llm_screen` through
+`armor.sanitize_user_prompt` — just not extended back through Coordinator's own
+`gateway.before_tool_call`). Worth a follow-up pass before relying on the full
+Coordinator-to-MedRep waterfall for the demo video's Cloud Trace beat (§6 of
+`docs/build-plan.md`).
 
 **Model Armor setup, Day 4:** `modelarmor.googleapis.com` had to be enabled by hand
 (`gcloud services enable modelarmor.googleapis.com`) — the Day-1 probe's claim that it was
