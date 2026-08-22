@@ -50,7 +50,7 @@ from config import bootstrap_gemini_credentials, get_settings
 from services.platform.approvals import perform_or_request
 from services.platform.armor import get_armor_service
 from services.platform.observability import get_observability_service
-from services.state import write_armor_event
+from services.state import log_activity, write_armor_event
 
 bootstrap_gemini_credentials()
 
@@ -92,6 +92,21 @@ def screen_vendor_message(vendor_name: str, message: str) -> dict:
                     "trace_id": span.trace_id,
                     "timestamp": firestore.SERVER_TIMESTAMP,
                 }
+            )
+        except Exception:  # pylint: disable=broad-exception-caught
+            pass
+
+        # Deliberately duplicated at each log_activity call site — same rationale as
+        # approvals.py's _log and chaos/agent.py's _persist.
+        # pylint: disable-next=duplicate-code
+        try:
+            log_activity(
+                "medical_representative_agent",
+                "screening",
+                f"Screened inbound message from {vendor_name}",
+                tool_name="screen_vendor_message",
+                status="blocked" if result.blocked else "accepted",
+                trace_id=span.trace_id,
             )
         except Exception:  # pylint: disable=broad-exception-caught
             pass
@@ -183,6 +198,18 @@ def _pre_llm_vendor_screen(
                         "trace_id": span.trace_id,
                         "timestamp": firestore.SERVER_TIMESTAMP,
                     }
+                )
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
+
+            try:
+                log_activity(
+                    "medical_representative_agent",
+                    "screening",
+                    "Blocked inbound message before it reached the model",
+                    tool_name="_pre_llm_vendor_screen",
+                    status="blocked",
+                    trace_id=span.trace_id,
                 )
             except Exception:  # pylint: disable=broad-exception-caught
                 pass

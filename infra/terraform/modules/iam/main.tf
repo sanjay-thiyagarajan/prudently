@@ -107,3 +107,22 @@ resource "google_project_iam_member" "coordinator_sa_cloudtrace_agent" {
   role    = "roles/cloudtrace.agent"
   member  = "serviceAccount:${google_service_account.agent["coordinator"].email}"
 }
+
+# Agent detail page's trace/log viewer (Aug 22): coordinator-agent-sa (prudently-api's Cloud
+# Run runtime identity) reads Cloud Trace and Cloud Logging on the manager's behalf via
+# routes/traces.py — a different capability from cloudtrace.agent above, which only grants
+# writing spans. Found live: without these, both endpoints 500 with a PermissionDenied
+# swallowed into a generic error by the CORS middleware, which never got a chance to attach
+# headers to the exception response — looked like a CORS failure in the browser console, not
+# an IAM gap, until the real Cloud Run logs were checked directly.
+resource "google_project_iam_member" "coordinator_sa_cloudtrace_user" {
+  project = var.project_id
+  role    = "roles/cloudtrace.user"
+  member  = "serviceAccount:${google_service_account.agent["coordinator"].email}"
+}
+
+resource "google_project_iam_member" "coordinator_sa_logging_viewer" {
+  project = var.project_id
+  role    = "roles/logging.viewer"
+  member  = "serviceAccount:${google_service_account.agent["coordinator"].email}"
+}

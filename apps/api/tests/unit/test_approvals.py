@@ -38,6 +38,7 @@ def _patch_common(monkeypatch, fake_email, policies=None, approvals_store=None):
         lambda token, patch: approvals_store[token].update(patch),
     )
     monkeypatch.setattr(approvals, "write_email_log", lambda record: None)
+    monkeypatch.setattr(approvals, "log_activity", lambda *a, **kw: None)
     return approvals_store
 
 

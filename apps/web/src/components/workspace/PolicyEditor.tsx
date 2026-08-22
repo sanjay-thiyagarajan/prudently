@@ -8,14 +8,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { saveApprovalPolicy, useApprovalPolicies } from "@/lib/api/policy";
 import type { ApprovalPolicy } from "@/lib/types/dashboard";
 
-const TASK_LABEL: Record<string, string> = {
+export const TASK_LABEL: Record<string, string> = {
   contact_vendor_for_reorder: "Contact vendor for reorder",
   notify_staff_credential_escalation: "Notify staff — credential escalation",
   notify_staff_reallocation: "Notify staff — shift reallocation",
   send_vendor_reply: "Reply to vendor",
 };
 
-function PolicyRow({ policy }: { policy: ApprovalPolicy }) {
+export function PolicyRow({ policy }: { policy: ApprovalPolicy }) {
   const { idToken } = useAuth();
   const [requiresApproval, setRequiresApproval] = useState(policy.requires_approval);
   const [approverEmail, setApproverEmail] = useState(policy.approver_email ?? "");

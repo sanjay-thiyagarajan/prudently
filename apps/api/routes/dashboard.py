@@ -34,8 +34,25 @@ from services.state import (
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-@router.get("/overview")
-def overview() -> dict:
+def project_approval(record: dict) -> dict:
+    """Never expose the manager's real email address or full request/email bodies on a public
+    route — shared by this module's overview() and routes/agents.py's per-agent detail
+    endpoint, both of which surface approvals publicly."""
+    return {
+        "task_type": record["task_type"],
+        "status": record["status"],
+        "recipient_label": record.get("recipient_label", record.get("to")),
+        "subject": record["subject"],
+        "requested_by": record["requested_by"],
+        "timestamp": record["timestamp"],
+    }
+
+
+def build_overview() -> dict:
+    """The actual aggregation, factored out of the `/overview` route handler so
+    `routes/agents.py`'s per-agent detail endpoint can reuse the exact same computation rather
+    than re-deriving any of it — same "reuse, don't duplicate" rationale as this module's own
+    docstring."""
     staff = get_staff_roster()
     shifts = get_shift_history()
     items = get_inventory()
@@ -74,15 +91,10 @@ def overview() -> dict:
         "guest_doctor_hours": guest_doctor_hours_summary(staff, shifts, as_of=today),
         "armor_events": get_armor_events(limit=20),
         "chaos_experiments": get_chaos_experiments(limit=20),
-        "approvals": [
-            {
-                "task_type": a["task_type"],
-                "status": a["status"],
-                "recipient_label": a.get("recipient_label", a.get("to")),
-                "subject": a["subject"],
-                "requested_by": a["requested_by"],
-                "timestamp": a["timestamp"],
-            }
-            for a in get_approvals(limit=20)
-        ],
+        "approvals": [project_approval(a) for a in get_approvals(limit=20)],
     }
+
+
+@router.get("/overview")
+def overview() -> dict:
+    return build_overview()
