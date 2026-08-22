@@ -276,3 +276,45 @@ current burndown and writes a Memory Bank fact per unit via `services/memory.wri
 this is what gives agents a narrative timeline to reason over across "weeks" compressed into
 a demo. Reset via `POST /sim/reset` before reshooting the demo video for a deterministic
 replay.
+
+## Dashboard (apps/web)
+
+A single scrolling page (`src/app/page.tsx`), not a multi-route app — the demo's own
+narration is linear (docs/build-plan.md §6), so scroll position is a better instrument than
+navigation. Polls `GET /dashboard/overview` (new, `apps/api/routes/dashboard.py`) every 4s via
+SWR (`src/lib/api/dashboard.ts`) rather than a Firestore realtime listener — the API is the
+only place with Firestore credentials, and polling means the demo operator controls exactly
+what the page shows when a listener firing mid-narration would not. The endpoint itself is a
+thin aggregator, not a second implementation: it reuses every specialist's already-tested
+pure-logic module (`burndown`, `par_levels`, `reorder`, `credentialing`) over live Firestore
+state, plus `services/state.py` accessors for `agent_registry`, `armor_events`, and
+`chaos_experiments` (newest-first).
+
+Custom Tailwind v4 (CSS-first `@theme` in `globals.css`, no JS config file) over MUI (still a
+dependency, just not used for the hero surfaces — MUI defaults read as generic) +
+framer-motion for animation + `next/font/google` (Space Grotesk, Inter) self-hosted at build
+time. The fleet overview (`src/components/workspace/FleetOverview.tsx`) renders all 7
+`agent_registry` entries as hero cards — Coordinator prominent, the four Gateway-routed
+specialists plus Chaos in a row, and Medical Representative rendered visually distinct below
+its own divider (dashed border, A2A badge), since it's reached by genuine Agent2Agent, not the
+Gateway — the panel would otherwise imply a hub-and-spoke topology the real architecture
+doesn't have.
+
+**Two deploy-time gotchas found live, both the same shape as earlier ones this session —
+verify, don't assume, after any frontend change:**
+1. `framer-motion`'s `whileInView` scroll-triggered entrance animation silently never fires
+   for below-the-fold content in some capture/render paths — `Panel.tsx` uses mount-triggered
+   `animate` instead, deliberately, not `whileInView`.
+2. `NEXT_PUBLIC_API_BASE_URL` is inlined into the client bundle at `next build` time, not read
+   at container runtime. Terraform's `cloud_run_web` module sets it as a Cloud Run runtime
+   `env{}` block — correct for a server-read var, inert for a `NEXT_PUBLIC_*` one, since
+   `gcloud run deploy --source`'s Cloud Build never sees it. Fixed with a Dockerfile `ARG`
+   default (`apps/web/Dockerfile`) pointing at the known-stable deployed API URL — `gcloud run
+   deploy --source` has no `--build-arg` flag for Dockerfile builds, so build-tooling plumbing
+   wasn't an option. The Terraform env var is left in place but documented as inert.
+
+No visual browser-automation tool was available in this environment session — verified
+visually via a throwaway headless-Chromium (`playwright`) screenshot script instead of
+skipping visual verification. Both `prudently-api` and `prudently-web` are deployed and
+verified live end-to-end (zero console errors, real fleet data) against their actual Cloud Run
+URLs, not just `npm run build` exiting 0.
