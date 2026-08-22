@@ -5,12 +5,15 @@ import { Loader2, TriangleAlert } from "lucide-react";
 
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { Header } from "@/components/layout/Header";
+import { AdmissionsPanel } from "@/components/workspace/AdmissionsPanel";
 import { ApprovalsFeed } from "@/components/workspace/ApprovalsFeed";
 import { ArmorFeed } from "@/components/workspace/ArmorFeed";
 import { ChaosReplay } from "@/components/workspace/ChaosReplay";
 import { FleetOverview } from "@/components/workspace/FleetOverview";
+import { GuestDoctorHoursPanel } from "@/components/workspace/GuestDoctorHoursPanel";
 import { HRPanel } from "@/components/workspace/HRPanel";
 import { InventoryPanel } from "@/components/workspace/InventoryPanel";
+import { PayrollPanel } from "@/components/workspace/PayrollPanel";
 import { PolicyEditor } from "@/components/workspace/PolicyEditor";
 import { ShiftPanel } from "@/components/workspace/ShiftPanel";
 import { SupplyPanel } from "@/components/workspace/SupplyPanel";
@@ -118,6 +121,15 @@ function Dashboard() {
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <ApprovalsFeed approvals={data.approvals} />
             <PolicyEditor />
+          </div>
+        </section>
+
+        <section>
+          <SectionLabel eyebrow="Enterprise command center" title="Admissions, coverage & payroll" />
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <AdmissionsPanel trend={data.admissions.trend} unitTotals={data.admissions.unit_totals} />
+            <GuestDoctorHoursPanel hours={data.guest_doctor_hours} />
+            <PayrollPanel />
           </div>
         </section>
       </div>

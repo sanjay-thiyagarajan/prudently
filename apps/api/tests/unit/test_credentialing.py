@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from agents.hr.credentialing import (
     compliance_summary,
     compute_credential_status,
+    guest_doctor_hours_summary,
     perdiem_coverage_for_unit,
 )
 
@@ -124,3 +125,42 @@ def test_perdiem_coverage_returns_eligible_compliant_staff():
     ]
     eligible = perdiem_coverage_for_unit(staff, "ER", TODAY)
     assert [e["staff_id"] for e in eligible] == ["pd-a"]
+
+
+def shift(staff_id: str, shift_date: str, hours: float, unit: str = "ER") -> dict:
+    return {"staff_id": staff_id, "shift_date": shift_date, "hours": hours, "unit": unit}
+
+
+def test_guest_doctor_hours_excludes_non_perdiem_staff():
+    staff = [staff_member("er-00", "2027-01-01", is_per_diem=False)]
+    shifts = [shift("er-00", "2026-08-15", 8)]
+    assert guest_doctor_hours_summary(staff, shifts, as_of=TODAY) == []
+
+
+def test_guest_doctor_hours_sums_within_trailing_window():
+    staff = [staff_member("pd-a", "2027-01-01", is_per_diem=True, name="Per-Diem A")]
+    shifts = [
+        shift("pd-a", "2026-08-15", 8),  # 6 days ago, in window
+        shift("pd-a", "2026-08-10", 8),  # 11 days ago, in window
+        shift("pd-a", "2026-07-01", 8),  # >28 days ago, excluded
+    ]
+    summary = guest_doctor_hours_summary(staff, shifts, as_of=TODAY, window_days=28)
+    assert summary == [
+        {"staff_id": "pd-a", "name": "Per-Diem A", "unit": "ER", "role": "nurse", "hours": 16}
+    ]
+
+
+def test_guest_doctor_hours_zero_when_no_shifts():
+    staff = [staff_member("pd-a", "2027-01-01", is_per_diem=True)]
+    summary = guest_doctor_hours_summary(staff, [], as_of=TODAY)
+    assert summary[0]["hours"] == 0
+
+
+def test_guest_doctor_hours_ignores_other_staff_shifts():
+    staff = [
+        staff_member("pd-a", "2027-01-01", is_per_diem=True),
+        staff_member("er-00", "2027-01-01", is_per_diem=False),
+    ]
+    shifts = [shift("er-00", "2026-08-15", 8)]
+    summary = guest_doctor_hours_summary(staff, shifts, as_of=TODAY)
+    assert summary[0]["hours"] == 0

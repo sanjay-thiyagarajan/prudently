@@ -10,11 +10,17 @@ from datetime import date
 
 from fastapi import APIRouter
 
-from agents.hr.credentialing import compliance_summary, compute_credential_status
+from agents.hr.credentialing import (
+    compliance_summary,
+    compute_credential_status,
+    guest_doctor_hours_summary,
+)
 from agents.inventory.par_levels import category_summary, compute_par_levels
 from agents.shift.burndown import compute_burndown, unit_summary
 from agents.supply.reorder import compute_reorders, vendor_summary
+from services.admissions import recent_daily_trend, unit_totals
 from services.state import (
+    get_admissions,
     get_agent_registry,
     get_approvals,
     get_armor_events,
@@ -40,6 +46,7 @@ def overview() -> dict:
     par_records = compute_par_levels(items)
     reorder_decisions = compute_reorders(items, vendors)
     credential_records = compute_credential_status(staff, as_of=today)
+    admissions_records = get_admissions()
 
     return {
         "as_of": today.isoformat(),
@@ -60,6 +67,11 @@ def overview() -> dict:
             "records": credential_records,
             "unit_summary": compliance_summary(credential_records),
         },
+        "admissions": {
+            "trend": recent_daily_trend(admissions_records),
+            "unit_totals": unit_totals(admissions_records),
+        },
+        "guest_doctor_hours": guest_doctor_hours_summary(staff, shifts, as_of=today),
         "armor_events": get_armor_events(limit=20),
         "chaos_experiments": get_chaos_experiments(limit=20),
         "approvals": [

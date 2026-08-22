@@ -22,6 +22,24 @@ from datagen.roster import generate_roster
 
 LOCAL_OUTPUT_DIR = Path(__file__).resolve().parent.parent / ".local_output"
 
+# Firestore's hard cap is 500 writes per batch commit — leave headroom rather than sizing
+# to the exact limit.
+_BATCH_CHUNK_SIZE = 450
+
+
+def _doc_id_for(collection: str, record: dict, index: int) -> str:
+    """staff_id/sku/vendor_id alone is only a stable, unique key for collections with one
+    doc per entity. shift_history has one row per staff member *per day* — keying it by
+    staff_id alone collides across the whole trailing history and silently keeps only the
+    last day `batch.set()` happened to write, which is exactly the bug this function fixes
+    (confirmed live, Aug 22: 24 staff produced 24 shift_history docs instead of ~600).
+    """
+    if collection == "admissions_timeseries":
+        return f"{record['sim_day']:02d}-{record['unit'].replace(' ', '_')}"
+    if collection == "shift_history":
+        return f"{record['staff_id']}__{record['shift_date']}"
+    return record.get("staff_id") or record.get("sku") or record.get("vendor_id") or str(index)
+
 
 def _env_bool(name: str, default: bool) -> bool:
     val = os.environ.get(name)
@@ -60,14 +78,14 @@ def write_firestore(dataset: dict[str, list[dict]], project: str) -> None:
 
     client = firestore.Client(project=project)
     for collection, records in dataset.items():
-        batch = client.batch()
-        for i, record in enumerate(records):
-            doc_id = record.get("staff_id") or record.get("sku") or record.get("vendor_id") or str(i)
-            # admissions_timeseries has no natural key; disambiguate by day+unit
-            if collection == "admissions_timeseries":
-                doc_id = f"{record['sim_day']:02d}-{record['unit'].replace(' ', '_')}"
-            batch.set(client.collection(collection).document(doc_id), record)
-        batch.commit()
+        coll_ref = client.collection(collection)
+        for chunk_start in range(0, len(records), _BATCH_CHUNK_SIZE):
+            chunk = records[chunk_start : chunk_start + _BATCH_CHUNK_SIZE]
+            batch = client.batch()
+            for offset, record in enumerate(chunk):
+                doc_id = _doc_id_for(collection, record, chunk_start + offset)
+                batch.set(coll_ref.document(doc_id), record)
+            batch.commit()
         print(f"  wrote {len(records):>4} records -> Firestore/{collection}")
 
 

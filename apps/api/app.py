@@ -11,6 +11,7 @@ from agents.medrep.agent import root_agent as medrep_agent
 from config import get_settings
 from routes.approvals import router as approvals_router
 from routes.dashboard import router as dashboard_router
+from routes.payroll import router as payroll_router
 from routes.policy import router as policy_router
 from routes.sim import router as sim_router
 from services.platform.observability import get_observability_service
@@ -62,6 +63,7 @@ app.include_router(sim_router)
 app.include_router(dashboard_router)
 app.include_router(approvals_router)
 app.include_router(policy_router)
+app.include_router(payroll_router)
 
 
 @app.get("/health")
