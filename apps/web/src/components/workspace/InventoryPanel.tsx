@@ -19,7 +19,7 @@ export function InventoryPanel({
   const flagged = records.filter((r) => r.stock_status !== "ok");
 
   return (
-    <Panel title="Inventory Management" icon={Package} accent="var(--color-elevated)" live>
+    <Panel title="Inventory Management" icon={Package} live>
       <div className="space-y-3">
         {Object.entries(categorySummary).map(([category, counts]) => (
           <DistributionBar key={category} label={category} counts={counts} order={STOCK_ORDER} />

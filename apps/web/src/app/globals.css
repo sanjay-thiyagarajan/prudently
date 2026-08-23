@@ -1,34 +1,149 @@
 @import "tailwindcss";
 
-@theme {
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+/* ============================================================================
+   Prudently — "ward board"
 
-  --color-bg-base: #05070d;
-  --color-bg-raised: #0b0f1c;
-  --color-surface: #0f1526;
-  --color-surface-hover: #141b32;
-  --color-border: #212a45;
-  --color-border-soft: #1a2138;
+   The design language is the nursing-station whiteboard, not a mission-control
+   console: a hospital operations tool that a charge nurse would recognise. That
+   means light by default (wards are bright, and the previous near-black +
+   violet-glow treatment read as a sci-fi dashboard rather than a clinical one),
+   paper-neutral grounds with a faint green bias, and one deep clinical teal
+   spent sparingly as the only decorative accent.
 
-  --color-ink-primary: #eef1fb;
-  --color-ink-secondary: #97a1c2;
-  --color-ink-muted: #5c6588;
+   Status colour is NOT the accent. Safe / elevated / critical follow real
+   triage-tag convention (green / amber / red), so the colour is carrying domain
+   meaning rather than decoration — which is also why nothing else in the UI is
+   allowed to use those three hues.
 
-  --color-safe: #34d399;
-  --color-safe-soft: #34d39926;
-  --color-elevated: #fbbf24;
-  --color-elevated-soft: #fbbf2426;
-  --color-critical: #fb7185;
-  --color-critical-soft: #fb718526;
+   One further hue exists, and only one: --color-autonomous, an indigo reserved
+   exclusively for work the fleet initiated on its own (services/autonomy.py).
+   It never marks anything a human asked for. That distinction is the whole
+   point of the product, so it gets its own colour and nothing else borrows it.
 
-  --color-hero: #8b5cf6;
-  --color-hero-soft: #8b5cf626;
-  --color-a2a: #22d3ee;
-  --color-a2a-soft: #22d3ee26;
+   Themes: light is the default and the design's home. Dark is a real, separately
+   tuned palette (not an inversion) for night shifts, and follows the OS unless
+   the manager has explicitly chosen — see ThemeScript in app/layout.tsx.
+   ============================================================================ */
+
+:root {
+  --font-display: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-bg-base: #f3f6f4;
+  --color-bg-raised: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0f4f2;
+  --color-sunk: #e9eeeb;
+  --color-border: #d5dedb;
+  --color-border-soft: #e3e9e6;
+
+  --color-ink-primary: #11201c;
+  --color-ink-secondary: #52645d;
+  --color-ink-muted: #7b8b84;
+
+  /* Triage semantics — real hospital convention, never used decoratively. */
+  --color-safe: #2f6b4c;
+  --color-safe-soft: #2f6b4c14;
+  --color-elevated: #8f6212;
+  --color-elevated-soft: #8f621214;
+  --color-critical: #a4322a;
+  --color-critical-soft: #a4322a14;
+
+  /* The one decorative accent. */
+  --color-hero: #0b6e63;
+  --color-hero-soft: #0b6e6314;
+
+  /* Reserved: work the fleet started by itself. Nothing else may use this. */
+  --color-autonomous: #574ac0;
+  --color-autonomous-soft: #574ac014;
+
+  /* The A2A trust boundary is marked by a dashed edge plus the accent, not a
+     hue of its own — one accent, spent once. */
+  --color-a2a: #0b6e63;
+  --color-a2a-soft: #0b6e6314;
+
+  --shadow-panel: 0 1px 2px rgba(17, 32, 28, 0.04), 0 8px 24px -18px rgba(17, 32, 28, 0.24);
+  --shadow-raised: 0 2px 4px rgba(17, 32, 28, 0.05), 0 16px 40px -24px rgba(17, 32, 28, 0.3);
 
   --animate-pulse-slow: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-scan: scan 2.4s linear infinite;
+
+  color-scheme: light;
+}
+
+/* Follows the OS unless the manager explicitly chose light — the :not() guard
+   is what lets an explicit light choice win over a dark OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg-base: #0e1512;
+    --color-bg-raised: #16201c;
+    --color-surface: #16201c;
+    --color-surface-hover: #1c2823;
+    --color-sunk: #121a17;
+    --color-border: #27352f;
+    --color-border-soft: #1f2c27;
+
+    --color-ink-primary: #e3ebe7;
+    --color-ink-secondary: #94a69e;
+    --color-ink-muted: #6f847b;
+
+    --color-safe: #5fa57e;
+    --color-safe-soft: #5fa57e1f;
+    --color-elevated: #c69b41;
+    --color-elevated-soft: #c69b411f;
+    --color-critical: #d9756a;
+    --color-critical-soft: #d9756a1f;
+
+    --color-hero: #4fb3a5;
+    --color-hero-soft: #4fb3a51f;
+
+    --color-autonomous: #948ae3;
+    --color-autonomous-soft: #948ae31f;
+
+    --color-a2a: #4fb3a5;
+    --color-a2a-soft: #4fb3a51f;
+
+    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -20px rgba(0, 0, 0, 0.8);
+    --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.45), 0 20px 44px -26px rgba(0, 0, 0, 0.9);
+
+    color-scheme: dark;
+  }
+}
+
+/* Explicit choice wins in the other direction too. */
+:root[data-theme="dark"] {
+  --color-bg-base: #0e1512;
+  --color-bg-raised: #16201c;
+  --color-surface: #16201c;
+  --color-surface-hover: #1c2823;
+  --color-sunk: #121a17;
+  --color-border: #27352f;
+  --color-border-soft: #1f2c27;
+
+  --color-ink-primary: #e3ebe7;
+  --color-ink-secondary: #94a69e;
+  --color-ink-muted: #6f847b;
+
+  --color-safe: #5fa57e;
+  --color-safe-soft: #5fa57e1f;
+  --color-elevated: #c69b41;
+  --color-elevated-soft: #c69b411f;
+  --color-critical: #d9756a;
+  --color-critical-soft: #d9756a1f;
+
+  --color-hero: #4fb3a5;
+  --color-hero-soft: #4fb3a51f;
+
+  --color-autonomous: #948ae3;
+  --color-autonomous-soft: #948ae31f;
+
+  --color-a2a: #4fb3a5;
+  --color-a2a-soft: #4fb3a51f;
+
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -20px rgba(0, 0, 0, 0.8);
+  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.45), 0 20px 44px -26px rgba(0, 0, 0, 0.9);
+
+  color-scheme: dark;
 }
 
 @keyframes pulse-slow {
@@ -37,16 +152,7 @@
     opacity: 1;
   }
   50% {
-    opacity: 0.55;
-  }
-}
-
-@keyframes scan {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
+    opacity: 0.5;
   }
 }
 
@@ -54,15 +160,45 @@ body {
   background-color: var(--color-bg-base);
   color: var(--color-ink-primary);
   font-family: var(--font-body);
+  font-feature-settings: "cv05" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The board's faint ruled grid — the whiteboard behind everything. Deliberately
+   near-invisible: it should register as texture, never as a pattern. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139, 92, 246, 0.12), transparent),
-    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(34, 211, 238, 0.08), transparent);
-  background-attachment: fixed;
+    linear-gradient(to right, var(--color-border-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-border-soft) 1px, transparent 1px);
+  background-size: 88px 88px;
+  opacity: 0.5;
+  mask-image: radial-gradient(ellipse 100% 80% at 50% 0%, black, transparent 75%);
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Digits that sit in columns must line up — this is a data tool. */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
 
 ::selection {
   background-color: var(--color-hero-soft);
   color: var(--color-ink-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-hero);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 * {
@@ -77,4 +213,18 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: var(--color-border);
   border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-ink-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

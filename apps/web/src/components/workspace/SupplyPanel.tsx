@@ -8,7 +8,7 @@ import type { ReorderDecision } from "@/lib/types/dashboard";
 
 export function SupplyPanel({ decisions }: { decisions: ReorderDecision[] }) {
   return (
-    <Panel title="Supply Chain Resiliency" icon={Truck} accent="#f97316" live>
+    <Panel title="Supply Chain Resiliency" icon={Truck} live>
       {decisions.length === 0 ? (
         <div className="flex h-full min-h-[140px] flex-col items-center justify-center gap-2 text-center">
           <Truck size={24} className="text-[var(--color-ink-muted)]" />

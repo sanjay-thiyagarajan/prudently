@@ -1,74 +1,179 @@
 # Prudently
 
-Agent-monitored hospital operations platform, built for the **All Things Agentic Hackathon**
-(Fortified Enterprise Fleet track). A Coordinator agent routes through an Agent Gateway to
-five specialist agents — Shift Allocation, Inventory Management, Supply Chain Resiliency, HR,
-and Chaos & Continuity — plus a Medical Representative agent deployed separately and reached
-via genuine Agent2Agent. The dashboard gives a hospital manager an enterprise-grade ops
-console (staffing, inventory, payroll, procurement, admissions) with the agents doing the
-work underneath, demoed against a scripted flu-outbreak surge at a single hospital.
+**Agent-monitored hospital operations.** Built for the
+[All Things Agentic Hackathon](https://allthingsagentichackathon.devpost.com/),
+Fortified Enterprise Fleet track.
+
+Seven agents run a hospital's staffing, supplies, and vendor relationships. A Coordinator
+routes every internal call through an Agent Gateway to five specialists; a sixth agent sits on
+the far side of a real trust boundary and is reached over genuine Agent2Agent. The fleet does
+not wait to be asked — at each simulated-day boundary it compares the ward to how it left it
+and wakes the responsible agent where something crossed a line. Anything with a real-world
+consequence still comes back to a human for approval.
 
 **Live:**
-[prudently-web](https://prudently-web-jnpvbtwpwa-uc.a.run.app) ·
-[prudently-api](https://prudently-api-jnpvbtwpwa-uc.a.run.app)
+[dashboard](https://prudently-web-jnpvbtwpwa-uc.a.run.app) ·
+[API](https://prudently-api-jnpvbtwpwa-uc.a.run.app/dashboard/overview)
 
-See `AGENTS.md` for the full architecture, agent roster, and build history; `docs/build-plan.md`
-for the build plan and demo video script (§6); `docs/day1-probe-results.md` for which of the
-seven Fortified Enterprise Fleet capabilities are backed by real GCP products vs.
-local-emulated fallbacks.
+**Architecture:** [`docs/architecture.md`](docs/architecture.md) ·
+[diagram](docs/architecture.svg)
 
-## Architecture
+---
 
-- **Coordinator** — sole user-facing entry point, routes every specialist call through the
-  Agent Gateway (`before_tool_callback`): registry lookup → policy authorization → the real
-  tool.
-- **Shift Allocation, Inventory Management, Supply Chain Resiliency, HR, Chaos & Continuity** —
-  in-process `AgentTool` sub-agents, each also deployed as its own Vertex AI Reasoning Engine.
-- **Medical Representative** — deployed and reached separately, over genuine Agent2Agent from
-  Supply Chain Resiliency, not through the Gateway. Owns Model Armor screening of inbound
-  vendor communications at the one real external-trust boundary in the design.
-- **Manager approval workflow** — consequential actions (contacting a vendor, notifying staff)
-  are gated behind manager approval by default, configurable per action from the dashboard;
-  approve/reject links are emailed and click straight through, no login required.
+## What it does
 
-Every agent's Reasoning Engine ID is in `config.py` / `.env.example`. Region is locked to
-`us-central1` across Cloud Run, Reasoning Engine, Firestore, and Memory Bank.
+| | |
+|---|---|
+| **Acts unprompted** | A fleet watch fires on state *transitions* — a SKU crossing its par level, a unit gaining another critically fatigued nurse — and opens a real agent turn about it. Nobody typed anything. See the Autonomous activity page. |
+| **Remembers across weeks** | Each agent has its own Vertex AI Memory Bank store on its own Reasoning Engine, scoped per unit or per SKU. Facts are written every simulated day and read back by the agent's own recall tool — ask Shift whether ICU fatigue has been building and it cites the day it started. |
+| **Catalogs its own fleet** | The Agent Gateway looks every target up in a Firestore registry on every call, and blocks unregistered, inactive, or unauthorized ones before the tool body runs. |
+| **Screens untrusted input** | Model Armor screens inbound vendor mail in a `before_model_callback`, so a blocked message never reaches a model at all — then re-screens the excerpt the model extracts. |
+| **Never acts unsupervised** | Contacting a vendor, notifying staff, and replying to a vendor are all approval-gated, configurable per action, fail-closed. Approve links render on `GET` and mutate on `POST`. |
+| **Proves what happened** | One Cloud Trace spans Coordinator → Gateway → the A2A hop → Model Armor. Any blocked event in Firestore pivots straight to it. |
 
 ## Repo layout
 
 - `apps/api` — FastAPI + ADK backend: the 7 agents, the platform capability adapters
-  (Registry/Identity/Gateway/Model Armor/Observability), and every dashboard route
+  (Registry / Identity / Gateway / Model Armor / Observability), the fleet watch, and every
+  dashboard route
 - `apps/web` — Next.js dashboard
-- `packages/datagen` — synthetic hospital data generator (roster, inventory, admissions) plus
-  one-off backfill/repair scripts for additive schema changes
+- `packages/datagen` — synthetic hospital data generator plus one-off backfill scripts
 - `infra/terraform` — GCP infrastructure as code (IAM, secrets, Cloud Run service shells)
-- `docs` — build plan (incl. demo video script) and Day-1 capability probe results
+- `docs` — architecture, build plan and demo script, Day-1 capability probe results
 
-## Setup
+---
 
-Prerequisites: a GCP project, `gcloud` authenticated, `uv`, `node`/`npm`, `terraform`.
+## Running it
 
-```
-cp .env.example .env          # fill in your project ID and secrets
-make tf-apply                 # provision infra (IAM, secrets, Cloud Run shells)
-make seed                     # generate synthetic hospital data into Firestore
-make dev                      # run api + web locally (localhost:8000 / localhost:3000)
-```
+### 0. Prerequisites
 
-Deploying an agent's Reasoning Engine is a separate step per agent — see "Running / deploying
-an agent" in `AGENTS.md` for the exact `adk deploy agent_engine` command per agent (Coordinator's
-differs from the others: it needs every specialist folder staged alongside it).
+A GCP project with billing, and: `gcloud` (authenticated), `uv`, `node` 20+, `terraform`.
 
-```
-make deploy                   # deploy both Cloud Run services (apps/api, apps/web)
+```bash
+git clone <this repo> && cd prudently
+cp .env.example .env      # then edit — see step 1
 ```
 
-## Local dev
+### 1. One-time manual setup
 
+Four things cannot be provisioned from Terraform and have to be done once by hand. **Skipping
+any of them leaves the app running but visibly broken**, so they are listed with the symptom
+you get if you miss one.
+
+| Step | How | If you skip it |
+|---|---|---|
+| **Enable APIs** | `gcloud services enable aiplatform.googleapis.com firestore.googleapis.com run.googleapis.com secretmanager.googleapis.com cloudtrace.googleapis.com logging.googleapis.com modelarmor.googleapis.com pubsub.googleapis.com` | Deploys fail at the first API call |
+| **Gemini API key** | `gcloud secrets create prudently-gemini-api-key --data-file=-` (paste the key, Ctrl-D) | Every agent fails on its first model call |
+| **Model Armor template** | Create a template named `prudently-vendor-ingest` in `us-central1` with the `pi_and_jailbreak`, `malicious_uri`, and `rai` filters. **Use the REST API or the Python SDK, not `gcloud model-armor`** — that subcommand returns spurious `PERMISSION_DENIED` even under project Owner. | Screening fails closed; every vendor message is reported blocked |
+| **Firebase Auth** | In the Firebase Console, attach a Firebase project to this GCP project, enable the Email/Password provider, and create one manager account. Put the web config in `apps/web/.env.local`. | The dashboard shows a login form nobody can get past |
+
+Gmail approvals are optional. To enable them, turn on 2-Step Verification for the sending
+account, create an app password, store it as `prudently-gmail-app-password`, and set
+`MANAGER_EMAIL` / `GMAIL_SENDER_EMAIL` in `.env`. Leave `EMAIL_BACKEND=local` to run everything
+without sending mail — approvals are still created and still resolvable from the dashboard.
+
+### 2. Infrastructure and data
+
+```bash
+make tf-apply         # IAM, secrets, Cloud Run service shells. Firestore's location is
+                      # immutable — us-central1 is a one-way door.
+make seed             # synthetic roster, shift history, inventory, vendors, admissions
+make seed-registry    # REQUIRED — the Gateway blocks every call until the registry exists
+make seed-policy      # approval policy defaults
 ```
-make api-dev   # FastAPI backend only
-make web-dev   # Next.js dashboard only
-make lint      # pylint (apps/api) + eslint (apps/web)
-make test      # pytest, coverage-gated on the pure-logic modules
-make probe     # re-run the Day-1 GCP capability probe against your own project
+
+`make seed-registry` is not optional. Without it, the Agent Gateway's registry lookup returns
+nothing and refuses every specialist call as `blocked_unregistered`, which looks like a broken
+Coordinator rather than a missing seed.
+
+### 3. Deploy the agents
+
+Each agent is its own Reasoning Engine. Run these from `apps/api/`:
+
+```bash
+cd apps/api
+for a in shift inventory supply hr chaos medrep; do
+  adk deploy agent_engine agents/$a \
+    --project=$GOOGLE_CLOUD_PROJECT --region=us-central1 \
+    --display_name="$a" --otel_to_cloud \
+    --extra_packages=services --extra_packages=config.py
+done
 ```
+
+**The Coordinator's command is different** — it imports its specialists as flattened top-level
+modules, so every specialist folder has to be staged alongside it:
+
+```bash
+adk deploy agent_engine agents/coordinator \
+  --project=$GOOGLE_CLOUD_PROJECT --region=us-central1 \
+  --display_name="coordinator" --otel_to_cloud \
+  --extra_packages=services --extra_packages=config.py \
+  --extra_packages=agents/chaos --extra_packages=agents/hr \
+  --extra_packages=agents/inventory --extra_packages=agents/shift \
+  --extra_packages=agents/supply
+```
+
+Put each resulting engine ID into `.env`. Then deploy the two Cloud Run services:
+
+```bash
+make deploy
+```
+
+> **`adk deploy` exiting 0 does not mean the agent works.** Agent Engine serves a warm sandbox
+> from the previous deploy for a short window, so even a passing smoke test right after a
+> deploy can be running old code. Query the engine again a minute later and read the actual
+> tool output. Whenever a specialist changes, **redeploy the Coordinator too** — it carries a
+> copy of each specialist's source frozen at its own last deploy.
+
+### 4. Local development
+
+```bash
+make dev              # api on :8000, web on :3000
+make api-dev          # backend only
+make web-dev          # dashboard only
+make lint             # black + pylint, eslint
+make test             # pytest with an 80% coverage gate on the pure-logic modules
+make eval             # scenario evals against the agents (needs GCP credentials)
+make probe            # re-run the Day-1 capability probe against your own project
+```
+
+From `apps/api/`, two more that matter around a demo or a deploy:
+
+```bash
+make verify-deploys ARGS="--query"   # confirm every engine actually works, live
+make demo-reset ARGS="--restock"     # clean slate so a replay fires triggers again
+```
+
+`make verify-deploys` exists because **`adk deploy` prints "Deploy failed" and still exits 0** —
+observed live, a mid-deploy connection reset produced exactly that. Deploy outcome has to be
+read from the output text and confirmed against the engine's own `update_time`.
+
+## Driving a demo
+
+The ward clock is what makes the fleet act. From the dashboard's top strip:
+
+- **Run** — advances a simulated day roughly every 60s and lets everything unfold on its own.
+- **Next day** — advances one day immediately. Returns straight away; the agent turns it
+  triggers land in the Autonomous activity feed as they finish.
+- **Reset** — back to day zero, and clears the watch's memory of what it has already seen so a
+  replay fires the same triggers again.
+
+[`docs/demo.md`](docs/demo.md) has the shot-by-shot script, the pre-flight checklist, and
+fallbacks for the things that have actually gone wrong on camera.
+
+## Known limits
+
+Honest ones, because they are the interesting part:
+
+- **The specialists are not decoupled from the Coordinator.** They are in-process `AgentTool`s
+  whose source is copied into the Coordinator's image at deploy time. Seven Reasoning Engines
+  exist, but the Coordinator path runs one process carrying five frozen copies.
+- **Agent Identity does not enforce anything.** Every deployed agent runs as the same shared
+  Reasoning Engine service agent; the per-agent service accounts are for local dev. Access
+  control lives in the Gateway's policy table, not in identity.
+- **Registry, Gateway, and Identity are built on ADK primitives**, not distinct Google Cloud
+  products — because the Day-1 probe found no such products.
+  [`docs/day1-probe-results.md`](docs/day1-probe-results.md) records what was checked and how.
+- **The autonomous watch runs agents in-process**, not through the Agent Engine transport. That
+  is deliberate: `stream_query` against a deployed engine reset mid-stream on 3 of 4 attempts
+  from a laptop, and the manager-initiated path already exercises that transport.

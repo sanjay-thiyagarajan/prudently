@@ -231,12 +231,46 @@ export interface ActivityLogEntry {
     | "action_resolved"
     | "routing_decision"
     | "screening"
-    | "chaos_experiment";
+    | "chaos_experiment"
+    | "autonomous_action";
   tool_name: string | null;
   summary: string;
   status: string | null;
   trace_id: string | null;
+  /** "autonomous_watch" when the fleet started this itself; "manager" when a human asked. */
+  initiated_by?: "manager" | "autonomous_watch";
   timestamp: string;
+}
+
+/**
+ * One thing the fleet noticed at a simulated-day boundary and acted on with nobody in the
+ * room — see apps/api/services/autonomy.py. `response` is the agent's own account of what it
+ * did; `status` is "failed" when the turn timed out or errored, which is surfaced rather than
+ * hidden so the feed never overstates what the fleet accomplished.
+ */
+export interface AutonomousAction {
+  id: string;
+  trigger_kind: "stock_breach" | "fatigue_breach";
+  subject: string;
+  agent_name: string;
+  severity: string;
+  summary: string;
+  prompt: string;
+  response: string;
+  status: "completed" | "failed";
+  tool_calls: number;
+  sim_day: number;
+  context: Record<string, unknown>;
+  trace_id: string | null;
+  timestamp: string;
+}
+
+export interface SimStatus {
+  sim_day: number;
+  running: boolean;
+  speedup: number;
+  timeline_days: number;
+  finished: boolean;
 }
 
 export interface AgentDetail {
@@ -298,5 +332,8 @@ export interface DashboardOverview {
   guest_doctor_hours: GuestDoctorHours[];
   armor_events: ArmorEvent[];
   chaos_experiments: ChaosExperiment[];
+  autonomous_actions: AutonomousAction[];
   approvals: Approval[];
+  /** Set by the API when the caller was anonymous and staff-level rows were withheld. */
+  _public_view?: boolean;
 }

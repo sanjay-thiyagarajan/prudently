@@ -9,58 +9,92 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+/**
+ * How an agent sits in the topology, which is the only thing that changes how it is drawn.
+ *
+ * Agents deliberately do NOT get individual accent colours any more. The previous version
+ * gave each one its own hue, and three of those hues were the triage green/amber/red that
+ * every status pill on the site uses to mean safe/elevated/critical — so the Shift agent's
+ * card was green for no reason while a green pill next to it meant something specific. Colour
+ * here now carries exactly one message: where the agent sits relative to the trust boundary.
+ */
+export type AgentKind = "hub" | "specialist" | "external";
+
 export interface AgentMeta {
   label: string;
   icon: LucideIcon;
   blurb: string;
-  accent: string;
+  kind: AgentKind;
+  /** What this agent remembers between sessions, and how that memory is partitioned. */
+  memoryScope: string | null;
+  /** Whether the fleet watch can wake this agent up with nobody in the room. */
+  autonomous: boolean;
 }
 
-// Single source of truth for per-agent display metadata — shared by FleetOverview's cards,
-// the sidebar's agent quick-links, and the agent detail page's header, so a new agent only
-// needs an entry here once.
+export const AGENT_ACCENT: Record<AgentKind, string> = {
+  hub: "var(--color-hero)",
+  specialist: "var(--color-ink-secondary)",
+  external: "var(--color-a2a)",
+};
+
+// Single source of truth for per-agent display metadata — shared by the fleet topology, the
+// sidebar, and the agent detail page header, so a new agent needs one entry here.
 export const AGENT_META: Record<string, AgentMeta> = {
   coordinator: {
     label: "Coordinator",
     icon: Network,
-    blurb: "Sole user-facing entry point — routes every call through the Agent Gateway",
-    accent: "var(--color-hero)",
+    blurb: "The only way in — routes every call through the Agent Gateway",
+    kind: "hub",
+    memoryScope: null,
+    autonomous: false,
   },
   shift_allocation_agent: {
     label: "Shift Allocation",
     icon: CalendarClock,
-    blurb: "Fatigue & overtime burndown, reallocation recommendations",
-    accent: "var(--color-safe)",
+    blurb: "Fatigue and overtime burndown, reallocation recommendations",
+    kind: "specialist",
+    memoryScope: "per unit",
+    autonomous: true,
   },
   inventory_management_agent: {
-    label: "Inventory Management",
+    label: "Inventory",
     icon: Package,
-    blurb: "Tactical stock and par-level tracking",
-    accent: "var(--color-elevated)",
+    blurb: "Stock and par-level tracking against reorder points",
+    kind: "specialist",
+    memoryScope: "per SKU",
+    autonomous: false,
   },
   supply_chain_resiliency_agent: {
-    label: "Supply Chain Resiliency",
+    label: "Supply Chain",
     icon: Truck,
-    blurb: "Strategic reorder decisions and vendor selection",
-    accent: "#f97316",
+    blurb: "Reorder quantities, vendor selection, stockout risk",
+    kind: "specialist",
+    memoryScope: "per vendor",
+    autonomous: true,
   },
   hr_agent: {
     label: "HR",
     icon: ShieldCheck,
-    blurb: "Credentialing and per-diem escalation target",
-    accent: "#38bdf8",
-  },
-  medical_representative_agent: {
-    label: "Medical Representative",
-    icon: Handshake,
-    blurb: "External-facing vendor liaison — Model Armor ingestion boundary",
-    accent: "var(--color-a2a)",
+    blurb: "Credentialing, and where Shift escalates when cover runs out",
+    kind: "specialist",
+    memoryScope: "per unit",
+    autonomous: false,
   },
   chaos_continuity_agent: {
     label: "Chaos & Continuity",
     icon: Zap,
-    blurb: "Hospital what-if projections and fleet fault injection",
-    accent: "#f472b6",
+    blurb: "Ward what-if projections and fault injection against the fleet",
+    kind: "specialist",
+    memoryScope: "per scenario",
+    autonomous: false,
+  },
+  medical_representative_agent: {
+    label: "Medical Representative",
+    icon: Handshake,
+    blurb: "Screens inbound vendor mail before any of it reaches a model",
+    kind: "external",
+    memoryScope: null,
+    autonomous: false,
   },
 };
 
@@ -70,7 +104,13 @@ export function agentMetaFor(agentName: string): AgentMeta {
       label: agentName,
       icon: Network,
       blurb: "",
-      accent: "var(--color-hero)",
+      kind: "specialist",
+      memoryScope: null,
+      autonomous: false,
     }
   );
+}
+
+export function accentFor(agentName: string): string {
+  return AGENT_ACCENT[agentMetaFor(agentName).kind];
 }

@@ -54,7 +54,7 @@ export default function StaffProfilePage() {
       </div>
 
       <div className="grid max-w-4xl grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-5">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)] p-5">
           <div className="mb-3 flex items-center gap-2.5">
             <CalendarClock size={16} className="text-[var(--color-safe)]" />
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-primary)]">
@@ -80,7 +80,7 @@ export default function StaffProfilePage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-5">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)] p-5">
           <div className="mb-3 flex items-center gap-2.5">
             <ShieldCheck size={16} className="text-[#38bdf8]" />
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-primary)]">
@@ -99,7 +99,7 @@ export default function StaffProfilePage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-5 lg:col-span-2">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)] p-5 lg:col-span-2">
           <div className="mb-3 flex items-center gap-2.5">
             <Wallet size={16} className="text-[#facc15]" />
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-primary)]">

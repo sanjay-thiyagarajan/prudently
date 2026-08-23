@@ -25,6 +25,23 @@ GCP_PROJECT_ID = "prudently-hackathon"
 PUBLIC_API_BASE_URL = "https://prudently-api-jnpvbtwpwa-uc.a.run.app"
 
 
+# An agent's ADK name -> the Settings field naming its deployed Reasoning Engine. Lives here,
+# not in either consumer, because two very different places need exactly this mapping and they
+# must not be able to drift: services/memory.py resolves an agent's own Memory Bank store
+# through it, and scripts/seed_registry.py writes the engine ids into the Firestore catalog the
+# Gateway reads. A disagreement between those two would mean an agent whose memories live in a
+# different engine than the registry advertises.
+AGENT_ENGINE_SETTING: dict[str, str] = {
+    "coordinator": "coordinator_agent_engine_id",
+    "shift_allocation_agent": "shift_agent_engine_id",
+    "inventory_management_agent": "inventory_agent_engine_id",
+    "supply_chain_resiliency_agent": "supply_agent_engine_id",
+    "hr_agent": "hr_agent_engine_id",
+    "medical_representative_agent": "medrep_agent_engine_id",
+    "chaos_continuity_agent": "chaos_agent_engine_id",
+}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

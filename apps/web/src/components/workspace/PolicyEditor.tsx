@@ -91,7 +91,7 @@ export function PolicyEditor() {
   const { policies, isLoading } = useApprovalPolicies();
 
   return (
-    <Panel title="Approval policy" icon={Settings2} accent="var(--color-a2a)">
+    <Panel title="Approval policy" icon={Settings2}>
       {isLoading ? (
         <div className="flex h-full min-h-[220px] items-center justify-center">
           <Loader2 className="animate-spin text-[var(--color-ink-muted)]" size={20} />

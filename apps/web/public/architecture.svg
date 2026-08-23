@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 940" width="1420" height="940" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">
+  <title>Prudently — Fortified Enterprise Fleet architecture</title>
+  <desc>A hospital operations agent fleet on Google Cloud: a Coordinator on Vertex AI Agent Engine routes through an Agent Gateway to five specialists; Supply Chain reaches a Medical Representative agent across a trust boundary over Agent2Agent, where Model Armor screens inbound vendor mail before any model sees it. An autonomous fleet watch wakes agents at simulated-day boundaries, and every consequential action is gated behind manager approval.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#52645d"/>
+    </marker>
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0b6e63"/>
+    </marker>
+    <marker id="arrowIndigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#574ac0"/>
+    </marker>
+    <style>
+      .lbl   { font-size: 10px; letter-spacing: 1.3px; fill: #7b8b84; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+      .name  { font-size: 14px; font-weight: 600; fill: #11201c; }
+      .sub   { font-size: 11.5px; fill: #52645d; }
+      .mono  { font-size: 10.5px; fill: #7b8b84; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+      .edge  { font-size: 10.5px; fill: #52645d; }
+      .card  { fill: #ffffff; stroke: #d5dedb; stroke-width: 1.5; }
+      .zone  { fill: #ffffff; fill-opacity: 0.55; stroke: #0b6e63; stroke-width: 1.5; stroke-dasharray: 4 5; }
+      .flow  { stroke: #52645d; stroke-width: 1.6; fill: none; }
+      .flowT { stroke: #0b6e63; stroke-width: 1.8; fill: none; }
+      .flowI { stroke: #574ac0; stroke-width: 1.8; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1420" height="940" fill="#f3f6f4"/>
+
+  <text x="48" y="52" font-size="25" font-weight="700" fill="#11201c">Prudently — Fortified Enterprise Fleet</text>
+  <text x="48" y="76" class="sub" font-size="13">Agent-monitored hospital operations. Every box below is deployed and running in us-central1.</text>
+
+  <!-- Legend -->
+  <g transform="translate(1000,34)">
+    <rect x="0" y="0" width="372" height="56" rx="6" fill="#ffffff" stroke="#e3e9e6"/>
+    <line x1="16" y1="20" x2="44" y2="20" class="flow" marker-end="url(#arrow)"/>
+    <text x="52" y="24" class="edge">in-process call</text>
+    <line x1="16" y1="40" x2="44" y2="40" class="flowT" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
+    <text x="52" y="44" class="edge">network hop (A2A)</text>
+    <line x1="196" y1="20" x2="224" y2="20" class="flowI" marker-end="url(#arrowIndigo)"/>
+    <text x="232" y="24" class="edge">fleet-initiated</text>
+    <rect x="196" y="34" width="12" height="12" rx="2" fill="#ffffff" stroke="#d5dedb"/>
+    <text x="232" y="44" class="edge">deployed component</text>
+  </g>
+
+  <!-- ── Column 1: who starts things ─────────────────────────────────────── -->
+  <text x="48" y="128" class="lbl">WHO STARTS THINGS</text>
+
+  <g transform="translate(48,144)">
+    <rect class="card" x="0" y="0" width="230" height="88" rx="8"/>
+    <text x="16" y="28" class="name">Operations manager</text>
+    <text x="16" y="48" class="sub">Next.js dashboard on Cloud Run</text>
+    <text x="16" y="67" class="mono">Firebase Auth · signed-in view</text>
+    <text x="16" y="81" class="mono">public view redacts staff rows</text>
+  </g>
+
+  <g transform="translate(48,268)">
+    <rect class="card" x="0" y="0" width="230" height="76" rx="8" stroke="#574ac0"/>
+    <text x="16" y="27" class="name" fill="#574ac0">Fleet watch</text>
+    <text x="16" y="46" class="sub">Edge-triggered, no human input</text>
+    <text x="16" y="64" class="mono">triggers.py + autonomy.py</text>
+  </g>
+
+  <g transform="translate(48,380)">
+    <rect class="card" x="0" y="0" width="230" height="62" rx="8"/>
+    <text x="16" y="26" class="name">Ward clock</text>
+    <text x="16" y="45" class="sub">21-day surge, compressed</text>
+  </g>
+  <line x1="163" y1="380" x2="163" y2="350" class="flowI" marker-end="url(#arrowIndigo)"/>
+  <text x="173" y="368" class="edge" fill="#574ac0">day boundary</text>
+
+  <line x1="278" y1="188" x2="356" y2="188" class="flow" marker-end="url(#arrow)"/>
+  <text x="288" y="180" class="edge">asks</text>
+  <path d="M 278 300 C 322 300 322 218 356 208" class="flowI" marker-end="url(#arrowIndigo)"/>
+  <text x="288" y="296" class="edge" fill="#574ac0">wakes an agent</text>
+
+  <!-- ── Column 2: Coordinator + Gateway + specialists ───────────────────── -->
+  <text x="356" y="128" class="lbl">SINGLE ENTRY POINT</text>
+  <g transform="translate(356,144)">
+    <rect class="card" x="0" y="0" width="252" height="88" rx="8" stroke="#0b6e63" stroke-width="2"/>
+    <text x="16" y="28" class="name">Coordinator</text>
+    <text x="16" y="48" class="sub">Root ADK agent — delegates only</text>
+    <text x="16" y="70" class="mono">Vertex AI Agent Engine</text>
+  </g>
+
+  <line x1="482" y1="232" x2="482" y2="272" class="flow" marker-end="url(#arrow)"/>
+  <g transform="translate(320,272)">
+    <rect class="card" x="0" y="0" width="326" height="94" rx="8"/>
+    <text x="16" y="27" class="name">Agent Gateway</text>
+    <text x="16" y="47" class="sub">ADK before_tool_callback — every internal call</text>
+    <text x="16" y="68" class="mono">registry lookup → policy check → trace span</text>
+    <text x="16" y="84" class="mono">blocks unregistered · inactive · unauthorized</text>
+  </g>
+  <line x1="482" y1="366" x2="482" y2="410" class="flow" marker-end="url(#arrow)"/>
+
+  <text x="320" y="402" class="lbl">FIVE SPECIALISTS</text>
+
+  <g transform="translate(320,414)">
+    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
+    <text x="14" y="27" class="name" font-size="13">Shift Allocation</text>
+    <text x="14" y="45" class="sub" font-size="10.5">Fatigue burndown</text>
+    <text x="14" y="62" class="mono" font-size="9.5">memory: per unit</text>
+    <circle cx="139" cy="15" r="4.5" fill="#574ac0"/>
+  </g>
+  <g transform="translate(492,414)">
+    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
+    <text x="14" y="27" class="name" font-size="13">Inventory</text>
+    <text x="14" y="45" class="sub" font-size="10.5">Par levels, stock</text>
+    <text x="14" y="62" class="mono" font-size="9.5">memory: per SKU</text>
+  </g>
+  <g transform="translate(320,506)">
+    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
+    <text x="14" y="27" class="name" font-size="13">HR</text>
+    <text x="14" y="45" class="sub" font-size="10.5">Credentialing</text>
+    <text x="14" y="62" class="mono" font-size="9.5">memory: per unit</text>
+  </g>
+  <g transform="translate(492,506)">
+    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
+    <text x="14" y="27" class="name" font-size="13">Supply Chain</text>
+    <text x="14" y="45" class="sub" font-size="10.5">Reorder, vendors</text>
+    <text x="14" y="62" class="mono" font-size="9.5">memory: per vendor</text>
+    <circle cx="139" cy="15" r="4.5" fill="#574ac0"/>
+  </g>
+  <g transform="translate(320,598)">
+    <rect class="card" x="0" y="0" width="326" height="68" rx="8"/>
+    <text x="14" y="27" class="name" font-size="13">Chaos &amp; Continuity</text>
+    <text x="14" y="46" class="sub" font-size="10.5">Ward what-ifs, and fault injection against the fleet</text>
+    <text x="14" y="62" class="mono" font-size="9.5">kill agent · inject latency · poison memory</text>
+  </g>
+  <text x="320" y="690" class="mono" font-size="9.5">● = the fleet watch can wake this agent unprompted</text>
+  <text x="320" y="706" class="mono" font-size="9.5">In-process AgentTools; each is also its own Reasoning Engine.</text>
+
+  <!-- ── Column 3: trust boundary ────────────────────────────────────────── -->
+  <rect class="zone" x="762" y="396" width="336" height="272" rx="10"/>
+  <text x="762" y="386" class="lbl" fill="#0b6e63">EXTERNAL TRUST BOUNDARY — UNTRUSTED BY DEFAULT</text>
+
+  <line x1="646" y1="543" x2="762" y2="543" class="flowT" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
+  <text x="652" y="534" class="edge" fill="#0b6e63">Agent2Agent</text>
+  <text x="652" y="562" class="mono" font-size="9.5">public URL</text>
+
+  <g transform="translate(780,414)">
+    <rect class="card" x="0" y="0" width="300" height="86" rx="8" stroke="#0b6e63" stroke-dasharray="4 3"/>
+    <text x="16" y="28" class="name">Medical Representative</text>
+    <text x="16" y="48" class="sub">Vendor liaison — separately deployed</text>
+    <text x="16" y="69" class="mono">own engine + Cloud Run A2A mount</text>
+  </g>
+
+  <line x1="930" y1="500" x2="930" y2="530" class="flow" marker-end="url(#arrow)"/>
+  <g transform="translate(780,530)">
+    <rect class="card" x="0" y="0" width="300" height="94" rx="8" stroke="#a4322a"/>
+    <text x="16" y="27" class="name" fill="#a4322a">Model Armor</text>
+    <text x="16" y="46" class="sub">Screens inbound vendor mail — twice</text>
+    <text x="16" y="67" class="mono">1 · before_model_callback (pre-LLM)</text>
+    <text x="16" y="83" class="mono">2 · re-screen of the quoted excerpt</text>
+  </g>
+  <text x="780" y="646" class="mono" font-size="9.5" fill="#a4322a">A blocked message never reaches a model,</text>
+  <text x="780" y="660" class="mono" font-size="9.5" fill="#a4322a">Memory Bank, or Supply Chain.</text>
+
+  <!-- ── Column 4: approval gate ─────────────────────────────────────────── -->
+  <text x="1140" y="128" class="lbl">NOTHING RUNS UNATTENDED</text>
+  <g transform="translate(1140,144)">
+    <rect class="card" x="0" y="0" width="232" height="160" rx="8"/>
+    <text x="16" y="28" class="name">Approval gate</text>
+    <text x="16" y="48" class="sub">Contacting a vendor, notifying</text>
+    <text x="16" y="64" class="sub">staff, replying to a vendor</text>
+    <text x="16" y="88" class="mono">fails closed — no policy set</text>
+    <text x="16" y="102" class="mono">means approval is required</text>
+    <text x="16" y="120" class="mono">GET renders · POST mutates</text>
+    <text x="16" y="138" class="mono">manager clicks approve or</text>
+    <text x="16" y="152" class="mono">reject from their inbox</text>
+  </g>
+  <path d="M 646 430 C 706 376 900 300 1140 244" class="flow" marker-end="url(#arrow)"/>
+  <text x="856" y="306" class="edge">requests approval</text>
+
+  <!-- ── Platform row ────────────────────────────────────────────────────── -->
+  <text x="48" y="748" class="lbl">GOOGLE CLOUD — DATA, MEMORY, AND EVIDENCE</text>
+  <g transform="translate(48,762)">
+    <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
+    <text x="16" y="27" class="name" font-size="13">Firestore</text>
+    <text x="16" y="46" class="sub" font-size="10.5">Roster, shifts, inventory, vendors,</text>
+    <text x="16" y="62" class="sub" font-size="10.5">approvals, activity log, armor events,</text>
+    <text x="16" y="78" class="sub" font-size="10.5">autonomous actions, watch state</text>
+  </g>
+  <g transform="translate(320,762)">
+    <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
+    <text x="16" y="27" class="name" font-size="13">Vertex AI Memory Bank</text>
+    <text x="16" y="46" class="sub" font-size="10.5">One store per agent, on that</text>
+    <text x="16" y="62" class="sub" font-size="10.5">agent&#8217;s own engine. Written each</text>
+    <text x="16" y="78" class="sub" font-size="10.5">sim-day, read back by recall tools.</text>
+  </g>
+  <g transform="translate(592,762)">
+    <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
+    <text x="16" y="27" class="name" font-size="13">Cloud Trace + Logging</text>
+    <text x="16" y="46" class="sub" font-size="10.5">One trace spans Coordinator →</text>
+    <text x="16" y="62" class="sub" font-size="10.5">Gateway → A2A hop → Model Armor.</text>
+    <text x="16" y="78" class="sub" font-size="10.5">Pivot from any blocked event.</text>
+  </g>
+  <g transform="translate(864,762)">
+    <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
+    <text x="16" y="27" class="name" font-size="13">Secret Manager + IAM</text>
+    <text x="16" y="46" class="sub" font-size="10.5">Gemini key, Gmail app password.</text>
+    <text x="16" y="62" class="sub" font-size="10.5">Per-agent service accounts and</text>
+    <text x="16" y="78" class="sub" font-size="10.5">grants provisioned in Terraform.</text>
+  </g>
+  <g transform="translate(1136,762)">
+    <rect class="card" x="0" y="0" width="236" height="94" rx="8"/>
+    <text x="16" y="27" class="name" font-size="13">Region lock</text>
+    <text x="16" y="46" class="sub" font-size="10.5">us-central1 across Cloud Run,</text>
+    <text x="16" y="62" class="sub" font-size="10.5">Firestore, every Reasoning Engine,</text>
+    <text x="16" y="78" class="sub" font-size="10.5">Memory Bank, and Model Armor.</text>
+  </g>
+
+  <text x="48" y="892" class="mono" font-size="10">Real Google Cloud products: Agent Engine · Memory Bank · Model Armor · Cloud Run · Firestore · Cloud Trace · Cloud Logging · Secret Manager · Firebase Auth</text>
+  <text x="48" y="912" class="mono" font-size="10">Built on ADK primitives where no distinct product exists: Agent Registry (Firestore catalog) · Agent Gateway (before_tool_callback) · Agent Identity (IAM resolver) — see docs/day1-probe-results.md</text>
+</svg>

@@ -8,9 +8,7 @@ AGENTS.md's deploy notes. Safe to re-run: every write is a full `set()` on a fix
 
 from __future__ import annotations
 
-from config import (
-    get_settings,
-)
+from config import AGENT_ENGINE_SETTING, get_settings
 from services.state import get_client
 
 REGISTRY: list[dict] = [
@@ -65,16 +63,6 @@ REGISTRY: list[dict] = [
     },
 ]
 
-_ENGINE_ID_SETTINGS_FIELD = {
-    "shift_allocation_agent": "shift_agent_engine_id",
-    "inventory_management_agent": "inventory_agent_engine_id",
-    "supply_chain_resiliency_agent": "supply_agent_engine_id",
-    "hr_agent": "hr_agent_engine_id",
-    "medical_representative_agent": "medrep_agent_engine_id",
-    "chaos_continuity_agent": "chaos_agent_engine_id",
-    "coordinator": "coordinator_agent_engine_id",
-}
-
 
 def main() -> None:
     settings = get_settings()
@@ -82,7 +70,7 @@ def main() -> None:
     batch = client.batch()
 
     for entry in REGISTRY:
-        settings_field = _ENGINE_ID_SETTINGS_FIELD.get(entry["agent_name"])
+        settings_field = AGENT_ENGINE_SETTING.get(entry["agent_name"])
         if settings_field:
             entry["reasoning_engine_id"] = getattr(settings, settings_field) or None
         batch.set(client.collection("agent_registry").document(entry["agent_name"]), entry)

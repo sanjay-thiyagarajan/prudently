@@ -44,7 +44,7 @@ export function AdmissionsPanel({
   const units = unitTotals.map((entry) => entry.unit);
 
   return (
-    <Panel title="Admissions" icon={Ambulance} accent="#f472b6" live>
+    <Panel title="Admissions" icon={Ambulance} live>
       <div className="grid grid-cols-3 gap-2.5">
         {unitTotals.map((entry) => (
           <div

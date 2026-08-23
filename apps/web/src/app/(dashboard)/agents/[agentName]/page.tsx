@@ -18,7 +18,7 @@ import { ShiftPanel } from "@/components/workspace/ShiftPanel";
 import { SupplyPanel } from "@/components/workspace/SupplyPanel";
 import { TraceViewer } from "@/components/workspace/TraceViewer";
 import { useAgentDetail } from "@/lib/api/agents";
-import { agentMetaFor } from "@/lib/agentMeta";
+import { accentFor, agentMetaFor } from "@/lib/agentMeta";
 import type {
   ArmorEvent,
   BurndownRecord,
@@ -126,13 +126,14 @@ export default function AgentDetailPage() {
 
   const meta = agentMetaFor(agentName);
   const Icon = meta.icon;
+  const accent = accentFor(agentName);
 
   return (
     <main className="min-h-screen px-8 py-10">
       <div className="mb-8 flex items-center gap-4">
         <span
-          className="flex size-12 shrink-0 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${meta.accent}20`, color: meta.accent }}
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: `${accent}1a`, color: accent }}
         >
           <Icon size={22} strokeWidth={2} />
         </span>

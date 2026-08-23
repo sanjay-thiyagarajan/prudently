@@ -4,6 +4,7 @@ import { CalendarClock } from "lucide-react";
 
 import { DistributionBar } from "@/components/ui/DistributionBar";
 import { Panel } from "@/components/ui/Panel";
+import { RedactedNote } from "@/components/ui/RedactedNote";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { BurndownRecord, RiskLevel } from "@/lib/types/dashboard";
 
@@ -17,9 +18,16 @@ export function ShiftPanel({
   unitSummary: Record<string, Record<RiskLevel, number>>;
 }) {
   const flagged = records.filter((r) => r.risk_level !== "safe").slice(0, 6);
+  // The aggregates survive redaction, so they are the honest source for "is anything wrong".
+  // Never infer "all clear" from an empty `records` — signed out it always is.
+  const atRisk = Object.values(unitSummary ?? {}).reduce(
+    (sum, c) => sum + (c.critical ?? 0) + (c.elevated ?? 0),
+    0,
+  );
+  const withheld = records.length === 0 && atRisk > 0;
 
   return (
-    <Panel title="Shift Allocation" icon={CalendarClock} accent="var(--color-safe)" live>
+    <Panel title="Shift Allocation" icon={CalendarClock} live>
       <div className="space-y-3">
         {Object.entries(unitSummary).map(([unit, counts]) => (
           <DistributionBar key={unit} label={unit} counts={counts} order={RISK_ORDER} />
@@ -27,8 +35,10 @@ export function ShiftPanel({
       </div>
 
       <div className="mt-5 border-t border-[var(--color-border-soft)] pt-4">
-        {flagged.length === 0 ? (
-          <p className="text-sm text-[var(--color-ink-muted)]">
+        {withheld ? (
+          <RedactedNote count={atRisk} noun="at-risk staff record" />
+        ) : flagged.length === 0 ? (
+          <p className="text-[12px] text-[var(--color-ink-muted)]">
             All staff within safe working-hour thresholds.
           </p>
         ) : (

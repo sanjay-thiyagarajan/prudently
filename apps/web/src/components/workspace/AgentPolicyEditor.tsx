@@ -15,7 +15,7 @@ export function AgentPolicyEditor({ taskType }: { taskType: string | null }) {
   const policy = taskType ? policies.find((p) => p.task_type === taskType) : undefined;
 
   return (
-    <Panel title="Permissions" icon={Settings2} accent="var(--color-a2a)">
+    <Panel title="Permissions" icon={Settings2}>
       {!taskType ? (
         <div className="flex h-full min-h-[160px] flex-col items-center justify-center gap-2 text-center">
           <Settings2 size={28} className="text-[var(--color-ink-muted)]" />

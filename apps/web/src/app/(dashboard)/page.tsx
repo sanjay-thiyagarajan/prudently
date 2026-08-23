@@ -1,9 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Loader2, TriangleAlert } from "lucide-react";
+import { Loader2, Lock, Radio, TriangleAlert } from "lucide-react";
 
-import { Header } from "@/components/layout/Header";
+import { BoardStrip } from "@/components/layout/BoardStrip";
+import { Panel } from "@/components/ui/Panel";
+import { AutonomousFeed } from "@/components/workspace/AutonomousFeed";
 import { FleetOverview } from "@/components/workspace/FleetOverview";
 import { HRPanel } from "@/components/workspace/HRPanel";
 import { InventoryPanel } from "@/components/workspace/InventoryPanel";
@@ -12,16 +13,34 @@ import { SupplyPanel } from "@/components/workspace/SupplyPanel";
 import { useDashboardOverview } from "@/lib/api/dashboard";
 import { hrSummary, inventorySummary, shiftSummary, supplySummary } from "@/lib/labels";
 
-function SectionLabel({ eyebrow, title }: { eyebrow: string; title: string }) {
+function Section({
+  eyebrow,
+  title,
+  lede,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  lede?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="mb-5">
-      <p className="text-[11px] font-medium tracking-[0.25em] text-[var(--color-ink-muted)] uppercase">
-        {eyebrow}
-      </p>
-      <h2 className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--color-ink-primary)]">
-        {title}
-      </h2>
-    </div>
+    <section>
+      <div className="mb-4">
+        <p className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.16em] text-[var(--color-ink-muted)] uppercase">
+          {eyebrow}
+        </p>
+        <h2 className="mt-1 font-[family-name:var(--font-display)] text-[19px] font-semibold tracking-tight text-[var(--color-ink-primary)]">
+          {title}
+        </h2>
+        {lede && (
+          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-[var(--color-ink-secondary)]">
+            {lede}
+          </p>
+        )}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -30,7 +49,7 @@ function sumCounts<K extends string>(
   keys: K[],
 ): Record<K, number> {
   const totals = Object.fromEntries(keys.map((key) => [key, 0])) as Record<K, number>;
-  for (const counts of Object.values(byGroup)) {
+  for (const counts of Object.values(byGroup ?? {})) {
     for (const key of keys) {
       totals[key] += counts[key] ?? 0;
     }
@@ -38,16 +57,22 @@ function sumCounts<K extends string>(
   return totals;
 }
 
+function Reading({ text }: { text: string }) {
+  return (
+    <p className="rounded-lg border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-3 text-[12px] leading-relaxed text-[var(--color-ink-secondary)]">
+      {text}
+    </p>
+  );
+}
+
 export default function FleetPage() {
-  const { data, error, isLoading } = useDashboardOverview();
+  const { data, error, isLoading, isPublicView } = useDashboardOverview();
 
   if (isLoading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-3">
-        <Loader2 className="animate-spin text-[var(--color-hero)]" size={28} />
-        <p className="text-sm text-[var(--color-ink-secondary)]">
-          Connecting to the deployed fleet…
-        </p>
+        <Loader2 className="animate-spin text-[var(--color-hero)]" size={24} />
+        <p className="text-[13px] text-[var(--color-ink-secondary)]">Reading the ward board…</p>
       </main>
     );
   }
@@ -55,60 +80,83 @@ export default function FleetPage() {
   if (error || !data) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
-        <TriangleAlert className="text-[var(--color-critical)]" size={28} />
-        <p className="text-sm text-[var(--color-ink-secondary)]">
-          Couldn&apos;t reach the Prudently API. Check that the backend is
-          running and NEXT_PUBLIC_API_BASE_URL is set correctly.
+        <TriangleAlert className="text-[var(--color-critical)]" size={24} />
+        <p className="max-w-md text-[13px] leading-relaxed text-[var(--color-ink-secondary)]">
+          Couldn&apos;t reach the Prudently API. Check that the backend is running and that
+          NEXT_PUBLIC_API_BASE_URL points at it.
         </p>
       </main>
     );
   }
 
   const activeAgents = data.fleet.filter((a) => a.status === "active").length;
+  // Counted from the aggregates, not the record lists: the lists are withheld from anonymous
+  // callers, so counting them showed a reassuring "0 critical signals" directly above panels
+  // full of red. The aggregates are identical in both postures.
   const criticalAlerts =
-    data.shift.records.filter((r) => r.risk_level === "critical").length +
-    data.inventory.records.filter((r) => r.stock_status === "critical").length +
-    data.hr.records.filter((r) => r.credential_status === "expired").length;
+    sumCounts(data.shift.unit_summary, ["critical"]).critical +
+    sumCounts(data.inventory.category_summary, ["critical"]).critical +
+    sumCounts(data.hr.unit_summary, ["expired"]).expired;
+  const autonomous = data.autonomous_actions ?? [];
 
   return (
-    <main className="min-h-screen pb-20">
-      <Header
+    <main className="min-h-screen pb-16">
+      <BoardStrip
         asOf={data.as_of}
         activeAgents={activeAgents}
         totalAgents={data.fleet.length}
         criticalAlerts={criticalAlerts}
-        isLive
+        autonomousToday={autonomous.length}
       />
 
-      <div className="mx-auto max-w-7xl space-y-14 px-6 py-12 sm:px-10">
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <SectionLabel eyebrow="Right now" title="Today's operations" />
-          <p className="-mt-3 mb-6 text-sm text-[var(--color-ink-secondary)]">
-            What&apos;s happening across the hospital right now, and which assistant is handling it.
-          </p>
-          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <p className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/60 p-3.5 text-xs leading-relaxed text-[var(--color-ink-secondary)]">
-              {shiftSummary(sumCounts(data.shift.unit_summary, ["safe", "elevated", "critical"]))}
-            </p>
-            <p className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/60 p-3.5 text-xs leading-relaxed text-[var(--color-ink-secondary)]">
-              {inventorySummary(
-                sumCounts(data.inventory.category_summary, ["ok", "low", "critical"]),
-              )}
-            </p>
-            <p className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/60 p-3.5 text-xs leading-relaxed text-[var(--color-ink-secondary)]">
-              {supplySummary(data.supply.decisions.length)}
-            </p>
-            <p className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/60 p-3.5 text-xs leading-relaxed text-[var(--color-ink-secondary)]">
-              {hrSummary(
-                sumCounts(data.hr.unit_summary, ["valid", "expiring_soon", "expired"]),
-              )}
+      <div className="mx-auto max-w-[1240px] space-y-12 px-6 py-9 sm:px-8">
+        {isPublicView && (
+          <div className="flex items-start gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-sunk)] p-3.5">
+            <Lock size={15} className="mt-0.5 shrink-0 text-[var(--color-ink-muted)]" />
+            <p className="text-[12px] leading-relaxed text-[var(--color-ink-secondary)]">
+              <strong className="font-semibold text-[var(--color-ink-primary)]">
+                Public view.
+              </strong>{" "}
+              Unit and category totals are shown, but individual staff fatigue and
+              credentialing records are withheld. Sign in as a manager to see them.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        )}
+
+        <Section
+          eyebrow="Unprompted"
+          title="What the fleet did on its own"
+          lede="Nobody asked for any of this. At each day boundary the fleet compares the ward to how it left it, and wakes the responsible agent where something crossed a line. Consequential actions still route to you for approval."
+        >
+          <Panel title="Autonomous activity" icon={Radio} accent="var(--color-autonomous)" live>
+            <AutonomousFeed actions={autonomous} limit={4} />
+          </Panel>
+        </Section>
+
+        <Section
+          eyebrow="Right now"
+          title="Today's operations"
+          lede="The state of the ward, and which agent is responsible for each part of it."
+        >
+          <div className="mb-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            <Reading
+              text={shiftSummary(
+                sumCounts(data.shift.unit_summary, ["safe", "elevated", "critical"]),
+              )}
+            />
+            <Reading
+              text={inventorySummary(
+                sumCounts(data.inventory.category_summary, ["ok", "low", "critical"]),
+              )}
+            />
+            <Reading text={supplySummary(data.supply.decisions.length)} />
+            <Reading
+              text={hrSummary(
+                sumCounts(data.hr.unit_summary, ["valid", "expiring_soon", "expired"]),
+              )}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ShiftPanel records={data.shift.records} unitSummary={data.shift.unit_summary} />
             <InventoryPanel
               records={data.inventory.records}
@@ -117,20 +165,15 @@ export default function FleetPage() {
             <SupplyPanel decisions={data.supply.decisions} />
             <HRPanel records={data.hr.records} unitSummary={data.hr.unit_summary} />
           </div>
-        </motion.section>
+        </Section>
 
-        <motion.section
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
+        <Section
+          eyebrow="Topology"
+          title="The fleet"
+          lede="Seven agents, one way in, and one trust boundary that is a real network hop rather than a diagram convention. Open any agent to see what it has done and what it is allowed to do."
         >
-          <SectionLabel eyebrow="The heroes" title="Live agent fleet" />
-          <p className="-mt-3 mb-6 text-sm text-[var(--color-ink-secondary)]">
-            Click any agent to see its activities, approvals, pending
-            responsibilities, and permissions.
-          </p>
           <FleetOverview fleet={data.fleet} />
-        </motion.section>
+        </Section>
       </div>
     </main>
   );
