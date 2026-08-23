@@ -4,6 +4,7 @@ import { ShieldCheck } from "lucide-react";
 
 import { DistributionBar } from "@/components/ui/DistributionBar";
 import { Panel } from "@/components/ui/Panel";
+import { RedactedNote } from "@/components/ui/RedactedNote";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { CredentialRecord, CredentialStatus } from "@/lib/types/dashboard";
 
@@ -18,25 +19,36 @@ export function HRPanel({
 }) {
   const flagged = records.filter((r) => r.credential_status !== "valid").slice(0, 6);
   const perDiemEligible = records.filter((r) => r.is_per_diem && r.credential_status === "valid");
+  // Same rule as ShiftPanel: aggregates survive redaction, `records` does not, so an empty
+  // list must never be read as "no issues".
+  const nonCompliant = Object.values(unitSummary ?? {}).reduce(
+    (sum, c) => sum + (c.expired ?? 0) + (c.expiring_soon ?? 0),
+    0,
+  );
+  const withheld = records.length === 0 && nonCompliant > 0;
 
   return (
-    <Panel title="HR" icon={ShieldCheck} accent="#38bdf8" live>
+    <Panel title="HR" icon={ShieldCheck} live>
       <div className="space-y-3">
         {Object.entries(unitSummary).map(([unit, counts]) => (
           <DistributionBar key={unit} label={unit} counts={counts} order={CREDENTIAL_ORDER} />
         ))}
       </div>
 
-      <div className="mt-5 flex items-center justify-between rounded-xl bg-[var(--color-border-soft)] px-3.5 py-2.5 text-xs">
-        <span className="text-[var(--color-ink-secondary)]">Per-diem pool ready to activate</span>
-        <span className="font-semibold text-[var(--color-ink-primary)]">
-          {perDiemEligible.length}
-        </span>
-      </div>
+      {!withheld && (
+        <div className="mt-5 flex items-center justify-between rounded-lg bg-[var(--color-sunk)] px-3.5 py-2.5 text-xs">
+          <span className="text-[var(--color-ink-secondary)]">Per-diem pool ready to activate</span>
+          <span className="tnum font-semibold text-[var(--color-ink-primary)]">
+            {perDiemEligible.length}
+          </span>
+        </div>
+      )}
 
       <div className="mt-4 border-t border-[var(--color-border-soft)] pt-4">
-        {flagged.length === 0 ? (
-          <p className="text-sm text-[var(--color-ink-muted)]">
+        {withheld ? (
+          <RedactedNote count={nonCompliant} noun="credential record" />
+        ) : flagged.length === 0 ? (
+          <p className="text-[12px] text-[var(--color-ink-muted)]">
             No credential compliance issues.
           </p>
         ) : (

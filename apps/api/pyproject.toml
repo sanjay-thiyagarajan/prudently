@@ -41,16 +41,30 @@ target-version = ["py312"]
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = [
-    "agents.shift.burndown",
-    "agents.inventory.par_levels",
-    "agents.supply.reorder",
-    "agents.hr.credentialing",
-    "services.simclock",
-    "services.platform.armor_local",
-    "services.admissions",
-    "services.payroll",
-    "services.inventory_sim",
+# `include` (path globs), not `source` (importable module names) — deliberately, and it is not
+# a cosmetic difference. With `source`, coverage re-imports each named module at report time to
+# account for files the run never touched; naming `agents.supply.reorder` therefore drags in
+# `agents/supply/__init__.py` -> `agent.py`, which constructs a `RemoteA2aAgent` and installs
+# the global httpx instrumentor. Under coverage's tracer that import never returns, so
+# `make test` hung indefinitely rather than failing — a broken quality gate that looked like a
+# slow one. `include` filters by path and imports nothing, so the gate runs in ~4s.
+#
+# Scope is unchanged in spirit: pure-logic modules only. ADK orchestration glue (`agent.py`
+# files, `services/memory.py`, `services/state.py`, `services/autonomy.py`) stays out — proven
+# on Day 3 that merely importing those under pytest can trigger live GCP calls.
+include = [
+    "agents/shift/burndown.py",
+    "agents/inventory/par_levels.py",
+    "agents/supply/reorder.py",
+    "agents/hr/credentialing.py",
+    "services/simclock.py",
+    "services/platform/armor_local.py",
+    "services/platform/gateway_local.py",
+    "services/admissions.py",
+    "services/payroll.py",
+    "services/inventory_sim.py",
+    "services/triggers.py",
+    "services/redaction.py",
 ]
 omit = ["tests/*", "evals/*"]
 

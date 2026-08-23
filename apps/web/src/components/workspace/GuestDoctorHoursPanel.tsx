@@ -10,7 +10,7 @@ export function GuestDoctorHoursPanel({ hours }: { hours: GuestDoctorHours[] }) 
   const totalHours = hours.reduce((sum, entry) => sum + entry.hours, 0);
 
   return (
-    <Panel title="Guest doctor hours" icon={Clock} accent="#a78bfa" live>
+    <Panel title="Guest doctor hours" icon={Clock} live>
       <div className="flex items-center justify-between rounded-xl bg-[var(--color-border-soft)] px-3.5 py-2.5 text-xs">
         <span className="text-[var(--color-ink-secondary)]">Trailing 28-day coverage hours</span>
         <span className="font-semibold text-[var(--color-ink-primary)]">{totalHours}h</span>

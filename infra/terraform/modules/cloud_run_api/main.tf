@@ -28,8 +28,14 @@ resource "google_cloud_run_v2_service" "api" {
 
       resources {
         limits = {
-          cpu    = "1"
-          memory = "512Mi"
+          cpu = "2"
+          # 512Mi was not enough and failed in the worst way: the container OOM'd during
+          # startup ("Memory limit of 512 MiB exceeded with 513 MiB used"), so Cloud Run
+          # reported only "the container failed to start and listen on PORT" — a message that
+          # points at the port, not at memory. Two things need the headroom: importing ADK at
+          # all, and the autonomous fleet watch (services/autonomy.py), which loads a
+          # specialist agent's full object graph in-process to run a real turn.
+          memory = "2Gi"
         }
       }
     }

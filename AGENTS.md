@@ -12,33 +12,52 @@ products vs. local-emulated fallbacks.
 
 | Agent | Role | File | Reasoning Engine | Memory Bank scope | Firestore collections |
 |---|---|---|---|---|---|
-| Coordinator | root ADK agent, sole user-facing entry point — **deployed & verified** | `apps/api/agents/coordinator/agent.py` | primary | `agent_name=coordinator, user=<session>` | `agent_registry` (read) |
-| Shift Allocation | specialist (`AgentTool`) — **deployed & verified** | `apps/api/agents/shift/agent.py` | primary | `agent_name=shift_allocation_agent, user=<unit>` | `staff_roster`, `shift_history` |
-| Inventory Management | specialist (`AgentTool`) — tactical stock/par-level tracking — **deployed & verified** | `apps/api/agents/inventory/agent.py` | primary | `agent_name=inventory, user=<sku>` | `inventory` |
-| Supply Chain Resiliency | specialist (`AgentTool`) — strategic vendor/reorder decisions; calls Medical Representative via **A2A** — **deployed & verified** | `apps/api/agents/supply/agent.py` | primary | `agent_name=supply, user=<vendor>` | `vendors` |
-| HR | specialist (`AgentTool`) — credentialing + escalation target when Shift Allocation runs out of reallocation options — **deployed & verified** | `apps/api/agents/hr/agent.py` | primary | `agent_name=hr, user=<unit>` | `staff_roster` (read) |
-| Medical Representative | **deployed separately**, external-facing vendor/pharma liaison, owns Model Armor screening of inbound vendor comms — **deployed & verified** | `apps/api/agents/medrep/agent.py` | **separate** (A2A boundary) | not wired yet — see note below | `armor_events` (write, one doc per screening call) |
-| Chaos & Continuity | specialist (`AgentTool`), dual mode (hospital what-if + fleet fault-injection) — **deployed & verified** | `apps/api/agents/chaos/agent.py` | primary | `agent_name=chaos, user=<scenario>` | `chaos_experiments` (write) |
+| Coordinator | root ADK agent, sole user-facing entry point — **deployed & verified** | `apps/api/agents/coordinator/agent.py` | primary | `app_name=coordinator, user=<session>` (unused — it delegates) | `agent_registry` (read) |
+| Shift Allocation | specialist (`AgentTool`) — **deployed & verified** | `apps/api/agents/shift/agent.py` | primary | `app_name=shift_allocation_agent, user=<unit>` | `staff_roster`, `shift_history` |
+| Inventory Management | specialist (`AgentTool`) — tactical stock/par-level tracking — **deployed & verified** | `apps/api/agents/inventory/agent.py` | primary | `app_name=inventory_management_agent, user=<sku>` | `inventory` |
+| Supply Chain Resiliency | specialist (`AgentTool`) — strategic vendor/reorder decisions; calls Medical Representative via **A2A** — **deployed & verified** | `apps/api/agents/supply/agent.py` | primary | `app_name=supply_chain_resiliency_agent, user=<vendor>` | `vendors` |
+| HR | specialist (`AgentTool`) — credentialing + escalation target when Shift Allocation runs out of reallocation options — **deployed & verified** | `apps/api/agents/hr/agent.py` | primary | `app_name=hr_agent, user=<unit>` | `staff_roster` (read) |
+| Medical Representative | **deployed separately**, external-facing vendor/pharma liaison, owns Model Armor screening of inbound vendor comms — **deployed & verified** | `apps/api/agents/medrep/agent.py` | **separate** (A2A boundary) | deliberately none — adversarial input, see note below | `armor_events` (write, one doc per screening call) |
+| Chaos & Continuity | specialist (`AgentTool`), dual mode (hospital what-if + fleet fault-injection) — **deployed & verified** | `apps/api/agents/chaos/agent.py` | primary | `app_name=chaos_continuity_agent, user=<scenario>` | `chaos_experiments` (write) |
 
 `staff_roster` also holds a per-diem coverage pool (`is_per_diem=true`, `staff_id` prefixed
 `pd-`, one unit's worth of shift_history-free staff — see `packages/datagen/datagen/roster.py`
 `_generate_perdiem_pool`) and a `credential_expiry` field per staff member, both added Day 4
 for the HR Agent. Deployed via a scoped one-off script (`merge=True` into existing docs, plain
-`set` for the new per-diem docs) rather than a full `make seed` reseed — `shift_history` has a
-pre-existing doc-ID collision bug (all ~26 days of one staff member's shifts share a single
-Firestore doc, since `write_firestore`'s `doc_id` falls back to bare `staff_id` for any
-collection without its own unique key) plus a >500-write batch limit (real shift_history
-volume is ~620 records) that `write_firestore` doesn't chunk for. Both are real, still-open
-bugs — fix before relying on a from-scratch `make seed` (needed for the Aug 30 clean-clone
-test), not fixed yet because reseeding would perturb the already-deployed/verified Shift
-Allocation Agent's demo data with no benefit to Day 4 scope.
+`set` for the new per-diem docs) rather than a full `make seed` reseed. `shift_history` had a
+doc-ID collision bug and an unchunked >500-write batch at the time; **both were fixed Aug 22**
+(`_doc_id_for` keys `shift_history` by `{staff_id}__{shift_date}`, and `write_firestore` chunks
+at 450) — see "Data-layer bug fix" below for the full story. An earlier revision of this
+section described them as still open; that was stale and is corrected here.
 
-**Medical Representative is deliberately not wired to Memory Bank yet.**
-`services/memory.py`'s `get_memory_service()` hardcodes `agent_engine_id` to Shift's engine —
-writing through it from Medical Representative would mean this external-facing, adversarial-
-input agent writes into Shift's memory store, inverting the trust boundary the agent exists
-to demonstrate. Revisit once Memory Bank scoping is per-agent rather than hardcoded (Day 5
-Coordinator/Gateway work).
+**Memory Bank is scoped per agent as of Aug 23, and the read path exists.** Both halves of
+this used to be missing and the roster table above used to overstate them, so it is worth
+being precise about what changed:
+
+* `get_memory_service()` used to hardcode `agent_engine_id` to Shift's engine, so *every*
+  agent's memories landed in Shift's store regardless of the `app_name` they were written
+  under — the per-agent scopes in the roster table were aspirational. `services/memory.py` now
+  resolves each agent to its own deployed engine through `_AGENT_ENGINE_SETTING`.
+* Nothing ever *read* a memory. `write_fact` had two callers; `search()` had none, no agent
+  declared a memory tool, and a repo-wide grep for `load_memory`/`preload_memory`/
+  `memory_service=` came back empty. Facts accumulated every simulated day and were never
+  recalled — which made the track's "context across weeks of asynchronous operations"
+  requirement unmet in the one way that mattered. Shift now has `recall_unit_history` and
+  Inventory has `recall_sku_history`, both `FunctionTool`s over `search()`, and both agents'
+  instructions require calling them for any question about a trend or an earlier day.
+  Verified live: an autonomously-triggered Shift turn answered with "sim_day 0 (Baseline): all
+  staff members were in the 'safe' zone", i.e. it recalled and cited a fact from an earlier
+  day rather than describing the current snapshot.
+* `routes/sim.py` now writes Inventory facts per SKU as well as Shift facts per unit, and only
+  for SKUs actually under pressure — writing every SKU every day would make a recall query
+  return twenty near-identical "still fine" lines and bury the day that mattered.
+
+**Medical Representative is still deliberately not wired to Memory Bank**, but the reason has
+changed and is now a choice rather than a limitation. The old blocker (its writes would land
+in Shift's store, inverting the trust boundary) is gone. It stays unwired because it is the one
+agent whose input is adversarial by definition: giving a prompt-injection target a durable
+write into any memory store is a liability with no demo payoff. `agents/medrep/agent.py`'s
+docstring says the same.
 
 Coordinator → Gateway → specialist is hub-and-spoke for everything except Supply Chain ↔
 Medical Representative, which is genuine Agent2Agent across the one boundary in the design
@@ -795,3 +814,112 @@ Playwright pass specifically, not by local testing (the local dev API runs under
 operator's own `gcloud` credentials, which already have every role) — a reminder that
 "verified locally" and "verified in the deployed identity's own permissions" are genuinely
 different checks for anything IAM-gated.
+
+## Autonomous fleet watch (Aug 23) — the fleet acts without being asked
+
+Until this, every agent action in Prudently began with a human typing a question. The sim clock
+advanced stock and staffing, the dashboard rendered the consequences, and the agents sat idle
+until asked — which made "agent-monitored hospital operations" a description of the UI, not of
+the fleet. Two modules close that:
+
+- **`services/triggers.py`** — pure, fully unit-tested. Turns a state snapshot plus the previous
+  snapshot into a list of `Trigger`s. Everything is **edge-triggered, never level-triggered**: a
+  SKU that is still low today because it was low yesterday is not a new event. Without that, a
+  21-day demo would email the manager about the same box of gloves 21 times. `next_watch_state`
+  produces the snapshot the next tick compares against, and the round-trip property (feed a
+  tick's own output back in, get zero triggers) is asserted in `test_triggers.py`.
+- **`services/autonomy.py`** — impure. Opens a real ADK `Runner` over the responsible
+  specialist and runs one genuine turn: real model call, real tool calls, real Gateway and
+  approval paths.
+
+**Why in-process rather than `stream_query` against the deployed engine.** Two reasons, one
+principled and one measured. Principled: `apps/api` already *is* the fleet — it runs the same
+agent objects the Reasoning Engines serve, so invoking them in-process is a real agent turn,
+not a simulation of one. Measured: `stream_query` against a deployed engine reset mid-stream
+(`httpx.ReadError: [Errno 54] Connection reset by peer`) on **3 of 4 attempts** from this
+environment against a stable deploy. A demo beat that fails three times in four is not a demo
+beat. The one thing the in-process path does not exercise is the Agent Engine transport itself,
+which the manager-initiated path through the dashboard already covers.
+
+**Autonomy stops at the approval gate.** A triggered agent reaches exactly the same
+`perform_or_request` path a manager-initiated one does. Autonomy here means the fleet decides
+*when to raise something*, never that it acquired permission to act unsupervised — so the blast
+radius of a false trigger is one email. `log_activity` gained an `initiated_by` field
+(`"autonomous_watch"` vs the default `"manager"`) so the dashboard can render the two
+differently; conflating them would let the fleet take credit for acting unprompted when it
+didn't.
+
+**`POST /sim/advance` fires and returns rather than awaiting** — found the hard way. The first
+version awaited the day boundary, and a boundary that trips three fatigue triggers runs three
+real agent turns back to back: the request took **over two minutes** and the dashboard's "Next
+day" button would have sat spinning through all of it. It now schedules the work exactly as the
+clock's own tick does (8ms response), and the dashboard's polling fills the feed in as each turn
+lands — which is also the better thing to watch on camera.
+
+**`/sim/reset` clears `fleet_watch/state`.** Without that, a replayed demo is silent: every SKU
+is already recorded at its breached status, so nothing reads as a *new* crossing. The demo would
+only have worked once.
+
+**Verified live** against real Firestore with `EMAIL_BACKEND=local`: one `/sim/advance` fired
+three fatigue triggers, ran three completed agent turns at 3 tool calls each, and the responses
+show the agents recalling earlier days from Memory Bank by name ("sim_day 0 (Baseline): all
+staff members were in the 'safe' zone", "Day 1 History: the General Ward already had 2 staff
+members at critical risk").
+
+## Public-feed redaction (Aug 23)
+
+`/dashboard/overview` and `/agents/{name}` are public by design — a judge needs them to work
+without a login. But they were returning `shift.records[]` (32 named staff with unit, trailing
+hours, and fatigue risk) and `hr.records[]` (named staff with credential expiry and an
+"expired" status) to **anonymous callers**. The data is synthetic, so nothing real leaked; the
+shape is an unauthenticated endpoint publishing per-employee fatigue and credentialing records,
+which does not survive being pointed at a real roster.
+
+This project had already reasoned about leakage at *field* granularity — `project_approval()`
+keeps the manager's address off these same feeds, and every payroll projection was audited for
+`hourly_rate`. `services/redaction.py` applies the same care at *endpoint* granularity.
+
+**Redact, don't gate.** Hard-401ing these routes would have fixed the exposure and broken the
+judge-accessible URL. Instead `services/auth.py` gained `optional_firebase_auth` (returns a uid
+or None, never raises — an *invalid* token is treated as no token, so a viewer whose session
+quietly expired sees the public view rather than a broken dashboard), and the anonymous payload
+keeps every aggregate while dropping the individual rows. Shape is preserved: a redacted list is
+an empty list plus a sibling `_redacted` block with the count and reason, so the dashboard
+renders "sign in to see staff-level detail" instead of an ambiguous empty state.
+
+**The frontend counterpart is load-bearing and easy to miss.** `lib/api/dashboard.ts` now
+attaches the manager's Firebase ID token *and puts it in the SWR key*. Without the token a
+signed-in manager silently gets the anonymous payload and every staff panel renders empty —
+indistinguishable from a data outage. Without it in the key, SWR would serve one posture's
+cached payload after a sign-in or sign-out.
+
+## The coverage gate was hanging, not slow (Aug 23)
+
+`make test` did not complete. Not "took a while" — it hung indefinitely, which read as slowness
+and meant the project's own quality gate had silently stopped being a gate.
+
+Root cause: `[tool.coverage.run] source` listed **importable module names**. Coverage re-imports
+each named module at report time to account for files the run never touched, so naming
+`agents.supply.reorder` dragged in `agents/supply/__init__.py` → `agent.py`, which constructs a
+`RemoteA2aAgent` and installs the global httpx instrumentor — and under coverage's tracer that
+import never returned. Bisected by running `--cov=<module>` one at a time: every other module
+finished in ~3s, `agents.supply.reorder` hung every time. The plain import (no coverage) takes
+3.7s, so the module itself is fine; it is the combination.
+
+Fixed by switching to `include` with **path globs**, which filters by path and imports nothing.
+Same scope in spirit — pure-logic modules only, ADK orchestration still excluded. `make test`
+now runs in ~3.3s, and the gate covers 12 modules at 97% (the Gateway, triggers, and redaction
+were added at the same time).
+
+## Scenario evals (`make eval`)
+
+`make eval` previously pointed at `python -m evals.run` with an **empty `evals/` directory** — a
+committed Makefile target that crashed. `evals/run.py` now runs behavioural scenarios against
+the real agents over real Firestore state.
+
+They assert on **tool calls and load-bearing facts, never on phrasing**: did Shift call
+`recall_unit_history` for a question explicitly about earlier days; did Inventory refuse to
+claim it placed an order; did Supply Chain delegate a prompt-injection-laced vendor message to
+Medical Representative over A2A instead of reading it itself. Deliberately not part of
+`make test` — real model calls, real cost, non-deterministic wording. Run before a demo or a
+deploy wave: `make eval`, or `make eval ARGS="--only shift"`.

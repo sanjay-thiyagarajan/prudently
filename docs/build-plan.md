@@ -177,6 +177,20 @@ Two GCP-specific bugs were root-caused Day 3, both now fixed in code with commen
 
 ## 7. Submission-readiness checklist
 
+**Status as of Aug 23** (see `docs/demo.md` for the current shot-by-shot script — §6 above is
+the original sketch and is kept for history):
+
+| Item | State |
+|---|---|
+| Hosted project URL | **Done** — `prudently-web` on Cloud Run |
+| Code repository + README | **Done** — README rewritten with the four manual prerequisites that Terraform cannot provision, and the `make seed-registry` step whose absence makes the Gateway refuse every call |
+| Architecture diagram | **Done** — `docs/architecture.svg` (+ a 2x PNG for the Devpost form), described in `docs/architecture.md` |
+| ~4 min demo video | **Not shot** — needs a person. Script, pre-flight, and fallbacks are in `docs/demo.md` |
+| Text description | **Not written** — the strongest "learnings" material is in AGENTS.md |
+| Repo visibility | **Private.** Judges need access: add them, or share via the submission form |
+| Demo credentials | **Must go in the submission text** — the dashboard opens on a login wall |
+
+
 - **Hosted project URL** — `prudently-web` Cloud Run URL, reachable at submission time.
 - **Code repository + README** — monorepo root on GitHub; README verified via the clean-clone test; includes `terraform apply`, `make seed`, `make dev`/`make deploy`, region-lock note, both Reasoning Engine IDs.
 - **Architecture diagram** — 7 agents, 2 Reasoning Engines, A2A hop, real-vs-emulated per `docs/day1-probe-results.md`.

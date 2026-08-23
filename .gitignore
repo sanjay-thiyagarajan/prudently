@@ -44,3 +44,7 @@ apps/web/.env*.local
 dist/
 build/
 .local_output/
+
+# Next.js/TypeScript incremental build cache — machine-local, never committed.
+tsconfig.tsbuildinfo
+*.tsbuildinfo

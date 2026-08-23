@@ -32,7 +32,9 @@ Agent Gateway row above.
 ## Region lock (one-way door — decided today, do not change)
 
 - Cloud Run, Pub/Sub, Firestore (regional, Native mode), Vertex AI Reasoning Engine: **`us-central1`**
-- Memory Bank residency: **`us`** (multi-region)
+- Memory Bank residency: **`us-central1`** — ~~`us` (multi-region)~~, corrected on Day 3. A
+  Memory Bank scoped to a specific `agent_engine_id` must use that engine's own region; the
+  multi-region form 404s with "ReasoningEngine does not exist" even though the engine is real.
 
 Firestore location is immutable after creation — this lock must hold for the rest of the
 build. Set in `infra/terraform/envs/dev/terraform.tfvars` before the first `terraform apply`.

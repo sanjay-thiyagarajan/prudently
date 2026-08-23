@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from agents.hr.credentialing import (
     compliance_summary,
@@ -19,11 +19,14 @@ from agents.inventory.par_levels import category_summary, compute_par_levels
 from agents.shift.burndown import compute_burndown, unit_summary
 from agents.supply.reorder import compute_reorders, vendor_summary
 from services.admissions import recent_daily_trend, unit_totals
+from services.auth import optional_firebase_auth
+from services.redaction import redact_overview
 from services.state import (
     get_admissions,
     get_agent_registry,
     get_approvals,
     get_armor_events,
+    get_autonomous_actions,
     get_chaos_experiments,
     get_inventory,
     get_shift_history,
@@ -91,10 +94,14 @@ def build_overview() -> dict:
         "guest_doctor_hours": guest_doctor_hours_summary(staff, shifts, as_of=today),
         "armor_events": get_armor_events(limit=20),
         "chaos_experiments": get_chaos_experiments(limit=20),
+        "autonomous_actions": get_autonomous_actions(limit=30),
         "approvals": [project_approval(a) for a in get_approvals(limit=20)],
     }
 
 
 @router.get("/overview")
-def overview() -> dict:
-    return build_overview()
+def overview(uid: str | None = Depends(optional_firebase_auth)) -> dict:
+    """Public, but not equally public to everyone. Signed out, this returns every aggregate
+    and no per-employee row — see services/redaction.py for what is withheld and why. Signed
+    in as a manager, it returns the full payload the dashboard renders."""
+    return redact_overview(build_overview(), authenticated=uid is not None)

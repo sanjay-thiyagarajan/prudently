@@ -53,7 +53,7 @@ function relativeTime(iso: string): string {
 
 export function ChaosReplay({ experiments }: { experiments: ChaosExperiment[] }) {
   return (
-    <Panel title="Chaos & Continuity Replay" icon={Zap} accent="#f472b6">
+    <Panel title="Chaos & Continuity Replay" icon={Zap}>
       {experiments.length === 0 ? (
         <p className="text-sm text-[var(--color-ink-muted)]">
           No experiments run yet — fault-injection results are captured once, then replayed

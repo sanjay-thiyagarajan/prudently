@@ -23,7 +23,7 @@ function ItemDrilldown({ sku, onClose }: { sku: string; onClose: () => void }) {
   const relatedOrders = purchaseOrders.filter((po) => po.sku === sku);
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-5">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)] p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-primary)]">
           Movement history — {sku}
@@ -112,7 +112,7 @@ function PurchaseOrdersSection() {
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-5">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)] p-5">
       <div className="mb-4 flex items-center gap-2.5">
         <Receipt size={16} className="text-[var(--color-hero)]" />
         <h2 className="font-[family-name:var(--font-display)] text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-primary)]">
@@ -255,7 +255,7 @@ export default function InventoryPage() {
             </select>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80">
+          <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)]">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border-soft)] text-[11px] uppercase tracking-wide text-[var(--color-ink-muted)]">

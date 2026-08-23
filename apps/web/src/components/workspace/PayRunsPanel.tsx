@@ -216,7 +216,7 @@ export function PayRunsPanel() {
   }
 
   return (
-    <Panel title="Payroll — Pay Runs" icon={Wallet} accent="#facc15" live>
+    <Panel title="Payroll — Pay Runs" icon={Wallet} live>
       <div className="space-y-4">
         <div className="flex flex-wrap items-end gap-2 rounded-xl border border-[var(--color-border-soft)] p-3.5">
           <div>

@@ -10,6 +10,7 @@ from google.adk.agents import Agent
 from google.adk.tools import FunctionTool
 
 from config import bootstrap_gemini_credentials, get_settings
+from services.memory import search as search_memory
 from services.platform.approvals import perform_or_request
 from services.platform.observability import get_observability_service
 from services.state import get_shift_history, get_staff_roster
@@ -17,6 +18,40 @@ from services.state import get_shift_history, get_staff_roster
 from .burndown import compute_burndown, unit_summary
 
 bootstrap_gemini_credentials()
+
+AGENT_NAME = "shift_allocation_agent"
+
+
+async def recall_unit_history(unit: str, question: str) -> dict:
+    """Recalls what has been observed about a unit on *earlier days* of this operation —
+    Memory Bank holds a fact per unit per simulated day (written by the sim clock as the
+    timeline advances), so this is how you answer anything about a trend, a change over time,
+    or "what happened last week" rather than the current snapshot. `unit` is the unit name
+    (e.g. "ICU"); `question` is what you want recalled (e.g. "when did critical fatigue first
+    appear"). get_shift_burndown tells you about *now*; this tells you about *before*."""
+    with get_observability_service().span("shift.recall_unit_history", {"unit": unit}) as span:
+        try:
+            facts = await search_memory(app_name=AGENT_NAME, user_id=unit, query=question)
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            # Memory Bank being unreachable must degrade to "no history available" rather
+            # than failing the whole turn — the agent can still answer from live state.
+            span.set_attribute("shift.recall.error", type(exc).__name__)
+            return {
+                "unit": unit,
+                "recalled_facts": [],
+                "note": "Memory Bank is unavailable right now; answer from current state only.",
+            }
+        span.set_attribute("shift.recall.fact_count", len(facts))
+        return {
+            "unit": unit,
+            "recalled_facts": facts,
+            "note": (
+                "No history recorded for this unit yet — the simulated timeline may not have "
+                "advanced."
+                if not facts
+                else f"{len(facts)} fact(s) recalled from earlier days of this operation."
+            ),
+        }
 
 
 def get_shift_burndown() -> dict:
@@ -82,11 +117,20 @@ root_agent = Agent(
         "'elevated'. Be concrete: name the staff member, their unit, and the specific "
         "action (e.g. reassign an upcoming shift to a named peer with headroom in the same "
         "unit, or across units if none exists). Never recommend anything for staff at "
-        "'safe' risk level. If asked about a unit with no at-risk staff, say so plainly. To "
+        "'safe' risk level. If asked about a unit with no at-risk staff, say so plainly. "
+        "If the question is about a trend, a change over time, how a unit got here, or "
+        "anything that happened on an earlier day, call recall_unit_history for that unit "
+        "first — you have a persistent per-unit memory of every earlier day in this "
+        "operation, and answering a 'has this been getting worse' question from today's "
+        "snapshot alone is wrong. Cite the recalled days explicitly when you use them. To "
         "actually notify a staff member of a reallocation, call notify_staff_reallocation — "
         "this may require manager approval first, in which case the tool returns a "
         "pending_approval status; report that plainly ('awaiting manager approval') rather "
         "than claiming the staff member was notified."
     ),
-    tools=[FunctionTool(get_shift_burndown), FunctionTool(notify_staff_reallocation)],
+    tools=[
+        FunctionTool(get_shift_burndown),
+        FunctionTool(recall_unit_history),
+        FunctionTool(notify_staff_reallocation),
+    ],
 )

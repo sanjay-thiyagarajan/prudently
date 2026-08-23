@@ -87,7 +87,7 @@ function EventRow({ event }: { event: ArmorEvent }) {
 
 export function ArmorFeed({ events }: { events: ArmorEvent[] }) {
   return (
-    <Panel title="Model Armor" icon={ShieldAlert} accent="var(--color-critical)" live>
+    <Panel title="Model Armor" icon={ShieldAlert} live>
       {events.length === 0 ? (
         <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 text-center">
           <ShieldOff size={28} className="text-[var(--color-ink-muted)]" />

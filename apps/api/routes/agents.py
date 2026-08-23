@@ -6,9 +6,11 @@ tool, all in one payload for the dashboard's agent detail page. Public, same rat
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from routes.dashboard import build_overview, project_approval
+from services.auth import optional_firebase_auth
+from services.redaction import redact_agent_detail
 from services.state import get_activity_log, get_approval_policies, get_approvals
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -38,7 +40,7 @@ _AGENT_LIVE_STATE_KEYS: dict[str, tuple[str, ...]] = {
 
 
 @router.get("/{agent_name}")
-def get_agent_detail(agent_name: str) -> dict:
+def get_agent_detail(agent_name: str, uid: str | None = Depends(optional_firebase_auth)) -> dict:
     overview = build_overview()
     registry_entry = next((a for a in overview["fleet"] if a["agent_name"] == agent_name), None)
     if registry_entry is None:
@@ -51,10 +53,11 @@ def get_agent_detail(agent_name: str) -> dict:
         project_approval(a) for a in get_approvals(limit=100) if a.get("requested_by") == agent_name
     ]
 
-    return {
+    payload = {
         "agent": registry_entry,
         "activity_log": get_activity_log(agent_name=agent_name, limit=100),
         "approvals": approvals,
         "policy": policy,
         "live_state": {key: overview[key] for key in _AGENT_LIVE_STATE_KEYS.get(agent_name, ())},
     }
+    return redact_agent_detail(payload, authenticated=uid is not None)

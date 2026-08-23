@@ -17,7 +17,7 @@ function VendorCard({ vendorId, name, leadTimeDays, reliability, orders }: {
   const totalSpend = orders.reduce((sum, po) => sum + po.total_cost, 0);
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 p-5">
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)] p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-hero-soft)] text-[var(--color-hero)]">

@@ -5,6 +5,7 @@ import {
   Activity,
   ArrowRightLeft,
   History,
+  Radio,
   ShieldQuestion,
   Zap,
   type LucideIcon,
@@ -32,6 +33,7 @@ const TYPE_ICON: Record<ActivityLogEntry["activity_type"], LucideIcon> = {
   routing_decision: ArrowRightLeft,
   screening: ShieldQuestion,
   chaos_experiment: Zap,
+  autonomous_action: Radio,
 };
 
 function ActivityRow({
@@ -42,14 +44,21 @@ function ActivityRow({
   onSelectTrace: (traceId: string) => void;
 }) {
   const Icon = TYPE_ICON[entry.activity_type] ?? Activity;
+  const unprompted = entry.initiated_by === "autonomous_watch";
   return (
     <motion.li
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
-      className="rounded-xl border border-[var(--color-border-soft)] p-3.5"
+      className="rounded-lg border border-[var(--color-border-soft)] p-3.5"
     >
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-border-soft)] text-[var(--color-ink-secondary)]">
+        <span
+          className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${
+            unprompted
+              ? "bg-[var(--color-autonomous-soft)] text-[var(--color-autonomous)]"
+              : "bg-[var(--color-sunk)] text-[var(--color-ink-secondary)]"
+          }`}
+        >
           <Icon size={15} />
         </span>
         <div className="min-w-0 flex-1">
@@ -65,6 +74,11 @@ function ActivityRow({
           >
             {activityTypeLabel(entry.activity_type)}
           </p>
+          {unprompted && (
+            <p className="mt-1 text-[11px] font-medium text-[var(--color-autonomous)]">
+              Started by the fleet, not by a manager
+            </p>
+          )}
           <div className="mt-2 flex items-center gap-3 text-[10px] text-[var(--color-ink-muted)]">
             <span>{relativeTime(entry.timestamp)}</span>
             {entry.trace_id && (
@@ -91,7 +105,7 @@ export function ActivityFeed({
   onSelectTrace: (traceId: string) => void;
 }) {
   return (
-    <Panel title="Activities" icon={History} accent="var(--color-hero)" live>
+    <Panel title="Activities" icon={History} live>
       {entries.length === 0 ? (
         <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 text-center">
           <History size={28} className="text-[var(--color-ink-muted)]" />

@@ -53,7 +53,7 @@ function ApprovalRow({ approval }: { approval: Approval }) {
 
 export function ApprovalsFeed({ approvals }: { approvals: Approval[] }) {
   return (
-    <Panel title="Approvals" icon={MailQuestion} accent="var(--color-hero)" live>
+    <Panel title="Approvals" icon={MailQuestion} live>
       {approvals.length === 0 ? (
         <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 text-center">
           <MailQuestion size={28} className="text-[var(--color-ink-muted)]" />

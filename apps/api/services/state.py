@@ -377,11 +377,17 @@ def log_activity(
     tool_name: str | None = None,
     status: str | None = None,
     trace_id: str | None = None,
+    initiated_by: str = "manager",
 ) -> None:
     """Convenience wrapper around write_activity_log for the ~5 call sites that log a
     consequential action inline (approvals, Gateway routing, MedRep screening, Chaos
     experiments) — spares each call site from spelling out the dict shape and
-    SERVER_TIMESTAMP by hand."""
+    SERVER_TIMESTAMP by hand.
+
+    `initiated_by` distinguishes work the fleet did on its own initiative
+    ("autonomous_watch", written by services/autonomy.py) from work a human asked for
+    ("manager", the default) — the dashboard renders the two differently, and conflating them
+    would let the fleet take credit for acting unprompted when it didn't."""
     write_activity_log(
         {
             "agent_name": agent_name,
@@ -390,9 +396,52 @@ def log_activity(
             "tool_name": tool_name,
             "status": status,
             "trace_id": trace_id,
+            "initiated_by": initiated_by,
             "timestamp": firestore.SERVER_TIMESTAMP,
         }
     )
+
+
+# --- Autonomous fleet watch (services/triggers.py + services/autonomy.py) -------------------
+
+# Single document: the watch is a fleet-wide singleton, and a collection of one doc keyed by
+# a constant is clearer than inventing a partition key that will only ever have one value.
+_WATCH_STATE_DOC = "fleet_watch/state"
+
+
+def get_watch_state() -> dict | None:
+    """The previous tick's snapshot, or None on the very first tick after a reset."""
+    doc = get_client().document(_WATCH_STATE_DOC).get()
+    return doc.to_dict() if doc.exists else None
+
+
+def write_watch_state(state: dict) -> None:
+    get_client().document(_WATCH_STATE_DOC).set(state)
+
+
+def clear_watch_state() -> None:
+    """Called by /sim/reset so a replayed demo re-fires the same triggers from a clean slate —
+    without this, the second run of a demo would be silent because every SKU is already
+    recorded at its breached status."""
+    get_client().document(_WATCH_STATE_DOC).delete()
+
+
+def write_autonomous_action(record: dict) -> str:
+    """One record per trigger the fleet acted on unprompted. Auto-ID'd, same rationale as
+    write_activity_log."""
+    _, doc_ref = get_client().collection("autonomous_actions").add(record)
+    return doc_ref.id
+
+
+def get_autonomous_actions(limit: int = 30) -> list[dict]:
+    docs = (
+        get_client()
+        .collection("autonomous_actions")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    return [{**doc.to_dict(), "id": doc.id} for doc in docs]
 
 
 def get_activity_log(agent_name: str | None = None, limit: int = 100) -> list[dict]:
