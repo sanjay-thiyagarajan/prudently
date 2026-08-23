@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { PanelEmpty } from "@/components/ui/Panel";
+import { RedactedNote } from "@/components/ui/RedactedNote";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { agentMetaFor } from "@/lib/agentMeta";
 import type { AutonomousAction } from "@/lib/types/dashboard";
@@ -36,6 +37,10 @@ function ActionRow({ action }: { action: AutonomousAction }) {
   const Icon = TRIGGER_ICON[action.trigger_kind] ?? Radio;
   const meta = agentMetaFor(action.agent_name);
   const failed = action.status === "failed";
+  // Same rule as the staff panels: withholding must look like withholding. Gating the
+  // expander on `action.response` alone made the button silently vanish for signed-out
+  // viewers, so a real agent turn read as a bare summary with nothing behind it.
+  const redacted = Boolean(action._redacted);
 
   return (
     <li className="border-t border-[var(--color-border-soft)] first:border-t-0">
@@ -72,7 +77,7 @@ function ActionRow({ action }: { action: AutonomousAction }) {
             <span className="tnum">
               {action.tool_calls} tool call{action.tool_calls === 1 ? "" : "s"}
             </span>
-            {action.response && (
+            {!redacted && action.response && (
               <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
@@ -88,6 +93,12 @@ function ActionRow({ action }: { action: AutonomousAction }) {
               </button>
             )}
           </div>
+
+          {redacted && (
+            <div className="mt-1.5">
+              <RedactedNote count={1} noun="agent transcript" />
+            </div>
+          )}
 
           {open && action.response && (
             <div className="mt-2.5 space-y-2">
