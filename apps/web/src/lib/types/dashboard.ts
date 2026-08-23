@@ -263,6 +263,8 @@ export interface AutonomousAction {
   context: Record<string, unknown>;
   trace_id: string | null;
   timestamp: string;
+  /** Present when the API withheld the agent's own free text from an anonymous caller. */
+  _redacted?: { fields: string[]; reason: string };
 }
 
 export interface SimStatus {
