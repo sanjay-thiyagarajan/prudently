@@ -1,0 +1,8 @@
+# See apps/web/.gcloudignore — gcloud resolves .gitignore relative to the source directory,
+# and there isn't one here, so the local virtualenv and caches would otherwise be uploaded.
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.log
+.coverage

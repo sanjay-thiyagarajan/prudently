@@ -1,3 +1,6 @@
 project_id           = "prudently-hackathon"
 region               = "us-central1"
-memory_bank_location = "us"
+# Must be the Reasoning Engines' own region, not a multi-region: a Memory Bank scoped
+# to a specific agent_engine_id 404s with "The ReasoningEngine does not exist" under
+# "us", which reads as a missing engine rather than a wrong region.
+memory_bank_location = "us-central1"
