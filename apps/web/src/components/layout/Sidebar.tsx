@@ -4,8 +4,11 @@ import {
   ClipboardCheck,
   LogOut,
   Network,
+  Package,
   ShieldAlert,
   Stethoscope,
+  Truck,
+  UserRound,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +19,9 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/", label: "Fleet", icon: Network },
+  { href: "/staff", label: "Staff Directory", icon: UserRound },
+  { href: "/inventory", label: "Inventory", icon: Package },
+  { href: "/vendors", label: "Vendors", icon: Truck },
   { href: "/payroll", label: "Payroll", icon: Wallet },
   { href: "/admissions", label: "Admissions", icon: Stethoscope },
   { href: "/security", label: "Security & Resilience", icon: ShieldAlert },

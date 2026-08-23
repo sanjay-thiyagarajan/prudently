@@ -11,10 +11,10 @@ export function AgentLogViewer({ agentName }: { agentName: string }) {
 
   return (
     <Panel
-      title="Cloud Logging"
+      title="System activity log"
       icon={ScrollText}
       accent="var(--color-ink-secondary)"
-      subtitle="Reasoning Engine stdout/stderr — engine-scoped, not agent-scoped when reached via Coordinator"
+      subtitle="Raw Cloud Logging output — engine-scoped, not agent-scoped when reached via Coordinator"
     >
       {isLoading ? (
         <div className="flex min-h-[160px] items-center justify-center">

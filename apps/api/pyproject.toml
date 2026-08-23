@@ -50,6 +50,7 @@ source = [
     "services.platform.armor_local",
     "services.admissions",
     "services.payroll",
+    "services.inventory_sim",
 ]
 omit = ["tests/*", "evals/*"]
 

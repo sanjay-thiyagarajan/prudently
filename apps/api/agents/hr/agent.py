@@ -12,11 +12,18 @@ from google.adk.agents import Agent
 from google.adk.tools import FunctionTool
 
 from config import bootstrap_gemini_credentials, get_settings
+from services.payroll import compute_payroll_register
 from services.platform.approvals import perform_or_request
 from services.platform.observability import get_observability_service
-from services.state import get_staff_roster
+from services.state import get_shift_history, get_staff_roster
 
-from .credentialing import compliance_summary, compute_credential_status, perdiem_coverage_for_unit
+from .credentialing import (
+    compliance_summary,
+    compute_credential_status,
+    fatigue_risk_by_staff_id,
+    flag_payroll_anomalies,
+    perdiem_coverage_for_unit,
+)
 
 bootstrap_gemini_credentials()
 
@@ -44,6 +51,37 @@ def find_perdiem_coverage(unit: str) -> dict:
     staff = get_staff_roster()
     eligible = perdiem_coverage_for_unit(staff, unit, as_of=date.today())
     return {"unit": unit, "eligible_perdiem_staff": eligible}
+
+
+def flag_payroll_anomalies_for_period(period_start: str, period_end: str) -> dict:
+    """Reviews a pay period's register (same computation routes/payroll.py's pay-run endpoint
+    uses) against current fatigue risk and flags staff who are both drawing heavy overtime pay
+    AND at elevated/critical fatigue risk right now — call this before recommending a pay run
+    be approved, to catch staff who should be reallocated instead of kept on overtime. Dates
+    are ISO (YYYY-MM-DD). Read-only, same as get_credential_compliance — this doesn't change
+    payroll or notify anyone by itself."""
+    with get_observability_service().span(
+        "hr.flag_payroll_anomalies", {"period_start": period_start, "period_end": period_end}
+    ) as span:
+        staff = get_staff_roster()
+        shift_history = get_shift_history()
+        start = date.fromisoformat(period_start)
+        end = date.fromisoformat(period_end)
+
+        register = compute_payroll_register(staff, shift_history, start, end)
+        risk_by_staff = fatigue_risk_by_staff_id(staff, shift_history, as_of=date.today())
+        flagged = flag_payroll_anomalies(
+            register["rows"], risk_by_staff, period_days=(end - start).days + 1
+        )
+        span.set_attribute("hr.flag_payroll_anomalies.flagged_count", len(flagged))
+
+        return {
+            "period_start": period_start,
+            "period_end": period_end,
+            "staff_count": register["staff_count"],
+            "total_gross_pay": register["total_gross_pay"],
+            "flagged": flagged,
+        }
 
 
 def notify_staff_credential_escalation(staff_id: str, message: str) -> dict:
@@ -96,11 +134,17 @@ root_agent = Agent(
         "notify a staff member about a credential issue or an escalation, call "
         "notify_staff_credential_escalation — this may require manager approval first, in "
         "which case the tool returns a pending_approval status; report that plainly "
-        "('awaiting manager approval') rather than claiming the notice was sent."
+        "('awaiting manager approval') rather than claiming the notice was sent. If asked to "
+        "review a pay period before it's approved, call flag_payroll_anomalies_for_period with "
+        "the period's start/end dates — it flags staff who are both drawing heavy overtime pay "
+        "and at elevated/critical fatigue risk right now, so a manager can reallocate them "
+        "before approving the run rather than after. This is read-only: it doesn't change "
+        "payroll or notify anyone."
     ),
     tools=[
         FunctionTool(get_credential_compliance),
         FunctionTool(find_perdiem_coverage),
         FunctionTool(notify_staff_credential_escalation),
+        FunctionTool(flag_payroll_anomalies_for_period),
     ],
 )

@@ -12,6 +12,7 @@ import {
 
 import { Panel } from "@/components/ui/Panel";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { activityTypeLabel } from "@/lib/labels";
 import type { ActivityLogEntry } from "@/lib/types/dashboard";
 
 function relativeTime(iso: string): string {
@@ -58,9 +59,11 @@ function ActivityRow({
             </p>
             {entry.status && <StatusPill status={entry.status} />}
           </div>
-          <p className="mt-1 text-xs text-[var(--color-ink-secondary)]">
-            {entry.activity_type.replace(/_/g, " ")}
-            {entry.tool_name && <> · {entry.tool_name}</>}
+          <p
+            className="mt-1 text-xs text-[var(--color-ink-secondary)]"
+            title={entry.tool_name ?? undefined}
+          >
+            {activityTypeLabel(entry.activity_type)}
           </p>
           <div className="mt-2 flex items-center gap-3 text-[10px] text-[var(--color-ink-muted)]">
             <span>{relativeTime(entry.timestamp)}</span>

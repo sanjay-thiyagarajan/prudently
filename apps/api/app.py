@@ -12,10 +12,13 @@ from config import get_settings
 from routes.agents import router as agents_router
 from routes.approvals import router as approvals_router
 from routes.dashboard import router as dashboard_router
+from routes.inventory import router as inventory_router
 from routes.payroll import router as payroll_router
 from routes.policy import router as policy_router
 from routes.sim import router as sim_router
+from routes.staff import router as staff_router
 from routes.traces import router as traces_router
+from routes.vendors import router as vendors_router
 from services.platform.observability import get_observability_service
 
 # Medical Representative's genuine A2A endpoint (see config.py's medrep_a2a_* settings and
@@ -68,6 +71,9 @@ app.include_router(policy_router)
 app.include_router(payroll_router)
 app.include_router(agents_router)
 app.include_router(traces_router)
+app.include_router(inventory_router)
+app.include_router(staff_router)
+app.include_router(vendors_router)
 
 
 @app.get("/health")

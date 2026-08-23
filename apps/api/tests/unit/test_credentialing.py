@@ -7,6 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from agents.hr.credentialing import (
     compliance_summary,
     compute_credential_status,
+    fatigue_risk_by_staff_id,
+    flag_payroll_anomalies,
     guest_doctor_hours_summary,
     perdiem_coverage_for_unit,
 )
@@ -164,3 +166,66 @@ def test_guest_doctor_hours_ignores_other_staff_shifts():
     shifts = [shift("er-00", "2026-08-15", 8)]
     summary = guest_doctor_hours_summary(staff, shifts, as_of=TODAY)
     assert summary[0]["hours"] == 0
+
+
+def test_fatigue_risk_flags_critical_for_heavy_trailing_hours():
+    staff = [staff_member("a", "2027-01-01")]
+    shifts = [
+        shift("a", "2026-08-15", 12),
+        shift("a", "2026-08-16", 12),
+        shift("a", "2026-08-17", 12),
+        shift("a", "2026-08-18", 12),  # 48h in the trailing 7 days, ratio 1.2 -> critical
+    ]
+    risk = fatigue_risk_by_staff_id(staff, shifts, as_of=TODAY)
+    assert risk["a"] == "critical"
+
+
+def test_fatigue_risk_is_safe_with_no_shifts():
+    staff = [staff_member("a", "2027-01-01")]
+    risk = fatigue_risk_by_staff_id(staff, [], as_of=TODAY)
+    assert risk["a"] == "safe"
+
+
+def test_fatigue_risk_ignores_shifts_outside_trailing_window():
+    staff = [staff_member("a", "2027-01-01")]
+    shifts = [shift("a", "2026-07-01", 12)]  # far outside the 7-day window
+    risk = fatigue_risk_by_staff_id(staff, shifts, as_of=TODAY)
+    assert risk["a"] == "safe"
+
+
+def payroll_row(staff_id: str, hours_worked: float, unit: str = "ER") -> dict:
+    return {
+        "staff_id": staff_id,
+        "staff_name": f"Staff {staff_id}",
+        "unit": unit,
+        "role": "nurse",
+        "hours_worked": hours_worked,
+        "hourly_rate": 48.0,
+        "gross_pay": round(hours_worked * 48.0, 2),
+    }
+
+
+def test_flag_payroll_anomalies_flags_overtime_plus_fatigue():
+    rows = [payroll_row("a", hours_worked=100.0)]  # 14-day period -> 50h/week, over 40*1.1
+    risk = {"a": "critical"}
+    flagged = flag_payroll_anomalies(rows, risk, period_days=14)
+    assert len(flagged) == 1
+    assert flagged[0]["staff_id"] == "a"
+    assert flagged[0]["fatigue_risk"] == "critical"
+
+
+def test_flag_payroll_anomalies_skips_safe_risk_even_with_overtime():
+    rows = [payroll_row("a", hours_worked=100.0)]
+    risk = {"a": "safe"}
+    assert flag_payroll_anomalies(rows, risk, period_days=14) == []
+
+
+def test_flag_payroll_anomalies_skips_low_hours_even_at_critical_risk():
+    rows = [payroll_row("a", hours_worked=40.0)]  # 14-day period -> 20h/week, well under threshold
+    risk = {"a": "critical"}
+    assert flag_payroll_anomalies(rows, risk, period_days=14) == []
+
+
+def test_flag_payroll_anomalies_defaults_unknown_staff_to_safe():
+    rows = [payroll_row("unknown", hours_worked=100.0)]
+    assert flag_payroll_anomalies(rows, {}, period_days=14) == []

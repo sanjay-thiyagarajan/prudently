@@ -93,6 +93,14 @@ def contact_vendor_for_reorder(vendor_id: str, sku: str, quantity: int) -> dict:
             subject=subject,
             body=body,
             requested_by="supply_chain_resiliency_agent",
+            metadata={
+                "sku": sku,
+                "item_name": item["name"],
+                "quantity": quantity,
+                "vendor_id": vendor_id,
+                "vendor_name": vendor["name"],
+                "unit_cost": item.get("unit_cost", 0.0),
+            },
         )
         span.set_attribute("supply.contact_vendor.status", result.get("status", "error"))
         return result

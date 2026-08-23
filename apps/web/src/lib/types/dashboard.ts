@@ -136,6 +136,78 @@ export interface PayrollRecord {
   status: "pending" | "paid";
   timestamp: string;
   paid_at: string | null;
+  run_id?: string | null;
+}
+
+export interface PayrollRun {
+  id: string;
+  period_start: string;
+  period_end: string;
+  status: "draft" | "approved" | "disbursed";
+  staff_count: number;
+  total_gross_pay: number;
+  unit_subtotals: Record<string, number>;
+  created_at: string;
+  approved_at?: string | null;
+  disbursed_at?: string | null;
+  records?: PayrollRecord[];
+}
+
+export interface StaffDirectoryEntry {
+  staff_id: string;
+  name: string;
+  role: string;
+  unit: string;
+  is_per_diem: boolean;
+  credential_status: CredentialStatus | null;
+}
+
+export interface StaffProfile {
+  staff_id: string;
+  name: string;
+  role: string;
+  unit: string;
+  is_per_diem: boolean;
+  hourly_rate: number;
+  fatigue: BurndownRecord | null;
+  credential: CredentialRecord | null;
+  pay_history: PayrollRecord[];
+}
+
+export interface Vendor {
+  vendor_id: string;
+  name: string;
+  lead_time_days: number;
+  reliability: number;
+}
+
+export interface InventoryTransaction {
+  id: string;
+  sku: string;
+  item_name: string;
+  type: "consumption" | "receipt";
+  quantity_delta: number;
+  stock_before: number;
+  stock_after: number;
+  sim_day: number | null;
+  source: string;
+  timestamp: string;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  sku: string;
+  item_name: string;
+  quantity: number;
+  vendor_id: string;
+  vendor_name: string;
+  unit_cost: number;
+  total_cost: number;
+  status: "ordered" | "received" | "invoiced";
+  ordered_at: string;
+  received_at: string | null;
+  invoiced_at: string | null;
+  source_approval_token?: string | null;
 }
 
 export interface ChaosExperiment {

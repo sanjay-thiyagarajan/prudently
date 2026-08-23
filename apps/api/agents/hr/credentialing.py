@@ -15,6 +15,15 @@ CredentialStatus = Literal["valid", "expiring_soon", "expired"]
 # Days-until-expiry at or under which a still-valid credential counts as "expiring_soon".
 EXPIRING_SOON_WINDOW_DAYS = 30
 
+# Same trailing-window/ratio thresholds as agents/shift/burndown.py's compute_burndown —
+# duplicated, not imported: adk deploy stages each agent folder independently
+# (--extra_packages=agents/hr never brings agents/shift/ along), the same reasoning
+# agents/supply/reorder.py's own duplicated stock-status derivation and this file's own
+# guest_doctor_hours_summary already document.
+_FATIGUE_WINDOW_DAYS = 7
+_FATIGUE_ELEVATED_THRESHOLD = 0.85
+_FATIGUE_CRITICAL_THRESHOLD = 1.10
+
 
 def _parse_date(value: str) -> date:
     return datetime.fromisoformat(value).date()
@@ -118,3 +127,65 @@ def guest_doctor_hours_summary(
         }
         for staff_id in sorted(perdiem_ids)
     ]
+
+
+def fatigue_risk_by_staff_id(staff: list[dict], shifts: list[dict], as_of: date) -> dict[str, str]:
+    """Trailing-7-day fatigue risk level (safe/elevated/critical) per staff_id — same math as
+    compute_burndown, scoped down to just the risk level since that's all
+    flag_payroll_anomalies below needs."""
+    hours_by_staff: dict[str, float] = {member["staff_id"]: 0.0 for member in staff}
+    for shift in shifts:
+        staff_id = shift["staff_id"]
+        if staff_id not in hours_by_staff:
+            continue
+        shift_date = _parse_date(shift["shift_date"])
+        age_days = (as_of - shift_date).days
+        if 0 <= age_days < _FATIGUE_WINDOW_DAYS:
+            hours_by_staff[staff_id] += shift["hours"]
+
+    risk_by_staff: dict[str, str] = {}
+    for member in staff:
+        staff_id = member["staff_id"]
+        safe_hours = member.get("safe_weekly_hours", 40.0)
+        ratio = hours_by_staff[staff_id] / safe_hours if safe_hours else 0.0
+        if ratio >= _FATIGUE_CRITICAL_THRESHOLD:
+            risk_by_staff[staff_id] = "critical"
+        elif ratio >= _FATIGUE_ELEVATED_THRESHOLD:
+            risk_by_staff[staff_id] = "elevated"
+        else:
+            risk_by_staff[staff_id] = "safe"
+    return risk_by_staff
+
+
+def flag_payroll_anomalies(
+    register_rows: list[dict], risk_by_staff: dict[str, str], period_days: int
+) -> list[dict]:
+    """Cross-references a pay-period register (services/payroll.compute_payroll_register's
+    `rows`) against current fatigue risk: flags staff who are both drawing heavy overtime pay
+    this period AND at elevated/critical fatigue risk right now — genuine cross-agent value
+    (Shift Allocation's own fatigue signal informing a payroll decision), not a payroll-CRUD
+    wrapper. "Heavy overtime" is a weekly-equivalent (hours_worked scaled by the period's own
+    length, not a hardcoded period size) more than 10% over a straight 40h/week baseline —
+    mirroring burndown's own elevated-risk ratio rather than inventing a separate
+    payroll-specific threshold."""
+    weeks = max(period_days / 7.0, 1.0 / 7.0)
+    flagged: list[dict] = []
+    for row in register_rows:
+        risk = risk_by_staff.get(row["staff_id"], "safe")
+        if risk not in ("elevated", "critical"):
+            continue
+        weekly_equivalent = row["hours_worked"] / weeks
+        if weekly_equivalent <= 40.0 * _FATIGUE_ELEVATED_THRESHOLD:
+            continue
+        flagged.append(
+            {
+                **row,
+                "fatigue_risk": risk,
+                "recommendation": (
+                    f"{row['staff_name']} ({row['unit']}) is at {risk} fatigue risk and drawing "
+                    "significant overtime pay this period — consider reallocating before the "
+                    "next pay period rather than continuing to schedule overtime."
+                ),
+            }
+        )
+    return flagged
