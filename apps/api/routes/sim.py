@@ -4,6 +4,7 @@ timeline to reason over (services/memory.py), and the autonomous fleet watch tha
 fleet act on what changed without being asked (services/triggers.py + services/autonomy.py)."""
 
 import asyncio
+import logging
 from datetime import date
 
 from fastapi import APIRouter
@@ -27,6 +28,8 @@ from services.state import (
 )
 from services.triggers import detect_all
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/sim", tags=["simulation"])
 
 
@@ -43,30 +46,36 @@ async def _advance_day(day: int) -> None:
     The ordering is load-bearing and was previously wrong: depletion and the memory write used
     to be two concurrent tasks, so the fleet watch (added later) could observe either the old
     or the new stock depending on which coroutine won. Deplete first, then observe, then act.
+
+    Each stage is independently isolated, and that is not defensive boilerplate — it was found
+    in production. A Memory Bank write raising (a stale `MEMORY_BANK_LOCATION=us` on Cloud Run,
+    which 404s as "The ReasoningEngine does not exist") propagated out of the write stage and
+    killed the whole coroutine, so the fleet watch never ran at all. The day boundary showed no
+    error to the operator and no autonomous action ever appeared: a silent, total failure of
+    the headline feature caused by an optional side-effect. Recording the timeline is
+    best-effort; noticing that the ward is on fire is not.
     """
-    await _deplete_inventory_for_day(day)
-    await _write_sim_day_memory(day)
-    await _run_fleet_watch(day)
+    for stage in (_deplete_inventory_for_day, _write_sim_day_memory, _run_fleet_watch):
+        try:
+            await stage(day)
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.exception("Sim day %s: stage %s failed; continuing.", day, stage.__name__)
 
 
 async def _run_fleet_watch(day: int) -> None:
     """The fleet notices what changed and acts on it, with nobody in the room.
 
-    Wrapped whole in a try/except for the same reason every audit write in this codebase is:
-    a watch failure must never stop the clock. A stopped clock is a dead demo; a missed
-    trigger is one quiet day.
+    No blanket try/except of its own: `_advance_day` isolates each stage and *logs* the
+    traceback. An earlier version swallowed everything silently here, which is how a
+    misconfigured Memory Bank region managed to disable the whole feature without leaving a
+    single error anywhere an operator would look.
     """
-    try:
-        par_records = compute_par_levels(get_inventory())
-        burndown = compute_burndown(get_staff_roster(), get_shift_history(), as_of=date.today())
-        triggers, next_state = detect_all(
-            par_records, unit_summary(burndown), get_watch_state(), day
-        )
-        write_watch_state(next_state)
-        if triggers:
-            await run_triggers(triggers, day)
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
+    par_records = compute_par_levels(get_inventory())
+    burndown = compute_burndown(get_staff_roster(), get_shift_history(), as_of=date.today())
+    triggers, next_state = detect_all(par_records, unit_summary(burndown), get_watch_state(), day)
+    write_watch_state(next_state)
+    if triggers:
+        await run_triggers(triggers, day)
 
 
 async def _deplete_inventory_for_day(day: int) -> None:
@@ -116,9 +125,7 @@ async def _write_sim_day_memory(day: int) -> None:
             f"sim_day {day}: {unit} burndown — "
             f"{counts['safe']} safe, {counts['elevated']} elevated, {counts['critical']} critical."
         )
-        await write_fact(
-            app_name="shift_allocation_agent", user_id=unit, fact=fact, author="sim_clock"
-        )
+        await _write_fact_best_effort("shift_allocation_agent", unit, fact)
 
     for item in compute_par_levels(get_inventory()):
         if item["stock_status"] == "ok":
@@ -129,12 +136,19 @@ async def _write_sim_day_memory(day: int) -> None:
             f"{item['current_stock']} units against a reorder point of {item['reorder_point']}"
             + (f", ~{days_left} days of supply left." if days_left is not None else ".")
         )
-        await write_fact(
-            app_name="inventory_management_agent",
-            user_id=item["sku"],
-            fact=fact,
-            author="sim_clock",
-        )
+        await _write_fact_best_effort("inventory_management_agent", item["sku"], fact)
+
+
+async def _write_fact_best_effort(app_name: str, user_id: str, fact: str) -> None:
+    """One failing write must not cost the rest of the day's facts.
+
+    Per-write rather than per-stage: a single unreachable engine would otherwise abandon every
+    remaining unit and SKU for that day, leaving a hole in the timeline the recall tools read.
+    """
+    try:
+        await write_fact(app_name=app_name, user_id=user_id, fact=fact, author="sim_clock")
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.warning("Memory Bank write failed for %s/%s; timeline gap.", app_name, user_id)
 
 
 _clock = SimClock()

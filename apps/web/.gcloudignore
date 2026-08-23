@@ -1,0 +1,11 @@
+# `gcloud run deploy --source=apps/web` looks for a .gitignore *inside the source directory*,
+# not at the repo root. There isn't one here, so without this file gcloud uploaded the entire
+# directory — node_modules (764M) and .next (570M) included — on every deploy, turning a
+# two-minute deploy into a very long one. .dockerignore does not help: it filters the build
+# context after the upload, not the upload itself.
+node_modules/
+.next/
+.git/
+*.log
+.env*.local
+tsconfig.tsbuildinfo
