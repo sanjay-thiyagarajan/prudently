@@ -7,9 +7,9 @@ Fortified Enterprise Fleet track.
 Seven agents run a hospital's staffing, supplies, and vendor relationships. A Coordinator
 routes every internal call through an Agent Gateway to five specialists; a sixth agent sits on
 the far side of a real trust boundary and is reached over genuine Agent2Agent. The fleet does
-not wait to be asked — at each simulated-day boundary it compares the ward to how it left it
-and wakes the responsible agent where something crossed a line. Anything with a real-world
-consequence still comes back to a human for approval.
+not wait to be asked — a real-time watch runs continuously, comparing the ward to how it left
+it, and wakes the responsible agent the moment something crosses a line. Anything with a
+real-world consequence still comes back to a human for approval.
 
 **Live:**
 [dashboard](https://prudently-web-jnpvbtwpwa-uc.a.run.app) ·
@@ -25,7 +25,7 @@ consequence still comes back to a human for approval.
 | | |
 |---|---|
 | **Acts unprompted** | A fleet watch fires on state *transitions* — a SKU crossing its par level, a unit gaining another critically fatigued nurse — and opens a real agent turn about it. Nobody typed anything. See the Autonomous activity page. |
-| **Remembers across weeks** | Each agent has its own Vertex AI Memory Bank store on its own Reasoning Engine, scoped per unit or per SKU. Facts are written every simulated day and read back by the agent's own recall tool — ask Shift whether ICU fatigue has been building and it cites the day it started. |
+| **Remembers over time** | Each agent has its own Vertex AI Memory Bank store on its own Reasoning Engine, scoped per unit or per SKU. Facts are written whenever the fleet watch observes a real change and read back by the agent's own recall tool — ask Shift whether ICU fatigue has been building and it cites when it started. |
 | **Catalogs its own fleet** | The Agent Gateway looks every target up in a Firestore registry on every call, and blocks unregistered, inactive, or unauthorized ones before the tool body runs. |
 | **Screens untrusted input** | Model Armor screens inbound vendor mail in a `before_model_callback`, so a blocked message never reaches a model at all — then re-screens the excerpt the model extracts. |
 | **Never acts unsupervised** | Contacting a vendor, notifying staff, and replying to a vendor are all approval-gated, configurable per action, fail-closed. Approve links render on `GET` and mutate on `POST`. |
@@ -150,13 +150,17 @@ read from the output text and confirmed against the engine's own `update_time`.
 
 ## Driving a demo
 
-The ward clock is what makes the fleet act. From the dashboard's top strip:
+The fleet watch is what makes the fleet act, and it needs nobody to press anything: a
+background loop (`services/watch_loop.py`) checks live state every `WATCH_INTERVAL_SECONDS`
+(90s by default) from the moment the API process starts. From the dashboard's top strip:
 
-- **Run** — advances a simulated day roughly every 60s and lets everything unfold on its own.
-- **Next day** — advances one day immediately. Returns straight away; the agent turns it
-  triggers land in the Autonomous activity feed as they finish.
-- **Reset** — back to day zero, and clears the watch's memory of what it has already seen so a
-  replay fires the same triggers again.
+- **Run fleet check now** — pulls the next check forward immediately instead of waiting out the
+  interval on camera. Returns straight away; the agent turns it triggers land in the
+  Autonomous activity feed as they finish.
+
+Before a fresh take, `make demo-reset` (see below) clears the watch's memory of what it has
+already seen, so the same triggers fire again from a clean slate — `POST /watch/reset` does the
+same thing directly.
 
 [`docs/demo.md`](docs/demo.md) has the shot-by-shot script, the pre-flight checklist, and
 fallbacks for the things that have actually gone wrong on camera.

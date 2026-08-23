@@ -65,7 +65,8 @@ export function Sidebar() {
       <div className="flex items-center gap-2.5 px-5 pt-6 pb-7">
         <span
           aria-hidden
-          className="flex size-7 items-center justify-center rounded-md bg-[var(--color-hero)] font-[family-name:var(--font-display)] text-sm font-bold text-white"
+          className="flex size-7 items-center justify-center rounded-md bg-[var(--color-hero)] font-[family-name:var(--font-display)] text-sm font-bold text-[var(--color-bg-base)]"
+          style={{ boxShadow: "var(--glow-hero)" }}
         >
           P
         </span>

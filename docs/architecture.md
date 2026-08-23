@@ -57,8 +57,8 @@ approval rather than silently auto-sending.
   audit surfaces: `activity_log`, `approvals`, `armor_events`, `chaos_experiments`,
   `autonomous_actions`, and `fleet_watch/state`.
 - **Vertex AI Memory Bank** — one store per agent, on that agent's own Reasoning Engine, scoped
-  by `(app_name, user_id)`: Shift by unit, Inventory by SKU. Written at each simulated-day
-  boundary and read back by each agent's own recall tool.
+  by `(app_name, user_id)`: Shift by unit, Inventory by SKU. Written whenever the real-time
+  fleet watch observes a real change and read back by each agent's own recall tool.
 - **Cloud Trace + Cloud Logging** — one trace spans Coordinator → Gateway → Supply Chain → the
   A2A hop → Cloud Run's ASGI handler → the pre-LLM screen → Model Armor. Any `armor_events`
   record can be pivoted straight to that waterfall.

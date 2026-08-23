@@ -9,7 +9,7 @@ What this clears:
   * `autonomous_actions`  — the fleet's unprompted work from the last run
   * `approvals`           — pending requests from the last run
   * `activity_log`        — the audit feed
-  * `fleet_watch/state`   — so the next day boundary sees transitions again
+  * `fleet_watch/state`   — so the next watch cycle sees transitions again
   * `armor_events` and `chaos_experiments`, only with --deep
 
 What it deliberately does NOT touch:
@@ -104,8 +104,9 @@ def main() -> None:
         print(f"{verb} stock on {count} SKU(s) to 1.6x reorder point")
 
     print()
-    print("Next: POST /sim/reset to put the clock back to day zero, then press Run (or")
-    print("Next day) and the fleet will start noticing things again from a clean slate.")
+    print("Next: POST /watch/reset to clear the watch's last-seen snapshot. The fleet watch")
+    print("runs on its own from there — no button to press — or POST /watch/check-now to pull")
+    print("the next check forward on camera.")
 
 
 if __name__ == "__main__":

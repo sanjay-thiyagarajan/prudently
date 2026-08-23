@@ -16,8 +16,9 @@ cd apps/api
 #    remembers every SKU as breached, so nothing reads as a new crossing.
 uv run python -m scripts.demo_reset --restock
 
-# 2. Clock back to day zero.
-curl -X POST https://prudently-api-jnpvbtwpwa-uc.a.run.app/sim/reset
+# 2. Clear the watch's memory of what it has already seen (it keeps checking on its own —
+#    this only resets what counts as "new").
+curl -X POST https://prudently-api-jnpvbtwpwa-uc.a.run.app/watch/reset
 
 # 3. Confirm the fleet is up and every engine is active.
 curl -s https://prudently-api-jnpvbtwpwa-uc.a.run.app/dashboard/overview \
@@ -44,7 +45,7 @@ these run long.
 > deliver. Prudently puts seven agents on that, on Google Cloud. Fortified Enterprise Fleet
 > track.
 
-Point at the top strip: ward date, fleet 7 of 7 active, signals needing attention.
+Point at the top strip: the live pulse, fleet 7 of 7 active, signals needing attention.
 
 ---
 
@@ -52,29 +53,31 @@ Point at the top strip: ward date, fleet 7 of 7 active, signals needing attentio
 
 **This is the beat that wins or loses it. Give it the most time.**
 
-**On screen:** press **Next day** in the top strip. It returns instantly. Talk while the
-autonomous feed fills in.
+**On screen:** press **Run fleet check now** in the top strip. It returns instantly. Talk while
+the autonomous feed fills in.
 
-> Nobody is going to ask an agent anything in this shot. I'm advancing the ward clock by one
-> day, and the fleet is going to notice things by itself.
+> Nobody is going to ask an agent anything in this shot. I'm pulling the fleet's next check
+> forward, and it's going to notice things by itself — it would have noticed them on its own
+> within the next minute or two anyway, this just puts it on camera now.
 >
-> At every day boundary the fleet compares the ward to the snapshot it kept from the last one.
+> The watch runs continuously, comparing the ward to the snapshot it kept from the last check.
 > It only fires on *transitions* — a SKU crossing its par level, a unit gaining another
-> critically fatigued nurse. Something that's still bad today because it was bad yesterday is
-> not news, and a fleet that emails you about the same box of gloves twenty-one days running
-> is worse than no fleet at all.
+> critically fatigued nurse, a credential expiring. Something that's still bad now because it
+> was bad a minute ago is not news, and a fleet that emails you about the same box of gloves on
+> every single check is worse than no fleet at all.
 
 As rows appear, expand one with **What it did**.
 
 > Here's what actually happened. The watch woke Shift Allocation about the ICU. That's a real
 > agent turn — real model call, real tools — and this is its answer.
 
-**Point at the recalled day explicitly.** This is the money shot:
+**Point at the recalled fact explicitly.** This is the money shot:
 
-> And look at this line. It's citing sim-day zero. That's Vertex AI Memory Bank: every agent
-> has its own store on its own Reasoning Engine, written at each day boundary and read back by
-> that agent's own recall tool. It isn't describing today's snapshot — it's telling me when
-> this started.
+> And look at this line. It's citing what the watch observed earlier — a real timestamp, not
+> today's snapshot restated. That's Vertex AI Memory Bank: every agent has its own store on its
+> own Reasoning Engine, written whenever the watch sees something worth remembering and read
+> back by that agent's own recall tool. It's telling me when this started, not just where it
+> stands now.
 
 ---
 
@@ -174,9 +177,9 @@ Things that have actually gone wrong, and what to do on camera.
 
 | If | Then |
 |---|---|
-| **Next day** produces no autonomous rows | The watch has already seen this state. Run `demo_reset --restock`, `POST /sim/reset`, and press it again. This is the single most likely failure. |
-| A turn shows **turn failed** | Leave it on screen and say so — a failed turn is recorded rather than hidden, and that's a feature. Press Next day again. |
-| Stock never goes low | Depletion is gradual by design. Press **Next day** four or five times before the take, or run with `--restock` and start from a lower baseline. |
+| **Run fleet check now** produces no autonomous rows | The watch has already seen this state. Run `demo_reset --restock`, `POST /watch/reset`, and press it again. This is the single most likely failure. |
+| A turn shows **turn failed** | Leave it on screen and say so — a failed turn is recorded rather than hidden, and that's a feature. Press **Run fleet check now** again. |
+| Stock never goes low | The two seeded-tight SKUs (N95-001, O2-006) should already be low/critical right after a fresh `make seed` — if they're not, the ongoing consumption noise is gradual by design; press **Run fleet check now** a few times before the take, or run `demo_reset --restock` and start from a lower baseline deliberately. |
 | An engine call hangs | Don't narrate over a live `stream_query`. Three of four bare calls reset mid-stream from a laptop; the dashboard path is polling-based and doesn't have this problem, which is why every beat above drives the UI rather than a terminal. |
 | The dashboard shows a **Public view** banner | You're signed out. Staff-level rows are withheld from anonymous callers by design — sign in. |
 

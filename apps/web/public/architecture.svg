@@ -1,46 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 940" width="1420" height="940" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">
   <title>Prudently — Fortified Enterprise Fleet architecture</title>
-  <desc>A hospital operations agent fleet on Google Cloud: a Coordinator on Vertex AI Agent Engine routes through an Agent Gateway to five specialists; Supply Chain reaches a Medical Representative agent across a trust boundary over Agent2Agent, where Model Armor screens inbound vendor mail before any model sees it. An autonomous fleet watch wakes agents at simulated-day boundaries, and every consequential action is gated behind manager approval.</desc>
+  <desc>A hospital operations agent fleet on Google Cloud: a Coordinator on Vertex AI Agent Engine routes through an Agent Gateway to five specialists; Supply Chain reaches a Medical Representative agent across a trust boundary over Agent2Agent, where Model Armor screens inbound vendor mail before any model sees it. A real-time fleet watch runs continuously and wakes an agent the moment stock, fatigue, or a credential crosses a line — no scripted timeline, no human input — and every consequential action is still gated behind manager approval.</desc>
 
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#52645d"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9db3b0"/>
     </marker>
     <marker id="arrowTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0b6e63"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4c8"/>
     </marker>
     <marker id="arrowIndigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#574ac0"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a78bfa"/>
     </marker>
     <style>
-      .lbl   { font-size: 10px; letter-spacing: 1.3px; fill: #7b8b84; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-      .name  { font-size: 14px; font-weight: 600; fill: #11201c; }
-      .sub   { font-size: 11.5px; fill: #52645d; }
-      .mono  { font-size: 10.5px; fill: #7b8b84; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-      .edge  { font-size: 10.5px; fill: #52645d; }
-      .card  { fill: #ffffff; stroke: #d5dedb; stroke-width: 1.5; }
-      .zone  { fill: #ffffff; fill-opacity: 0.55; stroke: #0b6e63; stroke-width: 1.5; stroke-dasharray: 4 5; }
-      .flow  { stroke: #52645d; stroke-width: 1.6; fill: none; }
-      .flowT { stroke: #0b6e63; stroke-width: 1.8; fill: none; }
-      .flowI { stroke: #574ac0; stroke-width: 1.8; fill: none; }
+      .lbl   { font-size: 10px; letter-spacing: 1.3px; fill: #617975; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+      .name  { font-size: 14px; font-weight: 600; fill: #eaf4f2; }
+      .sub   { font-size: 11.5px; fill: #9db3b0; }
+      .mono  { font-size: 10.5px; fill: #7fa39d; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+      .edge  { font-size: 10.5px; fill: #9db3b0; }
+      .card  { fill: #111a1c; stroke: #1e2c2e; stroke-width: 1.5; }
+      .zone  { fill: #0e1416; fill-opacity: 0.65; stroke: #2dd4c8; stroke-width: 1.5; stroke-dasharray: 4 5; }
+      .flow  { stroke: #526661; stroke-width: 1.6; fill: none; }
+      .flowT { stroke: #2dd4c8; stroke-width: 1.8; fill: none; }
+      .flowI { stroke: #a78bfa; stroke-width: 1.8; fill: none; }
     </style>
   </defs>
 
-  <rect width="1420" height="940" fill="#f3f6f4"/>
+  <rect width="1420" height="940" fill="#090d0e"/>
 
-  <text x="48" y="52" font-size="25" font-weight="700" fill="#11201c">Prudently — Fortified Enterprise Fleet</text>
+  <text x="48" y="52" font-size="25" font-weight="700" fill="#eaf4f2">Prudently — Fortified Enterprise Fleet</text>
   <text x="48" y="76" class="sub" font-size="13">Agent-monitored hospital operations. Every box below is deployed and running in us-central1.</text>
 
   <!-- Legend -->
   <g transform="translate(1000,34)">
-    <rect x="0" y="0" width="372" height="56" rx="6" fill="#ffffff" stroke="#e3e9e6"/>
+    <rect x="0" y="0" width="372" height="56" rx="6" fill="#111a1c" stroke="#1e2c2e"/>
     <line x1="16" y1="20" x2="44" y2="20" class="flow" marker-end="url(#arrow)"/>
     <text x="52" y="24" class="edge">in-process call</text>
     <line x1="16" y1="40" x2="44" y2="40" class="flowT" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
     <text x="52" y="44" class="edge">network hop (A2A)</text>
     <line x1="196" y1="20" x2="224" y2="20" class="flowI" marker-end="url(#arrowIndigo)"/>
     <text x="232" y="24" class="edge">fleet-initiated</text>
-    <rect x="196" y="34" width="12" height="12" rx="2" fill="#ffffff" stroke="#d5dedb"/>
+    <rect x="196" y="34" width="12" height="12" rx="2" fill="#111a1c" stroke="#1e2c2e"/>
     <text x="232" y="44" class="edge">deployed component</text>
   </g>
 
@@ -56,29 +56,32 @@
   </g>
 
   <g transform="translate(48,268)">
-    <rect class="card" x="0" y="0" width="230" height="76" rx="8" stroke="#574ac0"/>
-    <text x="16" y="27" class="name" fill="#574ac0">Fleet watch</text>
+    <rect class="card" x="0" y="0" width="230" height="86" rx="8" stroke="#a78bfa"/>
+    <text x="16" y="27" class="name" fill="#a78bfa">Fleet watch</text>
     <text x="16" y="46" class="sub">Edge-triggered, no human input</text>
-    <text x="16" y="64" class="mono">triggers.py + autonomy.py</text>
+    <text x="16" y="64" class="mono">stock · fatigue · credential</text>
+    <text x="16" y="78" class="mono">triggers.py + fleet_watch.py</text>
   </g>
 
-  <g transform="translate(48,380)">
-    <rect class="card" x="0" y="0" width="230" height="62" rx="8"/>
-    <text x="16" y="26" class="name">Ward clock</text>
-    <text x="16" y="45" class="sub">21-day surge, compressed</text>
+  <g transform="translate(48,390)">
+    <rect class="card" x="0" y="0" width="230" height="72" rx="8"/>
+    <text x="16" y="26" class="name" font-size="13">Watch loop</text>
+    <text x="16" y="45" class="sub" font-size="10.5">Background loop, always on</text>
+    <text x="16" y="61" class="mono" font-size="9.5">services/watch_loop.py</text>
   </g>
-  <line x1="163" y1="380" x2="163" y2="350" class="flowI" marker-end="url(#arrowIndigo)"/>
-  <text x="173" y="368" class="edge" fill="#574ac0">day boundary</text>
+  <line x1="163" y1="390" x2="163" y2="360" class="flowI" marker-end="url(#arrowIndigo)"/>
+  <text x="173" y="380" class="edge" fill="#a78bfa">every ~90s</text>
+  <text x="173" y="392" class="mono" font-size="9">or on demand</text>
 
   <line x1="278" y1="188" x2="356" y2="188" class="flow" marker-end="url(#arrow)"/>
   <text x="288" y="180" class="edge">asks</text>
-  <path d="M 278 300 C 322 300 322 218 356 208" class="flowI" marker-end="url(#arrowIndigo)"/>
-  <text x="288" y="296" class="edge" fill="#574ac0">wakes an agent</text>
+  <path d="M 278 311 C 322 311 322 218 356 208" class="flowI" marker-end="url(#arrowIndigo)"/>
+  <text x="288" y="307" class="edge" fill="#a78bfa">wakes an agent</text>
 
   <!-- ── Column 2: Coordinator + Gateway + specialists ───────────────────── -->
   <text x="356" y="128" class="lbl">SINGLE ENTRY POINT</text>
   <g transform="translate(356,144)">
-    <rect class="card" x="0" y="0" width="252" height="88" rx="8" stroke="#0b6e63" stroke-width="2"/>
+    <rect class="card" x="0" y="0" width="252" height="88" rx="8" stroke="#2dd4c8" stroke-width="2"/>
     <text x="16" y="28" class="name">Coordinator</text>
     <text x="16" y="48" class="sub">Root ADK agent — delegates only</text>
     <text x="16" y="70" class="mono">Vertex AI Agent Engine</text>
@@ -101,7 +104,7 @@
     <text x="14" y="27" class="name" font-size="13">Shift Allocation</text>
     <text x="14" y="45" class="sub" font-size="10.5">Fatigue burndown</text>
     <text x="14" y="62" class="mono" font-size="9.5">memory: per unit</text>
-    <circle cx="139" cy="15" r="4.5" fill="#574ac0"/>
+    <circle cx="139" cy="15" r="4.5" fill="#a78bfa"/>
   </g>
   <g transform="translate(492,414)">
     <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
@@ -114,13 +117,14 @@
     <text x="14" y="27" class="name" font-size="13">HR</text>
     <text x="14" y="45" class="sub" font-size="10.5">Credentialing</text>
     <text x="14" y="62" class="mono" font-size="9.5">memory: per unit</text>
+    <circle cx="139" cy="15" r="4.5" fill="#a78bfa"/>
   </g>
   <g transform="translate(492,506)">
     <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
     <text x="14" y="27" class="name" font-size="13">Supply Chain</text>
     <text x="14" y="45" class="sub" font-size="10.5">Reorder, vendors</text>
     <text x="14" y="62" class="mono" font-size="9.5">memory: per vendor</text>
-    <circle cx="139" cy="15" r="4.5" fill="#574ac0"/>
+    <circle cx="139" cy="15" r="4.5" fill="#a78bfa"/>
   </g>
   <g transform="translate(320,598)">
     <rect class="card" x="0" y="0" width="326" height="68" rx="8"/>
@@ -133,14 +137,14 @@
 
   <!-- ── Column 3: trust boundary ────────────────────────────────────────── -->
   <rect class="zone" x="762" y="396" width="336" height="272" rx="10"/>
-  <text x="762" y="386" class="lbl" fill="#0b6e63">EXTERNAL TRUST BOUNDARY — UNTRUSTED BY DEFAULT</text>
+  <text x="762" y="386" class="lbl" fill="#2dd4c8">EXTERNAL TRUST BOUNDARY — UNTRUSTED BY DEFAULT</text>
 
   <line x1="646" y1="543" x2="762" y2="543" class="flowT" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
-  <text x="652" y="534" class="edge" fill="#0b6e63">Agent2Agent</text>
+  <text x="652" y="534" class="edge" fill="#2dd4c8">Agent2Agent</text>
   <text x="652" y="562" class="mono" font-size="9.5">public URL</text>
 
   <g transform="translate(780,414)">
-    <rect class="card" x="0" y="0" width="300" height="86" rx="8" stroke="#0b6e63" stroke-dasharray="4 3"/>
+    <rect class="card" x="0" y="0" width="300" height="86" rx="8" stroke="#2dd4c8" stroke-dasharray="4 3"/>
     <text x="16" y="28" class="name">Medical Representative</text>
     <text x="16" y="48" class="sub">Vendor liaison — separately deployed</text>
     <text x="16" y="69" class="mono">own engine + Cloud Run A2A mount</text>
@@ -148,14 +152,14 @@
 
   <line x1="930" y1="500" x2="930" y2="530" class="flow" marker-end="url(#arrow)"/>
   <g transform="translate(780,530)">
-    <rect class="card" x="0" y="0" width="300" height="94" rx="8" stroke="#a4322a"/>
-    <text x="16" y="27" class="name" fill="#a4322a">Model Armor</text>
+    <rect class="card" x="0" y="0" width="300" height="94" rx="8" stroke="#ff6b5c"/>
+    <text x="16" y="27" class="name" fill="#ff6b5c">Model Armor</text>
     <text x="16" y="46" class="sub">Screens inbound vendor mail — twice</text>
     <text x="16" y="67" class="mono">1 · before_model_callback (pre-LLM)</text>
     <text x="16" y="83" class="mono">2 · re-screen of the quoted excerpt</text>
   </g>
-  <text x="780" y="646" class="mono" font-size="9.5" fill="#a4322a">A blocked message never reaches a model,</text>
-  <text x="780" y="660" class="mono" font-size="9.5" fill="#a4322a">Memory Bank, or Supply Chain.</text>
+  <text x="780" y="646" class="mono" font-size="9.5" fill="#ff6b5c">A blocked message never reaches a model,</text>
+  <text x="780" y="660" class="mono" font-size="9.5" fill="#ff6b5c">Memory Bank, or Supply Chain.</text>
 
   <!-- ── Column 4: approval gate ─────────────────────────────────────────── -->
   <text x="1140" y="128" class="lbl">NOTHING RUNS UNATTENDED</text>
@@ -186,8 +190,8 @@
     <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
     <text x="16" y="27" class="name" font-size="13">Vertex AI Memory Bank</text>
     <text x="16" y="46" class="sub" font-size="10.5">One store per agent, on that</text>
-    <text x="16" y="62" class="sub" font-size="10.5">agent&#8217;s own engine. Written each</text>
-    <text x="16" y="78" class="sub" font-size="10.5">sim-day, read back by recall tools.</text>
+    <text x="16" y="62" class="sub" font-size="10.5">agent&#8217;s own engine. Written on</text>
+    <text x="16" y="78" class="sub" font-size="10.5">every real change, read on recall.</text>
   </g>
   <g transform="translate(592,762)">
     <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>

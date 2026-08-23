@@ -21,9 +21,15 @@ function AgentCard({ agent, prominent = false }: { agent: FleetAgent; prominent?
   const Icon = meta.icon;
   const accent = AGENT_ACCENT[meta.kind];
   const isExternal = meta.kind === "external";
+  const isLive = agent.status === "active";
 
   return (
-    <motion.div whileHover={{ y: -2 }} transition={{ type: "spring", stiffness: 400, damping: 26 }}>
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 400, damping: 26 }}
+      style={isLive ? { boxShadow: prominent ? "var(--glow-hero)" : undefined } : undefined}
+      className="rounded-xl"
+    >
       <Link
         href={`/agents/${encodeURIComponent(agent.agent_name)}`}
         className={`group flex h-full flex-col rounded-xl bg-[var(--color-surface)] p-4 shadow-[var(--shadow-panel)] transition-colors hover:bg-[var(--color-surface-hover)] ${
@@ -89,14 +95,38 @@ function AgentCard({ agent, prominent = false }: { agent: FleetAgent; prominent?
   );
 }
 
-/** A labelled rail between tiers — the label is the mechanism, not decoration. */
+/**
+ * A labelled rail between tiers — the label is the mechanism, not decoration. The moving
+ * highlight is this page's signature: a signal that never stops travelling from the
+ * Coordinator down to the specialists, standing in for "calls are flowing through here" even
+ * between real tool calls, so the topology reads as live infrastructure rather than a static
+ * diagram of one.
+ */
+function RailLine({ dashed }: { dashed: boolean }) {
+  const color = dashed ? "var(--color-a2a)" : "var(--color-hero)";
+  return (
+    <div
+      className={`relative h-px flex-1 ${dashed ? "border-t border-dashed border-[var(--color-a2a)]/50" : "bg-[var(--color-border)]"}`}
+    >
+      <div
+        aria-hidden
+        className="absolute inset-0 overflow-hidden"
+        style={{
+          backgroundImage: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+          backgroundSize: "45% 100%",
+          backgroundRepeat: "no-repeat",
+          animation: "var(--animate-rail-flow)",
+          opacity: 0.85,
+        }}
+      />
+    </div>
+  );
+}
+
 function Rail({ children, dashed = false }: { children: React.ReactNode; dashed?: boolean }) {
-  const line = dashed
-    ? "border-t border-dashed border-[var(--color-a2a)]/50"
-    : "border-t border-[var(--color-border)]";
   return (
     <div className="flex items-center gap-3 py-1">
-      <div className={`h-0 flex-1 ${line}`} />
+      <RailLine dashed={dashed} />
       <span
         className={`text-center font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] uppercase ${
           dashed ? "text-[var(--color-a2a)]" : "text-[var(--color-ink-muted)]"
@@ -104,7 +134,7 @@ function Rail({ children, dashed = false }: { children: React.ReactNode; dashed?
       >
         {children}
       </span>
-      <div className={`h-0 flex-1 ${line}`} />
+      <RailLine dashed={dashed} />
     </div>
   );
 }

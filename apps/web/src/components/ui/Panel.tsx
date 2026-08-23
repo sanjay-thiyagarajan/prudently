@@ -61,7 +61,10 @@ export function Panel({
           {action}
           {live && (
             <span className="flex items-center gap-1.5 font-[family-name:var(--font-mono)] text-[10px] tracking-wide text-[var(--color-ink-muted)] uppercase">
-              <span className="size-1.5 rounded-full bg-[var(--color-safe)] [animation:var(--animate-pulse-slow)]" />
+              <span
+                className="size-1.5 rounded-full bg-[var(--color-safe)] [animation:var(--animate-pulse-slow)]"
+                style={{ boxShadow: "var(--glow-safe)" }}
+              />
               live
             </span>
           )}

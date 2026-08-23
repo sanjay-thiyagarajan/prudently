@@ -71,12 +71,13 @@ def write_inventory_transaction(
     stock_before: int,
     stock_after: int,
     *,
-    sim_day: int | None = None,
-    source: str = "sim_clock",
+    source: str = "fleet_watch",
 ) -> None:
-    """Appends one real stock-movement event (consumption from a sim-day tick, or a receipt
-    from a purchase order being marked received) to `inventory_transactions` — the audit trail
-    behind Inventory's per-SKU drill-down. Convenience wrapper, same shape as log_activity."""
+    """Appends one real stock-movement event (consumption noise from a watch-loop cycle, or a
+    receipt from a purchase order being marked received) to `inventory_transactions` — the audit
+    trail behind Inventory's per-SKU drill-down. Convenience wrapper, same shape as
+    log_activity. `timestamp` (real wall-clock, not a day counter) is what the dashboard renders
+    relative-time against."""
     get_client().collection("inventory_transactions").add(
         {
             "sku": sku,
@@ -85,7 +86,6 @@ def write_inventory_transaction(
             "quantity_delta": quantity_delta,
             "stock_before": stock_before,
             "stock_after": stock_after,
-            "sim_day": sim_day,
             "source": source,
             "timestamp": firestore.SERVER_TIMESTAMP,
         }
@@ -420,9 +420,9 @@ def write_watch_state(state: dict) -> None:
 
 
 def clear_watch_state() -> None:
-    """Called by /sim/reset so a replayed demo re-fires the same triggers from a clean slate —
-    without this, the second run of a demo would be silent because every SKU is already
-    recorded at its breached status."""
+    """Called by POST /watch/reset (an internal ops utility, not a dashboard button) so a fresh
+    reseed re-fires the same triggers from a clean slate — without this, a reseeded demo would
+    be silent because every SKU/unit/credential is already recorded at its breached status."""
     get_client().document(_WATCH_STATE_DOC).delete()
 
 

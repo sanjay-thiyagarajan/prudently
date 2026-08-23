@@ -96,8 +96,13 @@ class Settings(BaseSettings):
     medrep_a2a_protocol: str = "https"
     medrep_a2a_rpc_path: str = "a2a/medrep"
 
+    # Still legitimately used — packages/datagen's RNG seed for reproducible synthetic seed
+    # data, and services/inventory_sim.py's ongoing consumption-noise generator. Unrelated to
+    # the old sim clock (removed) or the real-time watch loop below.
     sim_seed: int = 42
-    sim_speedup: int = 1440
+    # How often the real-time fleet watch (services/watch_loop.py) checks live state on its
+    # own, unprompted — see AGENTS.md's autonomous fleet watch section.
+    watch_interval_seconds: int = 90
     dry_run: bool = True
 
     firestore_emulator_host: str | None = None

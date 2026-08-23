@@ -59,11 +59,11 @@ export default function ActivityPage() {
           Autonomous activity
         </h1>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[var(--color-ink-secondary)]">
-          Every entry here is a real agent turn that no human started. The fleet watch runs at
-          each simulated-day boundary, compares the ward to the snapshot it kept from the last
-          one, and only wakes an agent where something crossed a line — a SKU falling past its
-          par level, or a unit accumulating another critically fatigued nurse. Anything with a
-          real-world consequence still comes back to you as an approval request.
+          Every entry here is a real agent turn that no human started. The fleet watch runs
+          continuously, compares the ward to the snapshot it kept from the last check, and only
+          wakes an agent where something crossed a line — a SKU falling past its par level, a
+          unit accumulating another critically fatigued nurse, or a staff credential expiring.
+          Anything with a real-world consequence still comes back to you as an approval request.
         </p>
       </header>
 

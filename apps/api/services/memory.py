@@ -61,7 +61,8 @@ def get_memory_service(app_name: str) -> VertexAiMemoryBankService:
 
 async def write_fact(app_name: str, user_id: str, fact: str, author: str = "system") -> None:
     """Direct write (CreateMemory-equivalent) — use for facts that should persist verbatim,
-    e.g. "sim_day 8: flu surge onset, ER admissions +30%", not summarized/reinterpreted.
+    e.g. "2026-08-23: ER burndown — 2 safe, 1 elevated, 5 critical.", not summarized/
+    reinterpreted.
     `role="user"` regardless of `author`: Memory Bank normalizes/expects this rather than an
     arbitrary role string — `author` still carries provenance separately."""
     entry = MemoryEntry(

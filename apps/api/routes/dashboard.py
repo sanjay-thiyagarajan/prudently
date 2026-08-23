@@ -1,8 +1,8 @@
 """Dashboard data aggregation — one endpoint, one payload, read-only. Reuses every
 specialist's already-tested pure-logic module (agents/*/{burndown,par_levels,reorder,
 credentialing}.py) over live Firestore state rather than re-deriving any of that math here;
-this route is a thin aggregator, not a second implementation, matching routes/sim.py's own
-"reuse the pure logic, don't duplicate it" precedent."""
+this route is a thin aggregator, not a second implementation, matching services/fleet_watch.py's
+own "reuse the pure logic, don't duplicate it" precedent."""
 
 from __future__ import annotations
 

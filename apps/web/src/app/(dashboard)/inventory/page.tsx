@@ -17,6 +17,17 @@ import type { ParLevelRecord } from "@/lib/types/dashboard";
 const CATEGORY_ALL = "all";
 const STATUS_ALL = "all";
 
+function timeAgo(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
 function ItemDrilldown({ sku, onClose }: { sku: string; onClose: () => void }) {
   const { transactions, isLoading } = useInventoryTransactions(sku);
   const { purchaseOrders } = usePurchaseOrders();
@@ -60,7 +71,7 @@ function ItemDrilldown({ sku, onClose }: { sku: string; onClose: () => void }) {
       ) : transactions.length === 0 ? (
         <p className="text-sm text-[var(--color-ink-muted)]">
           No stock movement recorded yet — this item hasn&apos;t moved since seeding, or the
-          simulation clock hasn&apos;t been started.
+          fleet watch hasn&apos;t run a check yet.
         </p>
       ) : (
         <ul className="max-h-72 space-y-1.5 overflow-y-auto text-xs">
@@ -71,7 +82,7 @@ function ItemDrilldown({ sku, onClose }: { sku: string; onClose: () => void }) {
             >
               <span className="text-[var(--color-ink-secondary)]">
                 {tx.type === "consumption" ? "Used" : "Received"} {Math.abs(tx.quantity_delta)}{" "}
-                units {tx.sim_day !== null && `· sim day ${tx.sim_day}`}
+                units <span className="text-[var(--color-ink-muted)]">· {timeAgo(tx.timestamp)}</span>
               </span>
               <span className="text-[var(--color-ink-muted)]">
                 {tx.stock_before} → {tx.stock_after}
@@ -199,8 +210,8 @@ export default function InventoryPage() {
   return (
     <main className="min-h-screen px-8 py-10">
       <div className="mb-8">
-        <p className="text-[11px] font-medium tracking-[0.25em] text-[var(--color-ink-muted)] uppercase">
-          Enterprise command center
+        <p className="text-[11px] font-medium tracking-[0.25em] text-[var(--color-hero)] uppercase">
+          Inventory Management Agent
         </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-ink-primary)]">
           Inventory

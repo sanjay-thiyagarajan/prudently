@@ -10,9 +10,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@emotion/react": "^11.13.0",
-    "@emotion/styled": "^11.13.0",
-    "@mui/material": "^9.0.0",
     "@tailwindcss/postcss": "^4.3.3",
     "firebase": "^12.18.0",
     "framer-motion": "^13.1.1",

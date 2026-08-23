@@ -74,7 +74,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-1 rounded-xl bg-[var(--color-hero)] px-4 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+          className="mt-1 rounded-xl bg-[var(--color-hero)] px-4 py-2.5 text-sm font-semibold text-[var(--color-bg-base)] transition-opacity disabled:opacity-50"
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>

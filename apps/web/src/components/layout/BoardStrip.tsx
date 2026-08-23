@@ -1,12 +1,11 @@
 "use client";
 
-import { ChevronRight, Loader2, Pause, Play, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { Loader2, Radio, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { sendSimCommand, useSimStatus, type SimCommand } from "@/lib/api/sim";
+import { triggerWatchCheck, useWatchStatus } from "@/lib/api/watch";
 
 interface BoardStripProps {
-  asOf: string;
   activeAgents: number;
   totalAgents: number;
   criticalAlerts: number;
@@ -40,54 +39,89 @@ function Reading({
   );
 }
 
+function secondsAgo(iso: string, now: number): number {
+  return Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+}
+
+function secondsUntil(iso: string, now: number): number {
+  return Math.max(0, Math.round((new Date(iso).getTime() - now) / 1000));
+}
+
+function formatSeconds(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  return `${minutes}m`;
+}
+
 /**
- * The strip along the top of the ward board: the four readings a manager glances at, and the
- * clock that drives the whole simulated timeline.
- *
- * The clock controls live here rather than buried on a settings page because advancing a day
- * is what makes the fleet act — during a demo it is the single most-pressed control on the
- * site, and it needs to be reachable from whichever page the narration is on.
+ * The strip along the top of the dashboard: the four readings a manager glances at, and the
+ * fleet watch's own live status. There is no start/pause/reset here any more — the watch
+ * (services/watch_loop.py) runs unprompted the moment the API process starts, so the only
+ * control left is "Run fleet check now", for pulling a check forward on demand rather than
+ * waiting out the interval on camera.
  */
 export function BoardStrip({
-  asOf,
   activeAgents,
   totalAgents,
   criticalAlerts,
   autonomousToday,
 }: BoardStripProps) {
-  const { status, refresh } = useSimStatus();
-  const [busy, setBusy] = useState<SimCommand | null>(null);
+  const { status, refresh } = useWatchStatus();
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
-  async function run(command: SimCommand) {
-    setBusy(command);
+  // Ticks once a second so "checked Ns ago" counts up smoothly between polls, rather than
+  // jumping every 2s when useWatchStatus refetches.
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  async function runCheckNow() {
+    setChecking(true);
     setError(null);
     try {
-      await sendSimCommand(command);
+      await triggerWatchCheck();
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Clock command failed.");
+      setError(err instanceof Error ? err.message : "Fleet check failed.");
     } finally {
-      setBusy(null);
+      setChecking(false);
     }
   }
 
-  const running = status?.running ?? false;
+  const checkedHint = status?.last_checked_at
+    ? `checked ${formatSeconds(secondsAgo(status.last_checked_at, now))} ago`
+    : "no check yet";
+  const nextHint = status?.next_check_at
+    ? `next check in ${formatSeconds(secondsUntil(status.next_check_at, now))}`
+    : undefined;
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-bg-raised)]/92 backdrop-blur">
       <div className="flex flex-wrap items-center gap-x-8 gap-y-4 px-6 py-3.5 sm:px-8">
-        <Reading
-          label="Ward date"
-          value={asOf}
-          hint={status ? `simulated day ${status.sim_day} of ${status.timeline_days}` : undefined}
-        />
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            aria-hidden
+            className="size-2 shrink-0 rounded-full bg-[var(--color-hero)] [animation:var(--animate-pulse-slow)]"
+            style={{ boxShadow: "var(--glow-hero)" }}
+          />
+          <div className="min-w-0">
+            <p className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] text-[var(--color-hero)] uppercase">
+              live
+            </p>
+            <p className="truncate text-[11px] text-[var(--color-ink-muted)]">
+              {checkedHint}
+              {nextHint ? ` · ${nextHint}` : ""}
+            </p>
+          </div>
+        </div>
+
         <Reading
           label="Fleet"
           value={`${activeAgents}/${totalAgents}`}
-          tone={
-            activeAgents === totalAgents ? "var(--color-safe)" : "var(--color-elevated)"
-          }
+          tone={activeAgents === totalAgents ? "var(--color-safe)" : "var(--color-elevated)"}
           hint="agents active"
         />
         <Reading
@@ -109,51 +143,29 @@ export function BoardStrip({
               {error}
             </span>
           )}
-          <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
-            <button
-              type="button"
-              onClick={() => run(running ? "pause" : "start")}
-              disabled={busy !== null}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-[var(--color-ink-primary)] transition-colors hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+          <button
+            type="button"
+            onClick={runCheckNow}
+            disabled={checking}
+            title="Run one fleet watch cycle immediately, without waiting for the interval"
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-ink-primary)] transition-colors hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
+          >
+            {checking ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Zap size={13} strokeWidth={2.4} className="text-[var(--color-hero)]" />
+            )}
+            Run fleet check now
+          </button>
+          {autonomousToday > 0 && (
+            <span
+              aria-hidden
+              className="hidden items-center gap-1 rounded-lg px-2 py-1.5 text-[var(--color-autonomous)] sm:flex"
+              title="The fleet has acted on its own"
             >
-              {busy === "start" || busy === "pause" ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : running ? (
-                <Pause size={13} strokeWidth={2.4} />
-              ) : (
-                <Play size={13} strokeWidth={2.4} />
-              )}
-              {running ? "Pause" : "Run"}
-            </button>
-            <button
-              type="button"
-              onClick={() => run("advance")}
-              disabled={busy !== null}
-              title="Advance one simulated day now"
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-[var(--color-ink-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-ink-primary)] disabled:opacity-50"
-            >
-              {busy === "advance" ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <ChevronRight size={13} strokeWidth={2.4} />
-              )}
-              Next day
-            </button>
-            <button
-              type="button"
-              onClick={() => run("reset")}
-              disabled={busy !== null}
-              title="Reset the timeline to day zero"
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-ink-primary)] disabled:opacity-50"
-            >
-              {busy === "reset" ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <RotateCcw size={13} strokeWidth={2.4} />
-              )}
-              Reset
-            </button>
-          </div>
+              <Radio size={13} strokeWidth={2.2} />
+            </span>
+          )}
         </div>
       </div>
     </header>

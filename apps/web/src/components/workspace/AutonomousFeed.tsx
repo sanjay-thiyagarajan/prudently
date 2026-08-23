@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronDown, Package, Radio, Users } from "lucide-react";
+import { AlertTriangle, ChevronDown, IdCard, Package, Radio, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -13,11 +13,13 @@ import type { AutonomousAction } from "@/lib/types/dashboard";
 const TRIGGER_ICON = {
   stock_breach: Package,
   fatigue_breach: Users,
+  credential_breach: IdCard,
 } as const;
 
 const TRIGGER_LABEL = {
   stock_breach: "Stock crossed a par level",
   fatigue_breach: "Unit fatigue rose",
+  credential_breach: "A credential expired",
 } as const;
 
 function timeAgo(timestamp: string): string {
@@ -58,7 +60,7 @@ function ActionRow({ action }: { action: AutonomousAction }) {
               {TRIGGER_LABEL[action.trigger_kind] ?? action.trigger_kind}
             </span>
             <span className="font-[family-name:var(--font-mono)] text-[10px] text-[var(--color-ink-muted)]">
-              day {action.sim_day} · {timeAgo(action.timestamp)}
+              {timeAgo(action.timestamp)}
             </span>
             {failed && <StatusPill status="failed" label="turn failed" />}
           </div>
@@ -150,10 +152,13 @@ export function AutonomousFeed({
     return (
       <PanelEmpty>
         <span>
-          The fleet has not needed to act on its own yet. Advance the ward clock with{" "}
-          <strong className="font-semibold text-[var(--color-ink-secondary)]">Next day</strong>{" "}
-          — when stock crosses a par level or a unit&apos;s fatigue rises, the responsible
-          agent wakes up here without being asked.
+          The fleet has not needed to act on its own yet. It checks live conditions on its own
+          schedule — when stock crosses a par level, a unit&apos;s fatigue rises, or a
+          credential expires, the responsible agent wakes up here without being asked. Use{" "}
+          <strong className="font-semibold text-[var(--color-ink-secondary)]">
+            Run fleet check now
+          </strong>{" "}
+          to pull the next check forward.
         </span>
       </PanelEmpty>
     );
