@@ -1,7 +1,7 @@
-"""Inventory Management Agent — specialist agent (invoked as an AgentTool by the Coordinator,
-Day 5). Reasons over live Firestore inventory state through the par-levels tool below; the
-underlying stock/par-level math lives in par_levels.py and is fully unit-tested independently
-of the LLM."""
+"""Inventory Management Agent — specialist agent (invoked as an AgentTool by the Coordinator).
+Reasons over live Firestore inventory state through the par-levels tool below; the underlying
+stock/par-level math lives in par_levels.py and is fully unit-tested independently of the
+LLM."""
 
 from __future__ import annotations
 

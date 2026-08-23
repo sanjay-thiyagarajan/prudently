@@ -1,13 +1,13 @@
-"""One-off repair for the shift_history doc-ID collision bug fixed in seed.py (Aug 22, 2026)
-— `write_firestore` used to key every shift_history doc by staff_id alone, so each day's
-`batch.set()` for the same staff member overwrote the previous one; only the last of 28
-trailing days survived per person (confirmed live: 24 staff -> 24 docs, not ~600).
+"""One-off repair for the shift_history doc-ID collision bug fixed in seed.py — `write_firestore`
+used to key every shift_history doc by staff_id alone, so each day's `batch.set()` for the same
+staff member overwrote the previous one; only the last of 28 trailing days survived per person
+(24 staff -> 24 docs, not ~600).
 
 Deliberately scoped to shift_history alone, not a full `make seed` rerun: `generate_roster`/
 `generate_admissions` default to `today=date.today()`, so a full reseed would also re-anchor
 every staff_roster credential_expiry and admissions_timeseries calendar_date to today's date —
-a real, avoidable side effect on collections that aren't broken (see AGENTS.md's Aug 22 note on
-this repair for the full reasoning). This script only deletes and rewrites shift_history.
+a real, avoidable side effect on collections that aren't broken. This script only deletes and
+rewrites shift_history.
 
 Usage: `SIM_SEED=42 GOOGLE_CLOUD_PROJECT=prudently-hackathon uv run python -m
 datagen.resync_shift_history` (run from packages/datagen). No DRY_RUN mode — this always

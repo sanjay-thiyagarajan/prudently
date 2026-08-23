@@ -1,9 +1,7 @@
 """Real Observability adapter — exports OTel spans to Cloud Trace via
 `CloudTraceSpanExporter`. Both runtime identities that create spans (the Reasoning Engine's
-shared service agent, and the Cloud Run `coordinator-agent-sa`) needed `roles/cloudtrace.agent`
-granted by hand — the same class of gotcha as Model Armor's IAM grant (see AGENTS.md), found
-and fixed proactively this time by checking IAM before writing any span code, not by hitting a
-live failure first.
+shared service agent, and the Cloud Run `coordinator-agent-sa`) need `roles/cloudtrace.agent`
+granted by hand — the same class of IAM gap as Model Armor's grant (see AGENTS.md).
 
 Uses `SimpleSpanProcessor` rather than `BatchSpanProcessor` on purpose: this fleet's span
 volume is low (a handful of Gateway decisions and Armor screens per request, not a hot loop),

@@ -1,14 +1,14 @@
 """Supply Chain Resiliency Agent — specialist agent (invoked as an AgentTool by the
-Coordinator, Day 5). Strategic vendor/reorder decisions over live Firestore inventory +
-vendor state; the underlying reorder-quantity, stock-status, and alternate-vendor math lives
-in reorder.py and is fully unit-tested independently of the LLM.
+Coordinator). Strategic vendor/reorder decisions over live Firestore inventory + vendor
+state; the underlying reorder-quantity, stock-status, and alternate-vendor math lives in
+reorder.py and is fully unit-tested independently of the LLM.
 
-Reaches Medical Representative via genuine Agent2Agent (Day 5) — not the Gateway, not an
-in-process AgentTool import like the other specialists. Vertex AI Agent Engine has no native
-A2A transport (confirmed Day 5: no `a2a` fields in the Vertex SDK, no A2A flags on
-`adk deploy agent_engine`), so Medical Representative is reached over the public internet at
-its Cloud Run-mounted A2A endpoint (apps/api/app.py, config.medrep_agent_card_url()), the same
-way any external A2A client would reach it — this agent has no special/internal path to it."""
+Reaches Medical Representative via genuine Agent2Agent — not the Gateway, not an in-process
+AgentTool import like the other specialists. Vertex AI Agent Engine has no native A2A
+transport (no `a2a` fields in the Vertex SDK, no A2A flags on `adk deploy agent_engine`), so
+Medical Representative is reached over the public internet at its Cloud Run-mounted A2A
+endpoint (apps/api/app.py, config.medrep_agent_card_url()), the same way any external A2A
+client would reach it — this agent has no special/internal path to it."""
 
 from __future__ import annotations
 

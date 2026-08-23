@@ -1,5 +1,5 @@
 variable "project_id" {
-  description = "GCP project ID (locked: prudently-hackathon, created Day 1)"
+  description = "GCP project ID (locked: prudently-hackathon)"
   type        = string
 }
 

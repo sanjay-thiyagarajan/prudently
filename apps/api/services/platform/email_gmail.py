@@ -1,8 +1,8 @@
 """Real Email adapter — sends via Gmail SMTP using an app password fetched from Secret
 Manager, not the Gmail API/OAuth (see email.py's module docstring for why). Credential path
-verified live Day 1 against a throwaway probe Reasoning Engine deployment before this file was
-written, matching this project's established practice (see AGENTS.md / Chaos's own docstring
-for the same "confirmed live with a throwaway probe first" precedent)."""
+verified via a throwaway probe Reasoning Engine deployment before this file was written,
+matching this project's established practice of verifying a new GCP integration live before
+building on top of it."""
 
 from __future__ import annotations
 

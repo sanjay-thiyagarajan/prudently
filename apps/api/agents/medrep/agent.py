@@ -1,24 +1,23 @@
 """Medical Representative Agent — deployed separately from the primary Reasoning Engine
-(unlike every other specialist), reached via genuine Agent2Agent by Supply Chain Resiliency
-(A2A wiring lands Day 5, not here). External-facing vendor/pharma liaison; owns Model Armor
-screening of every inbound vendor communication — see services/platform/armor.py.
+(unlike every other specialist), reached via genuine Agent2Agent by Supply Chain Resiliency.
+External-facing vendor/pharma liaison; owns Model Armor screening of every inbound vendor
+communication — see services/platform/armor.py.
 
-Pre-LLM screening boundary (closed Aug 22, was an open gap through Aug 27): the original
-design screened only inside screen_vendor_message, a FunctionTool — the model had already read
-the raw message text into its own context to extract the tool call arguments *before* Model
-Armor ever saw it, so a 'blocked before reaching LLM context' claim wasn't actually true. Fixed
-with _pre_llm_vendor_screen, a before_model_callback wired below: ADK runs this before the
-underlying Gemini call for every turn (confirmed by reading base_llm_flow.py's
-_call_llm_with_tracing — the callback executes, and if it returns an LlmResponse, the real
-model call is skipped entirely for that turn), so a blocked inbound message never reaches the
-model at all — not "the model was told not to act on it," but "the model was never invoked on
-it." screen_vendor_message stays wired as a second, defense-in-depth layer for the (now
-already-accepted) turn that follows — it re-screens the same text inside the model's own
-tool-calling loop, so a compromised/differently-prompted model still can't skip screening by
-never calling the tool.
+Pre-LLM screening boundary: screening only inside screen_vendor_message, a FunctionTool, isn't
+enough — the model has already read the raw message text into its own context to extract the
+tool call arguments *before* Model Armor ever sees it, so a "blocked before reaching LLM
+context" claim wouldn't actually be true. _pre_llm_vendor_screen, a before_model_callback
+wired below, closes that: ADK runs this before the underlying Gemini call for every turn (see
+base_llm_flow.py's _call_llm_with_tracing — the callback executes, and if it returns an
+LlmResponse, the real model call is skipped entirely for that turn), so a blocked inbound
+message never reaches the model at all — not "the model was told not to act on it," but "the
+model was never invoked on it." screen_vendor_message stays wired as a second, defense-in-depth
+layer for the (now already-accepted) turn that follows — it re-screens the same text inside
+the model's own tool-calling loop, so a compromised/differently-prompted model still can't skip
+screening by never calling the tool.
 
-Genuine finding from live verification (Aug 22, via the real Coordinator -> Supply Chain -> A2A
-path, not a synthetic direct call): the two layers see different text and can disagree. Supply
+Genuine finding from live verification via the real Coordinator -> Supply Chain -> A2A path,
+not a synthetic direct call: the two layers see different text and can disagree. Supply
 Chain's own instruction has it paraphrase an inbound vendor report into a request like "Verify
 if this is anomalous... Message received: '<quoted text>'" before delegating via A2A — Model
 Armor's real classifier scored that *wrapped* framing as clean (screen() returned
@@ -29,11 +28,11 @@ result was still a correct block — this is exactly why the second layer wasn't
 "blocked before reaching LLM context" is precisely scoped to whatever text arrives as this
 agent's own first inbound turn, not to text an upstream fleet agent has already paraphrased.
 
-Deliberately not wired to Memory Bank in this pass: services/memory.py's
-get_memory_service() hardcodes agent_engine_id to Shift's engine, so writing through it here
-would mean this external-facing, adversarial-input agent writes into Shift's memory store —
-inverting the trust boundary this agent exists to demonstrate. Revisit once Memory Bank
-scoping is per-agent (Day 5 Coordinator/Gateway work) rather than hardcoded."""
+Deliberately not wired to Memory Bank: services/memory.py's get_memory_service() hardcodes
+agent_engine_id to Shift's engine, so writing through it here would mean this external-facing,
+adversarial-input agent writes into Shift's memory store — inverting the trust boundary this
+agent exists to demonstrate. Revisit once Memory Bank scoping is per-agent rather than
+hardcoded."""
 
 from __future__ import annotations
 

@@ -57,7 +57,7 @@ resource "google_project_iam_member" "agent_datastore_user" {
 
 # Deployed agents on Vertex AI Agent Engine run under Google's own Reasoning Engine service
 # agent, not the custom per-agent SAs above (see modules/secrets/main.tf for the same
-# finding/caveat re: Agent Identity, Day 5). It needs Firestore access too.
+# finding re: Agent Identity). It needs Firestore access too.
 data "google_project" "current" {
   project_id = var.project_id
 }
@@ -68,11 +68,11 @@ resource "google_project_iam_member" "reasoning_engine_service_agent_datastore_u
   member  = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-aiplatform-re.iam.gserviceaccount.com"
 }
 
-# Medical Representative's ingestion path calls Model Armor's sanitize APIs at runtime (Day
-# 4) — granted to the same shared Reasoning Engine service agent as above, since that's what
-# every deployed agent actually runs as (not the per-agent SAs), confirmed Day 3. Applied
-# manually via `gcloud projects add-iam-policy-binding` first to unblock Day 4 deploys before
-# `terraform apply` catches up — see AGENTS.md.
+# Medical Representative's ingestion path calls Model Armor's sanitize APIs at runtime —
+# granted to the same shared Reasoning Engine service agent as above, since that's what every
+# deployed agent actually runs as (not the per-agent SAs). Applied manually via `gcloud
+# projects add-iam-policy-binding` first to unblock deploys before `terraform apply` catches
+# up — see AGENTS.md.
 resource "google_project_iam_member" "reasoning_engine_service_agent_modelarmor_user" {
   project = var.project_id
   role    = "roles/modelarmor.user"
@@ -83,19 +83,18 @@ resource "google_project_iam_member" "reasoning_engine_service_agent_modelarmor_
 # (apps/api/app.py), which runs as coordinator-agent-sa (modules/cloud_run_api's
 # coordinator_agent_sa_email) — a separate identity from the Reasoning Engine service agent
 # above, and one that also calls Model Armor whenever Supply Chain reaches Medical
-# Representative over A2A. Found live Day 5: without this, VertexArmorService's fail-closed
-# handling silently blocked every A2A call with matched_filters=["armor_unavailable"] instead
-# of the real filter result.
+# Representative over A2A. Without this grant, VertexArmorService's fail-closed handling
+# silently blocks every A2A call with matched_filters=["armor_unavailable"] instead of the
+# real filter result.
 resource "google_project_iam_member" "coordinator_sa_modelarmor_user" {
   project = var.project_id
   role    = "roles/modelarmor.user"
   member  = "serviceAccount:${google_service_account.agent["coordinator"].email}"
 }
 
-# Observability (Day 5): both runtime identities that create OTel spans need
-# roles/cloudtrace.agent to export them via CloudTraceSpanExporter — granted to both
-# proactively, before writing any span code, having learned from the modelarmor.user gap
-# above that a missing grant here fails silently (a dropped span, not a raised exception).
+# Both runtime identities that create OTel spans need roles/cloudtrace.agent to export them
+# via CloudTraceSpanExporter — a missing grant here fails silently (a dropped span, not a
+# raised exception), same failure shape as the modelarmor.user gap above.
 resource "google_project_iam_member" "reasoning_engine_service_agent_cloudtrace_agent" {
   project = var.project_id
   role    = "roles/cloudtrace.agent"
@@ -108,13 +107,13 @@ resource "google_project_iam_member" "coordinator_sa_cloudtrace_agent" {
   member  = "serviceAccount:${google_service_account.agent["coordinator"].email}"
 }
 
-# Agent detail page's trace/log viewer (Aug 22): coordinator-agent-sa (prudently-api's Cloud
-# Run runtime identity) reads Cloud Trace and Cloud Logging on the manager's behalf via
+# Agent detail page's trace/log viewer: coordinator-agent-sa (prudently-api's Cloud Run
+# runtime identity) reads Cloud Trace and Cloud Logging on the manager's behalf via
 # routes/traces.py — a different capability from cloudtrace.agent above, which only grants
-# writing spans. Found live: without these, both endpoints 500 with a PermissionDenied
-# swallowed into a generic error by the CORS middleware, which never got a chance to attach
-# headers to the exception response — looked like a CORS failure in the browser console, not
-# an IAM gap, until the real Cloud Run logs were checked directly.
+# writing spans. Without these, both endpoints 500 with a PermissionDenied swallowed into a
+# generic error by the CORS middleware, which never gets a chance to attach headers to the
+# exception response — looks like a CORS failure in the browser console, not an IAM gap,
+# unless the real Cloud Run logs are checked directly.
 resource "google_project_iam_member" "coordinator_sa_cloudtrace_user" {
   project = var.project_id
   role    = "roles/cloudtrace.user"

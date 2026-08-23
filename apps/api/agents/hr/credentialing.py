@@ -1,7 +1,7 @@
 """Credential compliance + per-diem escalation: flags staff whose license/credential has
 expired or is expiring soon, and finds compliant per-diem pool staff available to cover a
-unit — the target HR is escalated to (via the Coordinator, Day 5) when Shift Allocation runs
-out of same-unit reallocation options. Pure functions over plain dicts (matching the Firestore
+unit — the target HR is escalated to (via the Coordinator) when Shift Allocation runs out of
+same-unit reallocation options. Pure functions over plain dicts (matching the Firestore
 document shape from packages/datagen/datagen/roster.py and services/state.py) — no I/O, no
 ADK, so this is cheap to unit-test exhaustively."""
 

@@ -1,6 +1,6 @@
 """Scripted flu-outbreak surge: a deterministic daily admissions time series that the
-simulation clock (apps/api/services/simclock.py, Day 2) replays at compressed speed so
-"weeks of asynchronous operation" fits inside a ~4 minute demo video."""
+simulation clock (apps/api/services/simclock.py) replays at compressed speed so "weeks of
+asynchronous operation" fits inside a ~4 minute demo video."""
 
 from __future__ import annotations
 

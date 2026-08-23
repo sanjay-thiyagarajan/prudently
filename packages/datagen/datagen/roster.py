@@ -1,5 +1,5 @@
 """Synthetic staff roster + rolling shift history for the Shift Allocation Agent's
-fatigue/overtime burndown calculation (see apps/api/agents/shift/burndown.py, Day 3)."""
+fatigue/overtime burndown calculation (see apps/api/agents/shift/burndown.py)."""
 
 from __future__ import annotations
 
@@ -19,13 +19,13 @@ HISTORY_DAYS = 28  # trailing 4 weeks, matches the burndown window in the plan
 SAFE_SHIFT_HOURS = 8
 OVERTIME_SHIFT_HOURS = 12
 
-# HR Agent (Day 4) credentialing + per-diem escalation pool.
+# HR Agent credentialing + per-diem escalation pool.
 PERDIEM_PER_UNIT = 2
 CREDENTIAL_EXPIRY_SPREAD_DAYS = 400  # some staff land in the past (expired) or <30d (expiring)
 
-# Payroll (Aug 22) — role-based base hourly rate, +-10% spread applied deterministically.
-# Rough real-world hospital-ops ordering (physician > pharmacist > nurse > tech), not sourced
-# from any real wage data — this is synthetic demo data like everything else in this module.
+# Payroll — role-based base hourly rate, +-10% spread applied deterministically. Rough
+# real-world hospital-ops ordering (physician > pharmacist > nurse > tech), not sourced from
+# any real wage data — this is synthetic demo data like everything else in this module.
 HOURLY_RATE_BASE = {
     "physician": 110.0,
     "pharmacist": 75.0,
@@ -33,9 +33,9 @@ HOURLY_RATE_BASE = {
     "tech": 24.0,
 }
 
-# Guest-doctor / per-diem time tracking (Aug 22) — per-diem staff otherwise carry zero
-# shift_history by design (see _generate_perdiem_pool's docstring), which leaves nothing for
-# a "guest doctor hours" view to show. Sparse, occasional coverage shifts, not a full rotation.
+# Guest-doctor / per-diem time tracking — per-diem staff otherwise carry zero shift_history by
+# design (see _generate_perdiem_pool's docstring), which leaves nothing for a "guest doctor
+# hours" view to show. Sparse, occasional coverage shifts, not a full rotation.
 GUEST_SHIFT_PROBABILITY = 0.18
 
 

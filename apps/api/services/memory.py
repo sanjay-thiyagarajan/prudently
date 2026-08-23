@@ -1,14 +1,13 @@
-"""Memory Bank wrapper — persistent, cross-session narrative memory, confirmed a real Vertex
-AI capability (docs/day1-probe-results.md #2) and confirmed working end-to-end Day 3 via a
-live write+search round trip. Memories are scoped per (app_name, user_id); by convention
-here app_name is the specialist agent's name (e.g. "shift_allocation_agent") and user_id is
-the narrowest sensible scope for that agent (a unit, SKU, or scenario id — see AGENTS.md's
-agent roster table), matching the Memory Bank docs' isolation guidance.
+"""Memory Bank wrapper — persistent, cross-session narrative memory, a real Vertex AI
+capability (docs/day1-probe-results.md #2). Memories are scoped per (app_name, user_id); by
+convention here app_name is the specialist agent's name (e.g. "shift_allocation_agent") and
+user_id is the narrowest sensible scope for that agent (a unit, SKU, or scenario id — see
+AGENTS.md's agent roster table), matching the Memory Bank docs' isolation guidance.
 
 Requires a deployed Reasoning Engine — memories are a sub-resource of one
 (reasoningEngines/{engine_id}/memories). The service's `location` must match that engine's
-own deployment region (us-central1 here), not a separate multi-region — confirmed Day 3:
-location="us" 404s with "ReasoningEngine does not exist" even though the engine is real.
+own deployment region (us-central1 here), not a separate multi-region — location="us" 404s
+with "ReasoningEngine does not exist" even though the engine is real.
 """
 
 from __future__ import annotations
@@ -35,8 +34,8 @@ def get_memory_service() -> VertexAiMemoryBankService:
 async def write_fact(app_name: str, user_id: str, fact: str, author: str = "system") -> None:
     """Direct write (CreateMemory-equivalent) — use for facts that should persist verbatim,
     e.g. "sim_day 8: flu surge onset, ER admissions +30%", not summarized/reinterpreted.
-    `role="user"` regardless of `author`: confirmed Day 3 that Memory Bank normalizes/expects
-    this rather than an arbitrary role string — `author` still carries provenance separately."""
+    `role="user"` regardless of `author`: Memory Bank normalizes/expects this rather than an
+    arbitrary role string — `author` still carries provenance separately."""
     entry = MemoryEntry(
         content=genai_types.Content(role="user", parts=[genai_types.Part(text=fact)]),
         author=author,

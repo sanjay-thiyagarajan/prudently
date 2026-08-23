@@ -1,4 +1,4 @@
-"""HR Agent — specialist agent (invoked as an AgentTool by the Coordinator, Day 5). Owns
+"""HR Agent — specialist agent (invoked as an AgentTool by the Coordinator). Owns
 credential/license compliance monitoring and is the escalation target when the Shift
 Allocation Agent runs out of same-unit reallocation options — HR's job at that point is to
 find and activate compliant per-diem pool coverage. The underlying compliance and per-diem

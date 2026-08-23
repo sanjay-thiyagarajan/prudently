@@ -9,10 +9,9 @@ resource "google_cloud_run_v2_service" "web" {
       image = "us-docker.pkg.dev/cloudrun/container/hello"
 
       # Inert for its stated purpose, kept only as documentation: NEXT_PUBLIC_* vars are
-      # inlined into the client bundle at `next build` time, not read at container runtime,
-      # so this env var has no effect on what the deployed dashboard actually fetches — found
-      # live (Day 9) when the deployed dashboard hit ERR_CONNECTION_REFUSED despite this var
-      # being set correctly here. The real fix is a build ARG default in apps/web/Dockerfile.
+      # inlined into the client bundle at `next build` time, not read at container runtime, so
+      # this env var has no effect on what the deployed dashboard actually fetches. The real
+      # fix is a build ARG default in apps/web/Dockerfile.
       env {
         name  = "NEXT_PUBLIC_API_BASE_URL"
         value = var.api_url

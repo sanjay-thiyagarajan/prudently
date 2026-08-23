@@ -1,5 +1,5 @@
-"""One-off, additive backfill for the enterprise-depth pass (Aug 22, 2026): adds `unit_cost`
-to existing `inventory` docs — the new field `generate_inventory` now produces, per its own
+"""One-off, additive backfill: adds `unit_cost` to existing `inventory` docs — the new field
+`generate_inventory` now produces, per its own
 docstring. Deliberately not a full `make seed` rerun, same reasoning as
 `backfill_payroll_data.py`: `generate_inventory`'s `current_stock` draw must stay untouched, so
 this only ever does a targeted `.update({"unit_cost": ...})` per doc, every other field left

@@ -31,8 +31,8 @@ def _doc_id_for(collection: str, record: dict, index: int) -> str:
     """staff_id/sku/vendor_id alone is only a stable, unique key for collections with one
     doc per entity. shift_history has one row per staff member *per day* — keying it by
     staff_id alone collides across the whole trailing history and silently keeps only the
-    last day `batch.set()` happened to write, which is exactly the bug this function fixes
-    (confirmed live, Aug 22: 24 staff produced 24 shift_history docs instead of ~600).
+    last day `batch.set()` happened to write — 24 staff would produce 24 shift_history docs
+    instead of ~600. This function keys shift_history by staff_id + shift_date instead.
     """
     if collection == "admissions_timeseries":
         return f"{record['sim_day']:02d}-{record['unit'].replace(' ', '_')}"

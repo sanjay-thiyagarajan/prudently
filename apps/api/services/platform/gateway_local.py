@@ -12,9 +12,9 @@ from .observability import get_observability_service  # pylint: disable=cyclic-i
 from .registry import get_registry_service  # pylint: disable=cyclic-import
 
 # Coordinator → specialist authorization — a fixed allow-list rather than a Firestore table,
-# since the caller set is exactly {"coordinator"} today (Day 5) and a hardcoded policy is
-# easier to audit than a mutable one for a fleet this size. Revisit as a Firestore-backed
-# table if a second Gateway-routed caller (e.g. Chaos calling into other specialists) shows up.
+# since the caller set is exactly {"coordinator"} and a hardcoded policy is easier to audit
+# than a mutable one for a fleet this size. Revisit as a Firestore-backed table if a second
+# Gateway-routed caller (e.g. Chaos calling into other specialists) shows up.
 _POLICY_TABLE: dict[str, frozenset[str]] = {
     "coordinator": frozenset(
         {
