@@ -1,5 +1,5 @@
-"""One-off, additive backfill for the payroll/guest-doctor-hours milestone (Aug 22, 2026):
-adds `hourly_rate` to existing staff_roster docs and per-diem/guest-doctor shift history to
+"""One-off, additive backfill for the payroll/guest-doctor-hours milestone: adds `hourly_rate`
+to existing staff_roster docs and per-diem/guest-doctor shift history to
 shift_history — both new fields/records `generate_roster` now produces, per its own
 docstring. Deliberately not a full `make seed` rerun: `generate_roster` defaults to
 `today=date.today()`, so a full reseed would also re-anchor every credential_expiry date to

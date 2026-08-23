@@ -1,5 +1,5 @@
 """Synthetic supply catalog + vendors for the Supply Chain Resiliency Agent's reorder
-recommendation logic (see apps/api/agents/supply/reorder.py, Day 4)."""
+recommendation logic (see apps/api/agents/supply/reorder.py)."""
 
 from __future__ import annotations
 

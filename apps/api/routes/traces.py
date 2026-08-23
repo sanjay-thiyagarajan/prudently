@@ -48,9 +48,9 @@ def get_trace(trace_id: str) -> dict:
 @router.get("/agents/{agent_name}/logs")
 def get_agent_logs(agent_name: str, limit: int = 50) -> dict:
     """Recent Cloud Logging entries for the Reasoning Engine hosting `agent_name`, filtered by
-    that engine's `reasoning_engine_id` resource label (confirmed present on every
-    aiplatform.googleapis.com/ReasoningEngine log entry — Aug 22 verification). Coordinator's
-    own engine bundles Shift/Inventory/Supply/HR/Chaos's flattened logic when reached via
+    that engine's `reasoning_engine_id` resource label (present on every
+    aiplatform.googleapis.com/ReasoningEngine log entry). Coordinator's own engine bundles
+    Shift/Inventory/Supply/HR/Chaos's flattened logic when reached via
     Coordinator, so log entries returned for those agents when invoked through Coordinator are
     engine-scoped, not cleanly agent-scoped — same caveat as the trace viewer."""
     entry = next((a for a in get_agent_registry() if a["agent_name"] == agent_name), None)

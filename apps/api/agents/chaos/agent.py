@@ -23,7 +23,7 @@ like every specialist except Medical Representative). Dual mode:
 
 Every experiment persists one record to `chaos_experiments` (services/state.py) — run once for
 real against the deployed stack, replayed from there for the demo, never re-run live during
-recording (docs/build-plan.md Aug 28)."""
+recording."""
 
 from __future__ import annotations
 

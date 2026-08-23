@@ -3,10 +3,10 @@
 no-op for offline dev without GCP credentials. Selected by `OBSERVABILITY_BACKEND`, matching
 the adapter pattern described in AGENTS.md's "Platform adapter layer" section.
 
-Call sites use `span(name, attributes)` as a context manager rather than the bare
-fire-and-forget `start_observability_span(caller, target)` this replaces (Aug 21 placeholder)
-— a span needs a start *and* end to have a real duration, and the local adapter's no-op
-context manager means call sites never need an `if backend == vertex` branch."""
+Call sites use `span(name, attributes)` as a context manager rather than a bare
+fire-and-forget start call — a span needs a start *and* end to have a real duration, and the
+local adapter's no-op context manager means call sites never need an `if backend == vertex`
+branch."""
 
 from __future__ import annotations
 

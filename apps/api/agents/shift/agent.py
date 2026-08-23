@@ -1,5 +1,5 @@
-"""Shift Allocation Agent — specialist agent (invoked as an AgentTool by the Coordinator,
-Day 5). Reasons over live Firestore state through the burndown tool below; the underlying
+"""Shift Allocation Agent — specialist agent (invoked as an AgentTool by the Coordinator).
+Reasons over live Firestore state through the burndown tool below; the underlying
 fatigue/overtime math lives in burndown.py and is fully unit-tested independently of the LLM."""
 
 from __future__ import annotations

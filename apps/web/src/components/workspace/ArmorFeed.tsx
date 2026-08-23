@@ -18,7 +18,7 @@ function relativeTime(iso: string): string {
 
 function EventRow({ event }: { event: ArmorEvent }) {
   // service_error must never render the same as a real block — a fail-closed Model Armor
-  // outage is not a security win (see AGENTS.md's Aug 27 decision).
+  // outage is not a security win.
   const isOutage = event.service_error;
   const isBlocked = event.status === "blocked" && !isOutage;
 

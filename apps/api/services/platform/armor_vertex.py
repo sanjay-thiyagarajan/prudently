@@ -1,11 +1,10 @@
 """Real Model Armor adapter — calls `sanitizeUserPrompt` against the live
-`prudently-vendor-ingest` template (created Day 4 via direct REST against
-modelarmor.us-central1.rep.googleapis.com; the `gcloud model-armor` CLI subcommand returned
+`prudently-vendor-ingest` template (created via direct REST against
+modelarmor.us-central1.rep.googleapis.com; the `gcloud model-armor` CLI subcommand returns
 spurious PERMISSION_DENIED for both reads and writes even under project Owner — a CLI/auth
-quirk, not a real permission gap, confirmed by the identical call succeeding via curl and via
-this SDK client immediately after). Response shape (filter_results keyed by filter name, each
-a oneof of per-filter-type result messages) verified against real MATCH_FOUND output Day 4
-before writing this, not from memory."""
+quirk, not a real permission gap: the identical call succeeds via curl and via this SDK client).
+Response shape (filter_results keyed by filter name, each a oneof of per-filter-type result
+messages) matches real MATCH_FOUND output from the live service, not written from memory."""
 
 from __future__ import annotations
 

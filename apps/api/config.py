@@ -8,21 +8,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Backend = Literal["vertex", "local"]
 
-# Deliberately NOT a Settings field. Root-caused Day 3 (see services/state.py for the full
-# story): Vertex AI Agent Engine auto-injects GOOGLE_CLOUD_PROJECT into the sandbox as the
-# numeric project *number*, which pydantic-settings picks up and silently overrides any
-# Settings field mapped to that env var name — and at least Firestore's resource-path
-# resolution rejects the numeric form outright. Any code building a GCP resource path
-# (Firestore, Memory Bank, Secret Manager) should import this constant, not
+# Deliberately NOT a Settings field: Vertex AI Agent Engine auto-injects GOOGLE_CLOUD_PROJECT
+# into the sandbox as the numeric project *number*, which pydantic-settings picks up and
+# silently overrides any Settings field mapped to that env var name — and Firestore's
+# resource-path resolution rejects the numeric form outright. Any code building a GCP resource
+# path (Firestore, Memory Bank, Secret Manager) should import this constant, not
 # get_settings().google_cloud_project.
 GCP_PROJECT_ID = "prudently-hackathon"
 
 # Same treatment, same reason: an approval-gated tool running inside a Reasoning Engine
 # sandbox needs to write an absolute approve/reject link into an email body, and a plain
 # constant can't be clobbered by Agent Engine's env injection the way a Settings field could.
-# Confirmed live (Day 1, this feature) via `gcloud run services describe prudently-api
-# --format='value(status.url)'` — this is the canonical, currently-resolving hostname (matches
-# apps/web/Dockerfile's NEXT_PUBLIC_API_BASE_URL default).
+# Get the current value via `gcloud run services describe prudently-api
+# --format='value(status.url)'` — matches apps/web/Dockerfile's NEXT_PUBLIC_API_BASE_URL
+# default.
 PUBLIC_API_BASE_URL = "https://prudently-api-jnpvbtwpwa-uc.a.run.app"
 
 
@@ -32,9 +31,9 @@ class Settings(BaseSettings):
     google_cloud_project: str = GCP_PROJECT_ID
     google_cloud_location: str = "us-central1"
     # Memory Bank scoped to a specific Reasoning Engine (agent_engine_id set) must use that
-    # engine's own location, not a separate multi-region — confirmed Day 3 by testing
-    # location="us" (404 "ReasoningEngine does not exist") vs "us-central1" (works), since
-    # our reasoning engines are deployed to us-central1.
+    # engine's own location, not a separate multi-region — location="us" 404s
+    # ("ReasoningEngine does not exist") since our reasoning engines are deployed to
+    # us-central1.
     memory_bank_location: str = "us-central1"
 
     google_genai_use_enterprise: bool = False
@@ -42,8 +41,7 @@ class Settings(BaseSettings):
     model_fast: str = "gemini-3.5-flash"
     gemini_api_key_secret: str = "prudently-gemini-api-key"
 
-    # Reasoning Engine resource IDs, filled in after each agent's first `adk deploy
-    # agent_engine` — see docs/build-plan.md Day 3-5. Empty string until deployed.
+    # Reasoning Engine resource IDs, set after each agent's `adk deploy agent_engine`.
     shift_agent_engine_id: str = "6191105334669475840"
     inventory_agent_engine_id: str = "6199971796435861504"
     supply_agent_engine_id: str = "6129884527234908160"
@@ -57,30 +55,26 @@ class Settings(BaseSettings):
     gateway_backend: Backend = "local"
     armor_backend: Backend = "vertex"
     observability_backend: Backend = "vertex"
-    # Flipped to "gmail" after the Day 1 throwaway-probe send succeeded live (real email
-    # received) — same pattern as armor_backend/observability_backend only flipping to
-    # "vertex" once each was independently verified.
+    # Same pattern as armor_backend/observability_backend: only flips to a real backend once
+    # independently verified against the live service.
     email_backend: Literal["gmail", "local"] = "gmail"
 
-    # Manager/approver defaults for the email-approval workflow (this feature). Same account
-    # for both sender and default approver by deliberate choice — see AGENTS.md's Gmail setup
-    # section.
+    # Manager/approver defaults for the email-approval workflow. Same account for both sender
+    # and default approver by deliberate choice — see AGENTS.md's Gmail setup section.
     manager_email: str = "sanjayipscoc@gmail.com"
     gmail_sender_email: str = "sanjayipscoc@gmail.com"
     gmail_app_password_secret: str = "prudently-gmail-app-password"
 
     # Model Armor templates are regional, not multi-region — same "must match the region
-    # lock" pattern as memory_bank_location (see comment above), confirmed working directly
-    # against modelarmor.us-central1.rep.googleapis.com Day 4.
+    # lock" pattern as memory_bank_location above.
     model_armor_location: str = "us-central1"
     model_armor_template_id: str = "prudently-vendor-ingest"
 
-    # Genuine A2A boundary (Day 5): Medical Representative is mounted as a sub-route of this
-    # same Cloud Run service (app.py) rather than a separate service — see AGENTS.md's A2A
-    # section for why. Vertex AI Agent Engine has no native A2A transport (confirmed Day 5: no
-    # `a2a` fields anywhere in the Vertex SDK, no A2A flags on `adk deploy agent_engine`), so
-    # any Reasoning Engine that needs to reach Medical Representative via A2A — Supply Chain —
-    # does so over the public internet at this URL, not an internal call.
+    # Medical Representative is mounted as a sub-route of this same Cloud Run service (app.py)
+    # rather than a separate service — see AGENTS.md's A2A section for why. Vertex AI Agent
+    # Engine has no native A2A transport, so any Reasoning Engine that needs to reach Medical
+    # Representative via A2A — Supply Chain — does so over the public internet at this URL,
+    # not an internal call.
     medrep_a2a_host: str = "prudently-api-439570031916.us-central1.run.app"
     medrep_a2a_protocol: str = "https"
     medrep_a2a_rpc_path: str = "a2a/medrep"

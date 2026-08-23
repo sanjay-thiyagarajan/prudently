@@ -32,8 +32,7 @@ def require_firebase_auth(authorization: str = Header(default="")) -> str:
         # auto-injects GOOGLE_CLOUD_PROJECT as the numeric project *number* (see config.py's
         # GCP_PROJECT_ID docstring for the full story) — an inferred project here would
         # verify each token's `aud` against that number instead of "prudently-hackathon",
-        # silently 401ing every real token with no diagnosable error. Same class of bug,
-        # preempted this time instead of found live.
+        # silently 401ing every real token with no diagnosable error.
         firebase_admin.initialize_app(options={"projectId": GCP_PROJECT_ID})
 
     try:

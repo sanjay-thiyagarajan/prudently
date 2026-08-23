@@ -1,10 +1,8 @@
 """Coordinator Agent — root, sole user-facing entry point. Wraps Shift Allocation, Inventory
 Management, Supply Chain Resiliency, HR, and Chaos & Continuity as `AgentTool` sub-agents
 (in-process, not over a network — each specialist's module is staged alongside this one via
-`adk deploy`'s
-`--extra_packages` and imported directly; see AGENTS.md's "Running / deploying an agent"
-section for the flattened top-level import this relies on, confirmed live Day 5 with a
-throwaway probe deploy before this file was written).
+`adk deploy`'s `--extra_packages` and imported directly; see AGENTS.md's "Running / deploying
+an agent" section for the flattened top-level import this relies on).
 
 Every specialist call from this agent routes through the Gateway interceptor
 (services/platform/gateway.py, registered below as `before_tool_callback`) — Registry lookup,
@@ -24,9 +22,8 @@ from services.platform.gateway import get_gateway_service
 
 # pylint can't resolve these — they only exist as top-level packages once `adk deploy`'s
 # --extra_packages flattens agents/shift, agents/inventory, etc. to /app/shift, /app/inventory
-# (confirmed live Day 5 with a throwaway probe deploy) or once ADK's own loader adds this
-# file's parent dir (agents/) to sys.path for `adk run`/local dev. Neither is true for a
-# plain `pylint agents` invocation from apps/api.
+# or once ADK's own loader adds this file's parent dir (agents/) to sys.path for `adk
+# run`/local dev. Neither is true for a plain `pylint agents` invocation from apps/api.
 # pylint: disable-next=import-error,wrong-import-order
 from chaos.agent import root_agent as chaos_agent
 

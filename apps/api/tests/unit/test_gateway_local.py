@@ -1,7 +1,6 @@
 """Unit tests for LocalGatewayService.before_tool_call — the real interceptor logic behind
-the Coordinator's before_tool_callback. Previously only verified ad hoc against synthetic
-FakeTool/SimpleNamespace contexts (see AGENTS.md); checked in now since this session's
-Observability wiring touched every branch."""
+the Coordinator's before_tool_callback, exercised against synthetic FakeTool/SimpleNamespace
+contexts (see AGENTS.md)."""
 
 from __future__ import annotations
 

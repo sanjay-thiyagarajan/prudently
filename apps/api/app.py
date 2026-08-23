@@ -1,4 +1,5 @@
-"""Prudently API entrypoint. Day 2: hello-world + health only; agents land Day 3+."""
+"""Prudently API entrypoint — FastAPI app wiring every route, the Medical Representative
+A2A mount, and observability bootstrap."""
 
 from contextlib import asynccontextmanager
 
@@ -40,9 +41,9 @@ medrep_a2a_app = to_a2a(
 async def lifespan(_app: FastAPI):
     # to_a2a's Starlette app attaches its JSON-RPC + agent-card routes inside its OWN
     # lifespan (building the agent card is async), and Starlette's Mount does not
-    # auto-forward the outer app's lifespan to a mounted sub-app — confirmed Day 5: without
-    # this, the mounted routes 404 even though app.mount() itself succeeds silently. Entering
-    # the sub-app's lifespan_context here is the documented fix for nested ASGI apps.
+    # auto-forward the outer app's lifespan to a mounted sub-app — without this, the mounted
+    # routes 404 even though app.mount() itself succeeds silently. Entering the sub-app's
+    # lifespan_context here is the documented fix for nested ASGI apps.
     async with medrep_a2a_app.router.lifespan_context(medrep_a2a_app):
         yield
 
@@ -88,15 +89,14 @@ def health() -> dict:
 
 @app.get("/")
 def root() -> dict:
-    return {"service": "prudently-api", "status": "day-2-scaffold"}
+    return {"service": "prudently-api", "status": "ok"}
 
 
 # Force our Cloud-Trace-exporting TracerProvider (services/platform/observability_vertex.py)
 # to become the process-global OTel provider before wrapping the A2A mount in ASGI
 # instrumentation — OpenTelemetryMiddleware resolves its tracer provider once, at wrap time,
-# not lazily per request, so this must run first. This closes the "two separate traces, never
-# linked" gap (docs/build-plan.md, Aug 27 entry): an incoming A2A request from Supply Chain —
-# whose httpx client is instrumented the same way, see agents/supply/agent.py — now carries a
+# not lazily per request, so this must run first. An incoming A2A request from Supply Chain —
+# whose httpx client is instrumented the same way, see agents/supply/agent.py — carries a
 # real W3C traceparent header, so medrep's own spans (medrep.pre_llm_screen,
 # medrep.screen_vendor_message, armor.sanitize_user_prompt) nest as children of Supply Chain's
 # trace instead of starting a new root trace on every A2A hop.

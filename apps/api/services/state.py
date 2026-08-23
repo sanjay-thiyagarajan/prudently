@@ -8,16 +8,15 @@ from functools import lru_cache
 
 from google.cloud import firestore
 
-# Root-caused via a live diagnostic tool deployed to Agent Engine (see git history / Day 3
-# notes): Vertex AI Agent Engine auto-injects GOOGLE_CLOUD_PROJECT into the sandbox as the
-# numeric *project number* (e.g. "439570031916"), not the project ID. pydantic-settings
-# picks that env var up automatically, silently overriding config.py's "prudently-hackathon"
-# default — so get_settings().google_cloud_project resolves to the number at runtime.
-# Firestore's resource-path resolution does not accept the numeric form the same way most
-# other GCP APIs do, and fails with a confusing "database (default) does not exist" 404 for
-# a database that demonstrably exists (confirmed reachable via the identical code path from
-# Cloud Run, where GOOGLE_CLOUD_PROJECT happens not to collide the same way). Hardcoded
-# here, deliberately bypassing config.py, specifically to dodge that env var collision.
+# Vertex AI Agent Engine auto-injects GOOGLE_CLOUD_PROJECT into the sandbox as the numeric
+# *project number* (e.g. "439570031916"), not the project ID. pydantic-settings picks that env
+# var up automatically, silently overriding config.py's "prudently-hackathon" default — so
+# get_settings().google_cloud_project resolves to the number at runtime. Firestore's
+# resource-path resolution does not accept the numeric form the same way most other GCP APIs
+# do, and fails with a confusing "database (default) does not exist" 404 for a database that
+# demonstrably exists (Cloud Run, where GOOGLE_CLOUD_PROJECT happens not to collide the same
+# way, reaches the same database fine). Hardcoded here, deliberately bypassing config.py,
+# specifically to dodge that env var collision.
 FIRESTORE_PROJECT_ID = "prudently-hackathon"
 
 
@@ -144,16 +143,16 @@ def get_chaos_experiments(limit: int = 20) -> list[dict]:
 
 def write_armor_event(event: dict) -> None:
     """Appends one Model Armor screening outcome to the `armor_events` collection — the
-    dashboard's BLOCKED-banner feed (Aug 27, docs/build-plan.md §5) reads this. Auto-ID'd
-    (`.add`, not `.set`): events have no natural key, and a screening can legitimately repeat
-    for the same vendor/message pair (retries, replay)."""
+    dashboard's BLOCKED-banner feed reads this. Auto-ID'd (`.add`, not `.set`): events have no
+    natural key, and a screening can legitimately repeat for the same vendor/message pair
+    (retries, replay)."""
     get_client().collection("armor_events").add(event)
 
 
 def write_chaos_experiment(event: dict) -> None:
     """Appends one Chaos & Continuity experiment outcome to the `chaos_experiments`
-    collection — run once for real, replayed from here for the demo rather than re-run live
-    (docs/build-plan.md §5, Aug 28). Auto-ID'd for the same reason as `write_armor_event`."""
+    collection — run once for real, replayed from here for the demo rather than re-run live.
+    Auto-ID'd for the same reason as `write_armor_event`."""
     get_client().collection("chaos_experiments").add(event)
 
 

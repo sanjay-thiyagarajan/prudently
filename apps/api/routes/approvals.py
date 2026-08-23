@@ -5,8 +5,7 @@ dashboard login.
 
 GET renders a confirm page; the actual state mutation + real send only happens on POST. This
 split exists because mail clients and security scanners prefetch links for safe-link scanning
-— a plain GET that mutated state on load could fire before a human ever clicked it. Verified
-for real on a live link during this feature's Day 1 probe, not assumed."""
+— a plain GET that mutated state on load could fire before a human ever clicked it."""
 
 from __future__ import annotations
 

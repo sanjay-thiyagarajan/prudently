@@ -1,5 +1,5 @@
-"""Model Armor capability port: screens inbound text (vendor communications, Day 4's
-Medical Representative ingestion path) for prompt injection, jailbreak attempts, malicious
+"""Model Armor capability port: screens inbound text (vendor communications, Medical
+Representative's ingestion path) for prompt injection, jailbreak attempts, malicious
 URIs, and other unsafe content *before* it reaches LLM context, Memory Bank, or an A2A hop.
 `armor_vertex.py` is the real implementation (`google-cloud-modelarmor` against a live
 template — confirmed real product, see docs/day1-probe-results.md #6); `armor_local.py` is a
