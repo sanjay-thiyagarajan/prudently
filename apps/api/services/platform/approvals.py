@@ -28,6 +28,7 @@ from services.state import (
     update_approval,
     write_approval,
     write_email_log,
+    write_purchase_order,
 )
 
 _DEFAULT_POLICY = {
@@ -75,6 +76,35 @@ def _log(task_type: str, to: str, subject: str, result, trace_id: str | None) ->
 # pylint: enable=duplicate-code
 
 
+def _create_purchase_order_if_applicable(task_type: str, metadata: dict | None) -> None:
+    """`contact_vendor_for_reorder` calls carry enough metadata (sku/quantity/vendor) to
+    create a real `purchase_orders` record the moment the vendor is actually contacted —
+    never fabricated, only written when perform_or_request's caller supplied it. Best-effort,
+    same "must never take down the real send that already happened" rationale as `_log`."""
+    if task_type != "contact_vendor_for_reorder" or not metadata:
+        return
+    try:
+        unit_cost = metadata.get("unit_cost", 0.0)
+        quantity = metadata["quantity"]
+        write_purchase_order(
+            {
+                "sku": metadata["sku"],
+                "item_name": metadata["item_name"],
+                "quantity": quantity,
+                "vendor_id": metadata["vendor_id"],
+                "vendor_name": metadata["vendor_name"],
+                "unit_cost": unit_cost,
+                "total_cost": round(unit_cost * quantity, 2),
+                "status": "ordered",
+                "ordered_at": firestore.SERVER_TIMESTAMP,
+                "received_at": None,
+                "invoiced_at": None,
+            }
+        )
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
+
 # Internal helper, called from exactly one call site (perform_or_request) purely to keep that
 # function's own local-variable count under pylint's threshold — the parameter count here is a
 # direct consequence of that split, not a design smell worth restructuring further.
@@ -88,6 +118,7 @@ def _request_approval(
     requested_by: str,
     policy: dict,
     trace_id,
+    metadata: dict | None = None,
 ) -> dict:
     token = secrets.token_urlsafe(24)
     approver_email = policy["approver_email"] or get_settings().manager_email
@@ -106,6 +137,7 @@ def _request_approval(
             "notify_on_complete": policy["notify_on_complete"],
             "timestamp": firestore.SERVER_TIMESTAMP,
             "decided_at": None,
+            "metadata": metadata,
         },
     )
 
@@ -143,7 +175,13 @@ def _request_approval(
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def perform_or_request(
-    task_type: str, to: str, recipient_label: str, subject: str, body: str, requested_by: str
+    task_type: str,
+    to: str,
+    recipient_label: str,
+    subject: str,
+    body: str,
+    requested_by: str,
+    metadata: dict | None = None,
 ) -> dict:
     """The single entry point every approval-gated tool calls. `to` is the address actually
     used (routed to the operations mailbox for demo safety — see the four agent tools'
@@ -168,6 +206,7 @@ def perform_or_request(
             notify = policy["notify_emails"] if policy["notify_on_complete"] else None
             result = get_email_service().send(to, subject, body, cc=notify)
             _log(task_type, to, subject, result, span.trace_id)
+            _create_purchase_order_if_applicable(task_type, metadata)
             try:
                 log_activity(
                     requested_by,
@@ -188,7 +227,15 @@ def perform_or_request(
 
         span.set_attribute("approvals.decision", "pending_approval")
         return _request_approval(
-            task_type, to, recipient_label, subject, body, requested_by, policy, span.trace_id
+            task_type,
+            to,
+            recipient_label,
+            subject,
+            body,
+            requested_by,
+            policy,
+            span.trace_id,
+            metadata,
         )
 
 
@@ -215,6 +262,7 @@ def resolve_approval(token: str, decision: str) -> dict:
                 cc=record["notify_emails"] if record["notify_on_complete"] else None,
             )
             _log(record["task_type"], record["to"], record["subject"], result, span.trace_id)
+            _create_purchase_order_if_applicable(record["task_type"], record.get("metadata"))
             update_approval(
                 token,
                 {

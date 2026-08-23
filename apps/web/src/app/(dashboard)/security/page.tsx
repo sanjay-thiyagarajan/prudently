@@ -16,8 +16,12 @@ export default function SecurityPage() {
           Security & resilience
         </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-ink-primary)]">
-          Model Armor & Chaos experiments
+          Security & Resilience
         </h1>
+        <p className="mt-2 max-w-lg text-sm text-[var(--color-ink-secondary)]">
+          Threats the fleet has caught in incoming vendor messages (powered by Model Armor),
+          and resilience drills that test how the fleet holds up under fault conditions.
+        </p>
       </div>
 
       {isLoading ? (

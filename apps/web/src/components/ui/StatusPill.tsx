@@ -1,3 +1,5 @@
+import { statusLabel } from "@/lib/labels";
+
 type Tone = "safe" | "elevated" | "critical" | "neutral";
 
 const TONE_STYLES: Record<Tone, string> = {
@@ -35,7 +37,7 @@ export function StatusPill({ status, label }: { status: string; label?: string }
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide uppercase ${TONE_STYLES[tone]}`}
     >
       <span className="size-1.5 rounded-full bg-current" />
-      {label ?? status.replace(/_/g, " ")}
+      {label ?? statusLabel(status)}
     </span>
   );
 }

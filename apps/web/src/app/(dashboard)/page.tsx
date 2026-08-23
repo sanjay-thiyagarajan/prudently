@@ -5,7 +5,12 @@ import { Loader2, TriangleAlert } from "lucide-react";
 
 import { Header } from "@/components/layout/Header";
 import { FleetOverview } from "@/components/workspace/FleetOverview";
+import { HRPanel } from "@/components/workspace/HRPanel";
+import { InventoryPanel } from "@/components/workspace/InventoryPanel";
+import { ShiftPanel } from "@/components/workspace/ShiftPanel";
+import { SupplyPanel } from "@/components/workspace/SupplyPanel";
 import { useDashboardOverview } from "@/lib/api/dashboard";
+import { hrSummary, inventorySummary, shiftSummary, supplySummary } from "@/lib/labels";
 
 function SectionLabel({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
@@ -18,6 +23,19 @@ function SectionLabel({ eyebrow, title }: { eyebrow: string; title: string }) {
       </h2>
     </div>
   );
+}
+
+function sumCounts<K extends string>(
+  byGroup: Record<string, Record<K, number>>,
+  keys: K[],
+): Record<K, number> {
+  const totals = Object.fromEntries(keys.map((key) => [key, 0])) as Record<K, number>;
+  for (const counts of Object.values(byGroup)) {
+    for (const key of keys) {
+      totals[key] += counts[key] ?? 0;
+    }
+  }
+  return totals;
 }
 
 export default function FleetPage() {
@@ -63,6 +81,44 @@ export default function FleetPage() {
       />
 
       <div className="mx-auto max-w-7xl space-y-14 px-6 py-12 sm:px-10">
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <SectionLabel eyebrow="Right now" title="Today's operations" />
+          <p className="-mt-3 mb-6 text-sm text-[var(--color-ink-secondary)]">
+            What&apos;s happening across the hospital right now, and which assistant is handling it.
+          </p>
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <p className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/60 p-3.5 text-xs leading-relaxed text-[var(--color-ink-secondary)]">
+              {shiftSummary(sumCounts(data.shift.unit_summary, ["safe", "elevated", "critical"]))}
+            </p>
+            <p className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/60 p-3.5 text-xs leading-relaxed text-[var(--color-ink-secondary)]">
+              {inventorySummary(
+                sumCounts(data.inventory.category_summary, ["ok", "low", "critical"]),
+              )}
+            </p>
+            <p className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/60 p-3.5 text-xs leading-relaxed text-[var(--color-ink-secondary)]">
+              {supplySummary(data.supply.decisions.length)}
+            </p>
+            <p className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)]/60 p-3.5 text-xs leading-relaxed text-[var(--color-ink-secondary)]">
+              {hrSummary(
+                sumCounts(data.hr.unit_summary, ["valid", "expiring_soon", "expired"]),
+              )}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <ShiftPanel records={data.shift.records} unitSummary={data.shift.unit_summary} />
+            <InventoryPanel
+              records={data.inventory.records}
+              categorySummary={data.inventory.category_summary}
+            />
+            <SupplyPanel decisions={data.supply.decisions} />
+            <HRPanel records={data.hr.records} unitSummary={data.hr.unit_summary} />
+          </div>
+        </motion.section>
+
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

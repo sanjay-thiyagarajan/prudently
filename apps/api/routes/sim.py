@@ -7,9 +7,17 @@ from datetime import date
 from fastapi import APIRouter
 
 from agents.shift.burndown import compute_burndown, unit_summary
+from config import get_settings
+from services.inventory_sim import compute_daily_consumption_delta
 from services.memory import write_fact
 from services.simclock import SimClock, SimClockRunner
-from services.state import get_shift_history, get_staff_roster
+from services.state import (
+    adjust_inventory_stock,
+    get_inventory,
+    get_shift_history,
+    get_staff_roster,
+    write_inventory_transaction,
+)
 
 router = APIRouter(prefix="/sim", tags=["simulation"])
 
@@ -19,6 +27,36 @@ def _on_sim_tick(day: int) -> None:
     # is already on the running event loop — asyncio.create_task is the correct way to fire
     # off the async memory write without blocking the tick loop on it.
     asyncio.create_task(_write_sim_day_memory(day))
+    asyncio.create_task(_deplete_inventory_for_day(day))
+
+
+async def _deplete_inventory_for_day(day: int) -> None:
+    """Real stock depletion tied to the sim clock — until this, `current_stock` was a value
+    assigned once at seed time and never actually moved during a demo (a SKU's stock was just
+    "already low" from a random days-of-supply draw, not genuinely falling). Decrement noise
+    is deterministically seeded from sim_seed + sku + day (not plain `random`) so `/sim/reset`
+    followed by a replay reproduces identical numbers — the same "deterministic replay for the
+    demo video" discipline services/simclock.py's own docstring already establishes for
+    `/sim/reset`. Iterates SKUs in a fixed (sorted) order so the sequence of transaction writes
+    is reproducible too, not just each SKU's individual delta."""
+    sim_seed = get_settings().sim_seed
+    items = sorted(get_inventory(), key=lambda item: item["sku"])
+    for item in items:
+        delta = compute_daily_consumption_delta(
+            item["baseline_daily_consumption"], sim_seed, item["sku"], day
+        )
+        if delta == 0:
+            continue
+        before, after = adjust_inventory_stock(item["sku"], delta)
+        write_inventory_transaction(
+            sku=item["sku"],
+            item_name=item["name"],
+            tx_type="consumption",
+            quantity_delta=delta,
+            stock_before=before,
+            stock_after=after,
+            sim_day=day,
+        )
 
 
 async def _write_sim_day_memory(day: int) -> None:

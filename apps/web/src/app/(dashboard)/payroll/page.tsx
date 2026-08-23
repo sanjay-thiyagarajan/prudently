@@ -1,6 +1,6 @@
 "use client";
 
-import { PayrollPanel } from "@/components/workspace/PayrollPanel";
+import { PayRunsPanel } from "@/components/workspace/PayRunsPanel";
 
 export default function PayrollPage() {
   return (
@@ -12,9 +12,13 @@ export default function PayrollPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-ink-primary)]">
           Payroll
         </h1>
+        <p className="mt-2 max-w-lg text-sm text-[var(--color-ink-secondary)]">
+          Pick a pay period to compute pay for every eligible staff member at once, review the
+          register, then approve and disburse.
+        </p>
       </div>
-      <div className="max-w-xl">
-        <PayrollPanel />
+      <div className="max-w-4xl">
+        <PayRunsPanel />
       </div>
     </main>
   );

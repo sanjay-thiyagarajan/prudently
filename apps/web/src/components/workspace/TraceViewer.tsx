@@ -49,9 +49,11 @@ export function TraceViewer({ traceId, onClose }: { traceId: string; onClose: ()
             </span>
             <div>
               <h2 className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--color-ink-primary)]">
-                Cloud Trace
+                Step-by-step trace
               </h2>
-              <p className="font-mono text-xs text-[var(--color-ink-muted)]">{traceId}</p>
+              <p className="font-mono text-xs text-[var(--color-ink-muted)]">
+                Cloud Trace · {traceId}
+              </p>
             </div>
           </div>
           <button
@@ -78,7 +80,12 @@ export function TraceViewer({ traceId, onClose }: { traceId: string; onClose: ()
           ) : spans.length === 0 ? (
             <p className="text-sm text-[var(--color-ink-secondary)]">No spans in this trace.</p>
           ) : (
-            <ul className="space-y-1.5">
+            <>
+              <p className="mb-3 text-xs text-[var(--color-ink-secondary)]">
+                Every internal step this request passed through, in order, with real timing —
+                the underlying proof this action actually ran through the fleet.
+              </p>
+              <ul className="space-y-1.5">
               {spans.map((span) => {
                 const { left, width } = offsetAndWidth(span, traceStartMs, traceDurationMs);
                 return (
@@ -97,7 +104,8 @@ export function TraceViewer({ traceId, onClose }: { traceId: string; onClose: ()
                   </li>
                 );
               })}
-            </ul>
+              </ul>
+            </>
           )}
         </div>
       </motion.div>

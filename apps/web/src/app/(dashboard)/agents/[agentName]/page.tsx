@@ -165,10 +165,20 @@ export default function AgentDetailPage() {
           <ApprovalsFeed approvals={data.approvals} />
         </section>
 
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <section className="max-w-xl">
           <AgentPolicyEditor taskType={data.policy?.task_type ?? null} />
-          <AgentLogViewer agentName={agentName} />
         </section>
+
+        <details className="group rounded-2xl border border-[var(--color-border-soft)] open:border-[var(--color-border)]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-4 text-sm font-medium text-[var(--color-ink-secondary)] hover:text-[var(--color-ink-primary)]">
+            <span>System health (technical detail)</span>
+            <span className="text-xs text-[var(--color-ink-muted)] group-open:hidden">Show</span>
+            <span className="hidden text-xs text-[var(--color-ink-muted)] group-open:inline">Hide</span>
+          </summary>
+          <div className="px-5 pb-5">
+            <AgentLogViewer agentName={agentName} />
+          </div>
+        </details>
       </div>
 
       {selectedTraceId && (

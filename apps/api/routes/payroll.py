@@ -13,14 +13,21 @@ from google.cloud import firestore
 from pydantic import BaseModel
 
 from services.auth import require_firebase_auth
-from services.payroll import compute_gross_pay, hours_worked_in_period
+from services.payroll import compute_gross_pay, compute_payroll_register, hours_worked_in_period
 from services.state import (
     get_payroll_record,
     get_payroll_records,
+    get_payroll_records_by_run,
+    get_payroll_run,
+    get_payroll_runs,
     get_shift_history,
     get_staff_roster,
+    mark_payroll_run_records_paid,
     update_payroll_record,
+    update_payroll_run,
     write_payroll_record,
+    write_payroll_records_batch,
+    write_payroll_run,
 )
 
 router = APIRouter(prefix="/payroll", tags=["payroll"])
@@ -30,6 +37,11 @@ class PayrollRecordPayload(BaseModel):
     staff_id: str
     pay_period_start: str  # ISO date
     pay_period_end: str  # ISO date
+
+
+class PayrollRunPayload(BaseModel):
+    period_start: str  # ISO date
+    period_end: str  # ISO date
 
 
 @router.get("/staff")
@@ -98,3 +110,87 @@ def mark_paid(record_id: str, _uid: str = Depends(require_firebase_auth)) -> dic
 
     update_payroll_record(record_id, {"status": "paid", "paid_at": firestore.SERVER_TIMESTAMP})
     return get_payroll_record(record_id)
+
+
+@router.get("/runs")
+def list_runs(_uid: str = Depends(require_firebase_auth)) -> list[dict]:
+    return get_payroll_runs()
+
+
+@router.post("/runs")
+def create_run(payload: PayrollRunPayload, uid: str = Depends(require_firebase_auth)) -> dict:
+    """Computes a pay-run register for the whole roster in one pass (compute_payroll_register)
+    and persists it immediately as a draft run plus one payroll_records line item per staff
+    member — "review the register" means viewing this draft, not holding unsaved state on the
+    client. approve/disburse below transition it forward."""
+    start = date.fromisoformat(payload.period_start)
+    end = date.fromisoformat(payload.period_end)
+    register = compute_payroll_register(get_staff_roster(), get_shift_history(), start, end)
+
+    run = {
+        "period_start": payload.period_start,
+        "period_end": payload.period_end,
+        "status": "draft",
+        "created_at": firestore.SERVER_TIMESTAMP,
+        "created_by": uid,
+        "staff_count": register["staff_count"],
+        "total_gross_pay": register["total_gross_pay"],
+        "unit_subtotals": register["unit_subtotals"],
+    }
+    run_id = write_payroll_run(run)
+
+    records = [
+        {
+            **row,
+            "pay_period_start": payload.period_start,
+            "pay_period_end": payload.period_end,
+            "run_id": run_id,
+            "status": "pending",
+            "created_by": uid,
+            "timestamp": firestore.SERVER_TIMESTAMP,
+            "paid_at": None,
+        }
+        for row in register["rows"]
+    ]
+    write_payroll_records_batch(records)
+
+    return {**get_payroll_run(run_id), "records": get_payroll_records_by_run(run_id)}
+
+
+@router.get("/runs/{run_id}")
+def get_run(run_id: str, _uid: str = Depends(require_firebase_auth)) -> dict:
+    run = get_payroll_run(run_id)
+    if run is None:
+        return {"error": "not_found"}
+    return {**run, "records": get_payroll_records_by_run(run_id)}
+
+
+@router.post("/runs/{run_id}/approve")
+def approve_run(run_id: str, _uid: str = Depends(require_firebase_auth)) -> dict:
+    """Idempotent, same "already decided" shape as mark_paid above."""
+    run = get_payroll_run(run_id)
+    if run is None:
+        return {"error": "not_found"}
+    if run.get("status") in ("approved", "disbursed"):
+        return run
+
+    update_payroll_run(run_id, {"status": "approved", "approved_at": firestore.SERVER_TIMESTAMP})
+    return get_payroll_run(run_id)
+
+
+@router.post("/runs/{run_id}/disburse")
+def disburse_run(run_id: str, _uid: str = Depends(require_firebase_auth)) -> dict:
+    """Only fires from `approved` — a manager must approve before money moves. Idempotent
+    against a repeat call once disbursed, same shape as every other terminal-state transition
+    in this router."""
+    run = get_payroll_run(run_id)
+    if run is None:
+        return {"error": "not_found"}
+    if run.get("status") == "disbursed":
+        return run
+    if run.get("status") != "approved":
+        return {"error": "must_be_approved_first", **run}
+
+    mark_payroll_run_records_paid(run_id)
+    update_payroll_run(run_id, {"status": "disbursed", "disbursed_at": firestore.SERVER_TIMESTAMP})
+    return get_payroll_run(run_id)
