@@ -73,8 +73,8 @@ export default function VendorsPage() {
   return (
     <main className="min-h-screen px-8 py-10">
       <div className="mb-8">
-        <p className="text-[11px] font-medium tracking-[0.25em] text-[var(--color-ink-muted)] uppercase">
-          Enterprise command center
+        <p className="text-[11px] font-medium tracking-[0.25em] text-[var(--color-hero)] uppercase">
+          Supply Chain Resiliency Agent
         </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-ink-primary)]">
           Vendors

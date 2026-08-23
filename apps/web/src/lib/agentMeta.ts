@@ -78,7 +78,7 @@ export const AGENT_META: Record<string, AgentMeta> = {
     blurb: "Credentialing, and where Shift escalates when cover runs out",
     kind: "specialist",
     memoryScope: "per unit",
-    autonomous: false,
+    autonomous: true,
   },
   chaos_continuity_agent: {
     label: "Chaos & Continuity",

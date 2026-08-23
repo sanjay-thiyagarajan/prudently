@@ -102,7 +102,6 @@ export default function FleetPage() {
   return (
     <main className="min-h-screen pb-16">
       <BoardStrip
-        asOf={data.as_of}
         activeAgents={activeAgents}
         totalAgents={data.fleet.length}
         criticalAlerts={criticalAlerts}
@@ -124,9 +123,17 @@ export default function FleetPage() {
         )}
 
         <Section
+          eyebrow="Topology"
+          title="The fleet"
+          lede="Seven agents, one way in, and one trust boundary that is a real network hop rather than a diagram convention. Open any agent to see what it has done and what it is allowed to do."
+        >
+          <FleetOverview fleet={data.fleet} />
+        </Section>
+
+        <Section
           eyebrow="Unprompted"
           title="What the fleet did on its own"
-          lede="Nobody asked for any of this. At each day boundary the fleet compares the ward to how it left it, and wakes the responsible agent where something crossed a line. Consequential actions still route to you for approval."
+          lede="Nobody asked for any of this. The fleet watch runs continuously, comparing the ward to how it left it, and wakes the responsible agent the moment something crosses a line. Consequential actions still route to you for approval."
         >
           <Panel title="Autonomous activity" icon={Radio} accent="var(--color-autonomous)" live>
             <AutonomousFeed actions={autonomous} limit={4} />
@@ -165,14 +172,6 @@ export default function FleetPage() {
             <SupplyPanel decisions={data.supply.decisions} />
             <HRPanel records={data.hr.records} unitSummary={data.hr.unit_summary} />
           </div>
-        </Section>
-
-        <Section
-          eyebrow="Topology"
-          title="The fleet"
-          lede="Seven agents, one way in, and one trust boundary that is a real network hop rather than a diagram convention. Open any agent to see what it has done and what it is allowed to do."
-        >
-          <FleetOverview fleet={data.fleet} />
         </Section>
       </div>
     </main>

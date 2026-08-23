@@ -1,28 +1,43 @@
 @import "tailwindcss";
 
 /* ============================================================================
-   Prudently — "ward board"
+   Prudently — "mission control"
 
-   The design language is the nursing-station whiteboard, not a mission-control
-   console: a hospital operations tool that a charge nurse would recognise. That
-   means light by default (wards are bright, and the previous near-black +
-   violet-glow treatment read as a sci-fi dashboard rather than a clinical one),
-   paper-neutral grounds with a faint green bias, and one deep clinical teal
-   spent sparingly as the only decorative accent.
+   This used to be the "ward board": a light, paper-neutral whiteboard look
+   deliberately chosen over a darker treatment, because a hospital ops tool
+   read better as something a charge nurse would recognise than as a sci-fi
+   console. That reasoning held right up until the product's actual claim —
+   a fleet of agents that acts on a live hospital with nobody in the room —
+   needed a UI that reads as *live systems*, not as a clipboard. A judge who
+   glances at this for five seconds should see a fleet at work, not a form.
+
+   So: dark by default, near-black grounds, and status/accent colour that can
+   genuinely glow rather than just tint a border. The design discipline that
+   made the ward-board version legible carries over unchanged — it just now
+   serves a different register:
 
    Status colour is NOT the accent. Safe / elevated / critical follow real
-   triage-tag convention (green / amber / red), so the colour is carrying domain
-   meaning rather than decoration — which is also why nothing else in the UI is
-   allowed to use those three hues.
+   triage-tag convention (green / amber / red) and carry domain meaning, not
+   decoration — nothing else in the UI is allowed to use those three hues.
 
-   One further hue exists, and only one: --color-autonomous, an indigo reserved
-   exclusively for work the fleet initiated on its own (services/autonomy.py).
-   It never marks anything a human asked for. That distinction is the whole
-   point of the product, so it gets its own colour and nothing else borrows it.
+   One further hue exists, and only one: --color-autonomous, reserved
+   exclusively for work the fleet initiated on its own
+   (services/fleet_watch.py + services/autonomy.py). It never marks anything
+   a human asked for. That distinction is the whole point of the product, so
+   it gets its own colour and nothing else borrows it.
 
-   Themes: light is the default and the design's home. Dark is a real, separately
-   tuned palette (not an inversion) for night shifts, and follows the OS unless
-   the manager has explicitly chosen — see ThemeScript in app/layout.tsx.
+   One decorative accent, --color-hero, spent on the things that establish
+   "this is alive": the logo mark, the live pulse, focus rings, and the
+   signal that travels along the fleet topology's rails when agents talk to
+   each other.
+
+   Themes: dark is the default and the design's home now. Light is a real,
+   separately tuned palette (not an inversion) for a bright room or a
+   accessibility preference, and follows the OS unless the manager has
+   explicitly chosen — see ThemeScript in app/layout.tsx. The light values
+   below are the previous ward-board palette, carried over intact: that
+   version was already well-tuned, and redesigning a mode nobody asked to
+   change would be work spent on the wrong thing.
    ============================================================================ */
 
 :root {
@@ -30,6 +45,102 @@
   --font-body: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
 
+  --color-bg-base: #090d0e;
+  --color-bg-raised: #0e1416;
+  --color-surface: #111a1c;
+  --color-surface-hover: #162325;
+  --color-sunk: #060a0b;
+  --color-border: #1e2c2e;
+  --color-border-soft: #172224;
+
+  --color-ink-primary: #eaf4f2;
+  --color-ink-secondary: #9db3b0;
+  --color-ink-muted: #617975;
+
+  /* Triage semantics — real hospital convention, never used decoratively. */
+  --color-safe: #3ddc97;
+  --color-safe-soft: #3ddc9726;
+  --color-elevated: #f2b84e;
+  --color-elevated-soft: #f2b84e26;
+  --color-critical: #ff6b5c;
+  --color-critical-soft: #ff6b5c26;
+
+  /* The one decorative accent. */
+  --color-hero: #2dd4c8;
+  --color-hero-soft: #2dd4c826;
+
+  /* Reserved: work the fleet started by itself. Nothing else may use this. */
+  --color-autonomous: #a78bfa;
+  --color-autonomous-soft: #a78bfa26;
+
+  /* The A2A trust boundary is marked by a dashed edge plus the accent, not a
+     hue of its own — one accent, spent once. */
+  --color-a2a: #2dd4c8;
+  --color-a2a-soft: #2dd4c826;
+
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -20px rgba(0, 0, 0, 0.85);
+  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.55), 0 24px 56px -28px rgba(0, 0, 0, 0.9);
+
+  /* Glow — the thing a soft paper shadow can't do. Reserved for elements
+     claiming to be "live": the topology's active nodes, the watch strip's
+     pulse, a just-fired autonomous row. */
+  --glow-hero: 0 0 0 1px rgba(45, 212, 200, 0.35), 0 0 28px -6px rgba(45, 212, 200, 0.65);
+  --glow-autonomous: 0 0 0 1px rgba(167, 139, 250, 0.35), 0 0 28px -6px rgba(167, 139, 250, 0.65);
+  --glow-critical: 0 0 0 1px rgba(255, 107, 92, 0.35), 0 0 28px -6px rgba(255, 107, 92, 0.6);
+  --glow-safe: 0 0 0 1px rgba(61, 220, 151, 0.3), 0 0 24px -6px rgba(61, 220, 151, 0.55);
+
+  --animate-pulse-slow: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-rail-flow: rail-flow 2.6s linear infinite;
+
+  color-scheme: dark;
+}
+
+/* Light, previously the default — the ward-board palette, unchanged, now
+   reachable via an explicit choice or an OS light preference. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-bg-base: #f3f6f4;
+    --color-bg-raised: #ffffff;
+    --color-surface: #ffffff;
+    --color-surface-hover: #f0f4f2;
+    --color-sunk: #e9eeeb;
+    --color-border: #d5dedb;
+    --color-border-soft: #e3e9e6;
+
+    --color-ink-primary: #11201c;
+    --color-ink-secondary: #52645d;
+    --color-ink-muted: #7b8b84;
+
+    --color-safe: #2f6b4c;
+    --color-safe-soft: #2f6b4c14;
+    --color-elevated: #8f6212;
+    --color-elevated-soft: #8f621214;
+    --color-critical: #a4322a;
+    --color-critical-soft: #a4322a14;
+
+    --color-hero: #0b6e63;
+    --color-hero-soft: #0b6e6314;
+
+    --color-autonomous: #574ac0;
+    --color-autonomous-soft: #574ac014;
+
+    --color-a2a: #0b6e63;
+    --color-a2a-soft: #0b6e6314;
+
+    --shadow-panel: 0 1px 2px rgba(17, 32, 28, 0.04), 0 8px 24px -18px rgba(17, 32, 28, 0.24);
+    --shadow-raised: 0 2px 4px rgba(17, 32, 28, 0.05), 0 16px 40px -24px rgba(17, 32, 28, 0.3);
+
+    --glow-hero: 0 0 0 1px rgba(11, 110, 99, 0.25), 0 0 20px -8px rgba(11, 110, 99, 0.4);
+    --glow-autonomous: 0 0 0 1px rgba(87, 74, 192, 0.25), 0 0 20px -8px rgba(87, 74, 192, 0.4);
+    --glow-critical: 0 0 0 1px rgba(164, 50, 42, 0.25), 0 0 20px -8px rgba(164, 50, 42, 0.35);
+    --glow-safe: 0 0 0 1px rgba(47, 107, 76, 0.22), 0 0 18px -8px rgba(47, 107, 76, 0.35);
+
+    color-scheme: light;
+  }
+}
+
+/* Explicit choice wins in both directions. */
+:root[data-theme="light"] {
   --color-bg-base: #f3f6f4;
   --color-bg-raised: #ffffff;
   --color-surface: #ffffff;
@@ -42,7 +153,6 @@
   --color-ink-secondary: #52645d;
   --color-ink-muted: #7b8b84;
 
-  /* Triage semantics — real hospital convention, never used decoratively. */
   --color-safe: #2f6b4c;
   --color-safe-soft: #2f6b4c14;
   --color-elevated: #8f6212;
@@ -50,99 +160,27 @@
   --color-critical: #a4322a;
   --color-critical-soft: #a4322a14;
 
-  /* The one decorative accent. */
   --color-hero: #0b6e63;
   --color-hero-soft: #0b6e6314;
 
-  /* Reserved: work the fleet started by itself. Nothing else may use this. */
   --color-autonomous: #574ac0;
   --color-autonomous-soft: #574ac014;
 
-  /* The A2A trust boundary is marked by a dashed edge plus the accent, not a
-     hue of its own — one accent, spent once. */
   --color-a2a: #0b6e63;
   --color-a2a-soft: #0b6e6314;
 
   --shadow-panel: 0 1px 2px rgba(17, 32, 28, 0.04), 0 8px 24px -18px rgba(17, 32, 28, 0.24);
   --shadow-raised: 0 2px 4px rgba(17, 32, 28, 0.05), 0 16px 40px -24px rgba(17, 32, 28, 0.3);
 
-  --animate-pulse-slow: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --glow-hero: 0 0 0 1px rgba(11, 110, 99, 0.25), 0 0 20px -8px rgba(11, 110, 99, 0.4);
+  --glow-autonomous: 0 0 0 1px rgba(87, 74, 192, 0.25), 0 0 20px -8px rgba(87, 74, 192, 0.4);
+  --glow-critical: 0 0 0 1px rgba(164, 50, 42, 0.25), 0 0 20px -8px rgba(164, 50, 42, 0.35);
+  --glow-safe: 0 0 0 1px rgba(47, 107, 76, 0.22), 0 0 18px -8px rgba(47, 107, 76, 0.35);
 
   color-scheme: light;
 }
 
-/* Follows the OS unless the manager explicitly chose light — the :not() guard
-   is what lets an explicit light choice win over a dark OS. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-bg-base: #0e1512;
-    --color-bg-raised: #16201c;
-    --color-surface: #16201c;
-    --color-surface-hover: #1c2823;
-    --color-sunk: #121a17;
-    --color-border: #27352f;
-    --color-border-soft: #1f2c27;
-
-    --color-ink-primary: #e3ebe7;
-    --color-ink-secondary: #94a69e;
-    --color-ink-muted: #6f847b;
-
-    --color-safe: #5fa57e;
-    --color-safe-soft: #5fa57e1f;
-    --color-elevated: #c69b41;
-    --color-elevated-soft: #c69b411f;
-    --color-critical: #d9756a;
-    --color-critical-soft: #d9756a1f;
-
-    --color-hero: #4fb3a5;
-    --color-hero-soft: #4fb3a51f;
-
-    --color-autonomous: #948ae3;
-    --color-autonomous-soft: #948ae31f;
-
-    --color-a2a: #4fb3a5;
-    --color-a2a-soft: #4fb3a51f;
-
-    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -20px rgba(0, 0, 0, 0.8);
-    --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.45), 0 20px 44px -26px rgba(0, 0, 0, 0.9);
-
-    color-scheme: dark;
-  }
-}
-
-/* Explicit choice wins in the other direction too. */
 :root[data-theme="dark"] {
-  --color-bg-base: #0e1512;
-  --color-bg-raised: #16201c;
-  --color-surface: #16201c;
-  --color-surface-hover: #1c2823;
-  --color-sunk: #121a17;
-  --color-border: #27352f;
-  --color-border-soft: #1f2c27;
-
-  --color-ink-primary: #e3ebe7;
-  --color-ink-secondary: #94a69e;
-  --color-ink-muted: #6f847b;
-
-  --color-safe: #5fa57e;
-  --color-safe-soft: #5fa57e1f;
-  --color-elevated: #c69b41;
-  --color-elevated-soft: #c69b411f;
-  --color-critical: #d9756a;
-  --color-critical-soft: #d9756a1f;
-
-  --color-hero: #4fb3a5;
-  --color-hero-soft: #4fb3a51f;
-
-  --color-autonomous: #948ae3;
-  --color-autonomous-soft: #948ae31f;
-
-  --color-a2a: #4fb3a5;
-  --color-a2a-soft: #4fb3a51f;
-
-  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -20px rgba(0, 0, 0, 0.8);
-  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.45), 0 20px 44px -26px rgba(0, 0, 0, 0.9);
-
   color-scheme: dark;
 }
 
@@ -156,6 +194,18 @@
   }
 }
 
+/* The signal that travels along a fleet-topology rail — a moving highlight on
+   a otherwise-static line, standing in for "a call is/was in flight here"
+   without needing a real per-edge event stream. */
+@keyframes rail-flow {
+  0% {
+    background-position: -40% 0;
+  }
+  100% {
+    background-position: 140% 0;
+  }
+}
+
 body {
   background-color: var(--color-bg-base);
   color: var(--color-ink-primary);
@@ -164,20 +214,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* The board's faint ruled grid — the whiteboard behind everything. Deliberately
-   near-invisible: it should register as texture, never as a pattern. */
+/* A faint field of dots standing in for a radar/console readout — texture,
+   never a pattern, same restraint the previous ruled-whiteboard grid used. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-image:
-    linear-gradient(to right, var(--color-border-soft) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--color-border-soft) 1px, transparent 1px);
-  background-size: 88px 88px;
-  opacity: 0.5;
-  mask-image: radial-gradient(ellipse 100% 80% at 50% 0%, black, transparent 75%);
+  background-image: radial-gradient(var(--color-border-soft) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.6;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black, transparent 75%);
 }
 
 body > * {

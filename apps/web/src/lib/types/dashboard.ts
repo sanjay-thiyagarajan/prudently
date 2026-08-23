@@ -189,7 +189,6 @@ export interface InventoryTransaction {
   quantity_delta: number;
   stock_before: number;
   stock_after: number;
-  sim_day: number | null;
   source: string;
   timestamp: string;
 }
@@ -243,14 +242,14 @@ export interface ActivityLogEntry {
 }
 
 /**
- * One thing the fleet noticed at a simulated-day boundary and acted on with nobody in the
- * room — see apps/api/services/autonomy.py. `response` is the agent's own account of what it
- * did; `status` is "failed" when the turn timed out or errored, which is surfaced rather than
- * hidden so the feed never overstates what the fleet accomplished.
+ * One thing the fleet noticed on a real-time watch cycle and acted on with nobody in the
+ * room — see apps/api/services/fleet_watch.py + services/autonomy.py. `response` is the
+ * agent's own account of what it did; `status` is "failed" when the turn timed out or errored,
+ * which is surfaced rather than hidden so the feed never overstates what the fleet accomplished.
  */
 export interface AutonomousAction {
   id: string;
-  trigger_kind: "stock_breach" | "fatigue_breach";
+  trigger_kind: "stock_breach" | "fatigue_breach" | "credential_breach";
   subject: string;
   agent_name: string;
   severity: string;
@@ -259,7 +258,6 @@ export interface AutonomousAction {
   response: string;
   status: "completed" | "failed";
   tool_calls: number;
-  sim_day: number;
   context: Record<string, unknown>;
   trace_id: string | null;
   timestamp: string;
@@ -267,12 +265,15 @@ export interface AutonomousAction {
   _redacted?: { fields: string[]; reason: string };
 }
 
-export interface SimStatus {
-  sim_day: number;
-  running: boolean;
-  speedup: number;
-  timeline_days: number;
-  finished: boolean;
+/** apps/api/routes/watch.py's GET /watch/status — the real-time fleet watch's own state, not
+ * a scripted timeline. `last_checked_at`/`next_check_at` are null until the background loop
+ * (services/watch_loop.py) has run at least once. */
+export interface WatchStatus {
+  last_checked_at: string | null;
+  next_check_at: string | null;
+  interval_seconds: number;
+  checks_run: number;
+  triggers_fired_total: number;
 }
 
 export interface AgentDetail {

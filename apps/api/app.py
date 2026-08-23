@@ -16,11 +16,12 @@ from routes.dashboard import router as dashboard_router
 from routes.inventory import router as inventory_router
 from routes.payroll import router as payroll_router
 from routes.policy import router as policy_router
-from routes.sim import router as sim_router
 from routes.staff import router as staff_router
 from routes.traces import router as traces_router
 from routes.vendors import router as vendors_router
+from routes.watch import router as watch_router
 from services.platform.observability import get_observability_service
+from services.watch_loop import get_watch_loop
 
 # Medical Representative's genuine A2A endpoint (see config.py's medrep_a2a_* settings and
 # AGENTS.md's A2A section for why this lives here rather than a separate Cloud Run service).
@@ -45,6 +46,12 @@ async def lifespan(_app: FastAPI):
     # routes 404 even though app.mount() itself succeeds silently. Entering the sub-app's
     # lifespan_context here is the documented fix for nested ASGI apps.
     async with medrep_a2a_app.router.lifespan_context(medrep_a2a_app):
+        # The fleet watch starts here, not behind a "Run" button: it must be running the
+        # moment the API process is, so a judge who never touches the dashboard still sees the
+        # fleet act on its own. asyncio.create_task requires a running loop, which only exists
+        # once uvicorn has actually started serving — this lifespan is the earliest point that
+        # is true.
+        get_watch_loop().start()
         yield
 
 
@@ -65,7 +72,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(sim_router)
+app.include_router(watch_router)
 app.include_router(dashboard_router)
 app.include_router(approvals_router)
 app.include_router(policy_router)
@@ -106,7 +113,7 @@ with get_observability_service().span("api.bootstrap_tracing", {}):
 # Registered last, after every FastAPI-native route above: Starlette matches routes in
 # registration order, and Mount("/") matches any path, so it must come after the routes it
 # should never shadow. Wrapped in OpenTelemetryMiddleware rather than instrumenting the outer
-# `app` — the outer app's own routes (dashboard/approvals/policy/sim) don't need or want an
+# `app` — the outer app's own routes (dashboard/approvals/policy/watch) don't need or want an
 # incoming traceparent header trusted from arbitrary public callers; only the genuine A2A
 # boundary does.
 app.mount("/", OpenTelemetryMiddleware(medrep_a2a_app))

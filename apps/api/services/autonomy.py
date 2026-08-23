@@ -2,11 +2,11 @@
 noticed; this module actually wakes a specialist agent up about it.
 
 **Why this exists.** Until this module, every agent action in Prudently began with a human
-typing a question. The sim clock advanced stock and staffing, the dashboard rendered the
-consequences, and the agents sat idle until asked — which makes "agent-monitored hospital
-operations" a description of the UI, not of the fleet. The watch closes that: at each
-simulated-day boundary the fleet compares the world to how it left it, and where something
-crossed a line it opens a real agent turn about it with nobody in the room.
+typing a question. The agents sat idle until asked — which makes "agent-monitored hospital
+operations" a description of the UI, not of the fleet. The watch closes that: on every real-time
+watch cycle (services/fleet_watch.py, run on a background loop plus an on-demand "check now")
+the fleet compares the world to how it left it, and where something crossed a line it opens a
+real agent turn about it with nobody in the room.
 
 **Why an in-process ADK Runner, not a stream_query to the deployed engine.** Two reasons, one
 principled and one measured. Principled: this code already *is* the fleet — apps/api runs the
@@ -39,9 +39,9 @@ from services.state import (
 from services.triggers import Trigger
 
 # Agent name -> the module path holding its root_agent. Imported lazily inside _agent_for so
-# that importing this module (which routes/sim.py does at startup) doesn't pull every agent —
-# and therefore every agent's model bootstrap — into the Cloud Run container's import graph
-# before it is needed.
+# that importing this module (which services/fleet_watch.py does at startup, via app.py's
+# lifespan starting the watch loop) doesn't pull every agent — and therefore every agent's
+# model bootstrap — into the Cloud Run container's import graph before it is needed.
 _AGENT_MODULES = {
     "shift_allocation_agent": "agents.shift.agent",
     "inventory_management_agent": "agents.inventory.agent",
@@ -52,12 +52,11 @@ _AGENT_MODULES = {
 # A single autonomous turn is one specialist answering one specific, already-scoped question.
 # If it hasn't converged by this many events something is wrong (a tool loop, a model asking
 # for clarification nobody will give) and the turn should be abandoned rather than left to
-# burn tokens against a demo clock.
+# burn tokens unattended.
 MAX_EVENTS_PER_TURN = 40
 
-# Hard ceiling on how long the fleet may spend reacting to one trigger. The sim clock ticks
-# roughly once a minute at the default speedup; a turn that outlives that would start
-# overlapping the next tick.
+# Hard ceiling on how long the fleet may spend reacting to one trigger — well under
+# WATCH_INTERVAL_SECONDS (config.py) so a turn finishes before the next watch cycle starts.
 TURN_TIMEOUT_SECONDS = 90
 
 
@@ -75,8 +74,9 @@ async def _run_agent_turn(trigger: Trigger) -> tuple[str, int]:
     """Opens a real ADK session and runs one turn. Returns (final_text, tool_call_count).
 
     ADK is imported here rather than at module scope, and it is not a style preference: this
-    module is imported by routes/sim.py at Cloud Run startup, and pulling the runner and
-    session machinery in at import time pushed the container over its memory limit *during
+    module is imported at Cloud Run startup (app.py's lifespan starts services/watch_loop.py,
+    which imports services/fleet_watch.py, which imports this module), and pulling the runner
+    and session machinery in at import time pushed the container over its memory limit *during
     startup*. Cloud Run then reports only "the container failed to start and listen on PORT",
     which points at the port and not at memory — an hour of debugging in the wrong place. The
     watch is idle almost all the time; it should cost almost nothing until it fires.
@@ -123,10 +123,10 @@ async def _run_agent_turn(trigger: Trigger) -> tuple[str, int]:
     return "".join(text_parts).strip(), tool_calls
 
 
-async def run_trigger(trigger: Trigger, sim_day: int) -> dict:
+async def run_trigger(trigger: Trigger) -> dict:
     """Acts on one trigger end to end: agent turn, audit log, memory write, Firestore record.
 
-    Never raises. A watch that can take down the sim clock is worse than a watch that
+    Never raises. A watch that can take down the watch loop is worse than a watch that
     occasionally misses — the failure is recorded as a real `autonomous_actions` document with
     status "failed" so it is visible in the dashboard rather than swallowed.
     """
@@ -141,7 +141,6 @@ async def run_trigger(trigger: Trigger, sim_day: int) -> dict:
             "severity": trigger.severity,
             "summary": trigger.summary,
             "prompt": trigger.prompt,
-            "sim_day": sim_day,
             "context": trigger.context,
             "trace_id": span.trace_id,
             "timestamp": datetime.now(timezone.utc),
@@ -202,12 +201,12 @@ async def run_trigger(trigger: Trigger, sim_day: int) -> dict:
         return record
 
 
-async def run_triggers(triggers: list[Trigger], sim_day: int) -> list[dict]:
+async def run_triggers(triggers: list[Trigger]) -> list[dict]:
     """Runs triggers one at a time, not concurrently.
 
     Deliberate: two agents reacting at once would interleave their approval emails and their
     Cloud Trace spans, and the demo's whole value is that a viewer can follow one causal chain
     from a stock level crossing a line to an email landing in an inbox. Sequential also bounds
-    the model spend a single tick can incur.
+    the model spend a single watch cycle can incur.
     """
-    return [await run_trigger(trigger, sim_day) for trigger in triggers]
+    return [await run_trigger(trigger) for trigger in triggers]

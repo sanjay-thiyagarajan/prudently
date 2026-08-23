@@ -3,8 +3,9 @@
 Agent-monitored hospital operations fleet, built for the **All Things Agentic Hackathon**
 (Fortified Enterprise Fleet track). A Coordinator agent routes through an Agent Gateway to
 five internal specialist agents, plus a Medical Representative agent deployed separately and
-reached via genuine Agent2Agent — demoed against a scripted flu-outbreak surge at a single
-hospital. See `docs/build-plan.md` for the full build plan and `docs/day1-probe-results.md`
+reached via genuine Agent2Agent — demoed live against a real-time fleet watch (see "De-
+simulation" below) over seeded baseline hospital data, not a scripted, manually-advanced
+timeline. See `docs/build-plan.md` for the full build plan and `docs/day1-probe-results.md`
 for which of the seven Fortified Enterprise Fleet capabilities are backed by real GCP
 products vs. local-emulated fallbacks.
 
@@ -396,14 +397,22 @@ locked to `us-central1`** for Cloud Run/Pub/Sub/Firestore/Reasoning Engine **and
 (not a separate `us` multi-region — see the gotcha #2 above) — do not change post-lock,
 Firestore location is immutable after creation.
 
-## Simulation clock
+## Simulation clock (removed Aug 23 — see "De-simulation" near the end of this file)
 
-`SIM_SEED` and `SIM_SPEEDUP` env vars control the synthetic flu-surge timeline
-(`apps/api/services/simclock.py`). At each simulated-day boundary, `routes/sim.py` computes
-current burndown and writes a Memory Bank fact per unit via `services/memory.write_fact` —
-this is what gives agents a narrative timeline to reason over across "weeks" compressed into
-a demo. Reset via `POST /sim/reset` before reshooting the demo video for a deterministic
-replay.
+Historical record of the original design, kept for context rather than as current behavior:
+`SIM_SEED` and `SIM_SPEEDUP` env vars controlled the synthetic flu-surge timeline
+(`apps/api/services/simclock.py`). At each simulated-day boundary, `routes/sim.py` computed
+current burndown and wrote a Memory Bank fact per unit via `services/memory.write_fact` — this
+is what gave agents a narrative timeline to reason over across "weeks" compressed into a demo.
+Reset via `POST /sim/reset` before reshooting the demo video for a deterministic replay.
+
+**None of the file paths or endpoints in this section exist any more.** `services/simclock.py`
+and `routes/sim.py` are deleted; the fleet watch now runs on real wall-clock time via
+`services/fleet_watch.py` + `services/watch_loop.py`, exposed at `routes/watch.py`
+(`GET /watch/status`, `POST /watch/check-now`, `POST /watch/reset`). `SIM_SEED` survives as
+`sim_seed`, now purely an RNG seed for `packages/datagen` and the ongoing consumption-noise
+generator; `SIM_SPEEDUP`/`timeline_days` are gone. See the "De-simulation" section for the full
+story of what replaced this and why.
 
 ## Dashboard (apps/web)
 
@@ -923,3 +932,94 @@ claim it placed an order; did Supply Chain delegate a prompt-injection-laced ven
 Medical Representative over A2A instead of reading it itself. Deliberately not part of
 `make test` — real model calls, real cost, non-deterministic wording. Run before a demo or a
 deploy wave: `make eval`, or `make eval ARGS="--only shift"`.
+
+## De-simulation + mission-control redesign (Aug 23)
+
+Two problems for a grand-prize submission, both closed the same session: the fleet only ever
+acted when a human pressed **Next day** on a scripted 21-day sim clock, and the UI was a
+deliberately calm, light "ward board" — a prior session's own explicit rejection of a
+"sci-fi dashboard" look (see the old `globals.css` header comment, now rewritten). Both
+undercut the actual claim being judged: a fleet that manages a live hospital on its own.
+
+**The sim clock is gone.** `services/simclock.py` and `routes/sim.py` are deleted. In their
+place: `services/fleet_watch.py` (`run_watch_cycle()` — deplete a little inventory noise,
+observe live state, write Memory Bank facts, detect + act on edge-triggered changes, all four
+stages independently isolated the same way the old `_advance_day` was) and
+`services/watch_loop.py` (a background asyncio loop, started from `app.py`'s lifespan the
+moment the API process starts — no button, fully unprompted — that calls `run_watch_cycle()`
+every `WATCH_INTERVAL_SECONDS`, default 90s). `routes/watch.py` replaces `routes/sim.py`:
+`GET /watch/status`, `POST /watch/check-now` (fire-and-return, same reasoning as the old
+`/sim/advance` — a multi-trigger cycle can run several real agent turns back to back), and
+`POST /watch/reset` (an internal ops utility now, not a dashboard button). `sim_day` is gone
+as a concept everywhere it was purely a label — `services/triggers.py`'s `Trigger.memory_fact`
+and the persisted `fleet_watch/state`/`autonomous_actions`/`inventory_transactions` records use
+real timestamps instead. This was a rename, not a redesign of the trigger logic itself:
+`detect_all`'s edge-triggered state-diff never actually needed a day number, only something to
+invoke it periodically with fresh state — confirmed by reading it before touching anything.
+
+**A third trigger kind, and organic seed-time material for two of the three axes.**
+`services/triggers.py` gained `credential_breach` (`detect_credential_triggers`, over the
+already-existing `compute_credential_status`), targeting `hr_agent`'s existing
+`notify_staff_credential_escalation` — HR was already autonomy-capable
+(`services/autonomy.py`'s `_AGENT_MODULES`) but had no trigger kind that ever reached it before
+this. Checked against the real seed generators rather than assumed: at plain seed time (no
+watch cycle needed), ~22 of 24 staff are already at critical fatigue and several credentials
+are already expired, so fatigue and credential triggers fire on the very first watch cycle with
+zero manual interaction. Inventory was the one axis structurally always `ok` at seed time
+(`days_on_hand` floor of 8 always exceeded the 5-day reorder point) — fixed by giving two SKUs
+(`N95-001`, `O2-006`) a deliberately tight seed range in `packages/datagen/datagen/inventory.py`
+so Supply Chain has genuine reorder material immediately too, without a scripted depletion
+curve. `services/inventory_sim.py`'s consumption-noise function is still called, but now once
+per real watch cycle (a monotonic counter persisted in `fleet_watch/state`) rather than once
+per sim day, purely to keep a long-running demo showing continued movement.
+
+**Visual redesign: dark mission-control over the previous light "ward board."** User-directed
+pivot, confirmed explicitly given the prior session's own reasoning against it. `globals.css`
+keeps every piece of the old design discipline that was actually about *legibility* (status
+colour reserved for real triage meaning, `--color-autonomous` indigo/violet reserved
+exclusively for fleet-initiated work, one decorative `--color-hero` accent) and just re-tunes
+it for a glowing dark palette, plus new `--glow-*` shadow tokens live elements (the watch
+strip's pulse, an active topology node) actually use. Light mode is preserved byte-for-byte as
+the previous ward-board palette, now reachable via the existing light/dark/system
+`ThemeToggle` rather than being the default. `BoardStrip.tsx` lost its Run/Pause/Next-day/Reset
+toolbar entirely, replaced by a live "checked Ns ago / next check in Ns" reading (from
+`GET /watch/status`) and one "Run fleet check now" button. `FleetOverview.tsx`'s topology
+diagram — already the strongest "this is a fleet" visual in the app — moved from the bottom of
+the homepage to the top and gained a signature touch: an animated highlight that continuously
+travels along the rails between the Coordinator and its specialists (`--animate-rail-flow`),
+so the diagram reads as live infrastructure rather than a static box-and-line drawing between
+real tool calls. Unused `@mui/material`/`@emotion/*` dependencies (confirmed zero imports
+anywhere in `src`) were removed.
+
+**Verified:** full backend test suite (155 tests, 97% coverage on the pure-logic gate),
+`pylint agents routes services` at 10.00/10, `black --check .` clean, a direct wiring check of
+`compute_credential_status` → `detect_all` producing a real `credential_breach` trigger, and a
+direct run of `generate_inventory(42)` confirming N95-001 seeds `critical` and O2-006 seeds
+`low`. Frontend: `tsc --noEmit` clean, `eslint .` clean, `next build` clean, and both
+light/dark themes screenshotted via a headless Playwright pass against the (unauthenticated)
+login gate — full dashboard pages are behind real Firebase Auth in this environment with no
+judge/demo credentials available, so the authenticated views were not visually verified this
+session. **Known follow-up, not yet done:** per this file's own "Coordinator's sub-agents are
+baked-in copies" discipline, `agents/shift/agent.py`, `agents/inventory/agent.py`,
+`services/triggers.py`, and the fleet-watch path all changed — Shift, Inventory, Supply, HR
+need redeploying (each smoke-tested live via `stream_query`), then Coordinator last with its
+full `--extra_packages` set, before any of this is live in the deployed engines rather than
+just local dev.
+
+**A real bug, caught live in production within minutes of the first deploy — not in a test.**
+`services/inventory_sim.py`'s ongoing consumption-noise generator applied a full day's worth of
+depletion on *every* watch cycle instead of a scaled-down fraction of one. At the default 90s
+interval, every SKU crashed to critical/zero stock within about five minutes of `prudently-api`
+going live, and Supply Chain's real `contact_vendor_for_reorder` approval flow fired once per
+SKU — **26 real approval-request emails landed in the manager's actual Gmail inbox** before it
+was caught (`email_log`, cross-checked directly against Firestore, not assumed from the code).
+The fix: scale the delta by `interval_seconds / REAL_SECONDS_PER_CONSUMPTION_DAY` (a 1-hour
+"consumption day" pacing knob, not a sim-clock day) so ambient movement takes on the order of an
+hour per SKU instead of one cycle. Verified by redeploying, clearing the flooded audit
+collections (`demo_reset --deep --restock`), restoring the two deliberately-tight SKUs, and
+forcing a clean `POST /watch/reset` + `POST /watch/check-now`: exactly 11 triggers fired — 4
+units' fatigue, 5 expired credentials, 2 tight SKUs — matching the live data precisely, with
+`triggers_fired_total` stable afterward (no further growth). The irony is on-brand for this
+project: the fastest way to prove the fleet watch's edge-triggering logic was correct was to
+watch it get raced by a real timing bug and then confirm the *next* clean run produced exactly
+the right count, live, against real Firestore state — not a unit test with synthetic input.

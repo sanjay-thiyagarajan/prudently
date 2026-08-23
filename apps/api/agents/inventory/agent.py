@@ -21,11 +21,11 @@ AGENT_NAME = "inventory_management_agent"
 
 
 async def recall_sku_history(sku: str, question: str) -> dict:
-    """Recalls how a SKU's stock has moved on *earlier days* of this operation — Memory Bank
-    holds a fact per SKU per simulated day whenever its status changed (written by the sim
-    clock as the timeline advances). Use this for any question about a burn rate, a trend, how
-    fast something is falling, or when a SKU first went low. get_inventory_par_levels tells
-    you about *now*; this tells you about *before*."""
+    """Recalls how a SKU's stock has moved at *earlier points* in this operation — Memory Bank
+    holds a fact per SKU written whenever the real-time fleet watch (services/fleet_watch.py)
+    observed its status change. Use this for any question about a burn rate, a trend, how fast
+    something is falling, or when a SKU first went low. get_inventory_par_levels tells you about
+    *now*; this tells you about *before*."""
     with get_observability_service().span("inventory.recall_sku_history", {"sku": sku}) as span:
         try:
             facts = await search_memory(app_name=AGENT_NAME, user_id=sku, query=question)
@@ -41,10 +41,10 @@ async def recall_sku_history(sku: str, question: str) -> dict:
             "sku": sku,
             "recalled_facts": facts,
             "note": (
-                "No history recorded for this SKU yet — its status has not changed since the "
-                "timeline started."
+                "No history recorded for this SKU yet — its status hasn't changed since "
+                "tracking began."
                 if not facts
-                else f"{len(facts)} fact(s) recalled from earlier days of this operation."
+                else f"{len(facts)} fact(s) recalled from earlier in this operation."
             ),
         }
 

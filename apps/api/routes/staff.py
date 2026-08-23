@@ -3,7 +3,7 @@ elsewhere (Shift/HR panels), but pay history is compensation data, so this whole
 auth-gated the same way routes/payroll.py's whole router is, rather than splitting
 sensitivity levels within one endpoint. Routes/, not an agent folder, so importing
 agents.shift.burndown directly is fine here — no adk-deploy staging constraint applies outside
-the agents/*/ folders (see routes/sim.py's identical import for precedent)."""
+the agents/*/ folders (see services/fleet_watch.py's identical import for precedent)."""
 
 from __future__ import annotations
 

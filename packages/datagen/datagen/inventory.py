@@ -48,6 +48,17 @@ class Vendor:
     reliability: float
 
 
+# SKUs seeded with deliberately tight stock so Supply Chain has real, organic material to act
+# on the moment the fleet watch's first cycle runs — no scripted depletion required. Mirrors
+# how staff fatigue/credential status already land under pressure at plain seed time (see
+# AGENTS.md's autonomous fleet watch section): N95-001 seeds already `critical`, O2-006 already
+# `low` (agents/inventory/par_levels.py's CRITICAL_RATIO=0.5 against a 5-day reorder point).
+_TIGHT_STOCK_DAYS_ON_HAND = {
+    "N95-001": (1, 2),  # ratio <= 0.4 -> critical
+    "O2-006": (3, 4),  # ratio in (0.6, 0.8] -> low
+}
+
+
 def generate_inventory(seed: int) -> tuple[list[InventoryItem], list[Vendor]]:
     rng = random.Random(seed)
     # Own rng stream (seed+1), same "isolated stream per concern" discipline as roster.py's
@@ -57,10 +68,11 @@ def generate_inventory(seed: int) -> tuple[list[InventoryItem], list[Vendor]]:
 
     items: list[InventoryItem] = []
     for sku, name, category, unit, daily, base_cost in CATALOG:
-        # Stock on hand is 8-20 days of baseline consumption — enough headroom that the
-        # baseline scenario is calm, but tight enough that a surge (Day 8+) forces a real
-        # reorder recommendation instead of nothing happening.
-        days_on_hand = rng.randint(8, 20)
+        # Stock on hand is normally 8-20 days of baseline consumption — enough headroom that
+        # most SKUs are calm at seed time. A couple of SKUs (_TIGHT_STOCK_DAYS_ON_HAND) seed
+        # deliberately tight instead, so Supply Chain has genuine reorder material immediately.
+        low, high = _TIGHT_STOCK_DAYS_ON_HAND.get(sku, (8, 20))
+        days_on_hand = rng.randint(low, high)
         stock = daily * days_on_hand
         reorder_point = daily * 5  # reorder when < 5 days of baseline supply remain
         unit_cost = round(base_cost * cost_rng.uniform(0.9, 1.1), 2)

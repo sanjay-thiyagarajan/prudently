@@ -1,5 +1,5 @@
-"""Autonomous trigger detection — the pure half of the fleet watch (services/autonomy.py is
-the impure half that actually invokes an agent).
+"""Autonomous trigger detection — the pure half of the fleet watch (services/fleet_watch.py and
+services/autonomy.py are the impure half that actually invokes an agent).
 
 The fleet was query-driven until this module existed: every agent action began with a human
 typing a question, which made "agent-monitored hospital operations" true only in the sense
@@ -7,10 +7,10 @@ that an agent would answer if asked. These functions turn a state snapshot plus 
 snapshot into a list of things the fleet should act on *without being asked*.
 
 Everything here is edge-triggered, never level-triggered. A SKU that is still low today
-because it was low yesterday is not a new event, and firing on it every tick would mean the
-sim clock spending a demo emailing the manager about the same box of gloves 21 times. A
-trigger fires only on a transition into a worse state — and `next_watch_state` produces the
-snapshot the next tick compares against.
+because it was low at the last check is not a new event, and firing on it every check would
+mean the watch loop spending a long-running demo emailing the manager about the same box of
+gloves on every cycle. A trigger fires only on a transition into a worse state — and
+`next_watch_state` produces the snapshot the next check compares against.
 
 Pure functions over plain dicts: no Firestore, no ADK, no clock. Fully unit-tested.
 """
@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-TriggerKind = Literal["stock_breach", "fatigue_breach"]
+TriggerKind = Literal["stock_breach", "fatigue_breach", "credential_breach"]
 
 # Severity ordering for stock status, so "was low, is now critical" reads as an escalation
 # while "was critical, is now low" does not re-fire.
@@ -40,7 +40,7 @@ class Trigger:
     # pylint: disable=too-many-instance-attributes
 
     kind: TriggerKind
-    subject: str  # the SKU or unit this is about
+    subject: str  # the SKU, unit, or staff_id this is about
     agent: str  # which specialist should handle it
     severity: str
     summary: str  # human-readable, shown in the dashboard's autonomous feed
@@ -54,9 +54,9 @@ class Trigger:
 
 
 def detect_stock_triggers(
-    par_records: list[dict], previous_status: dict[str, str], sim_day: int
+    par_records: list[dict], previous_status: dict[str, str], as_of: str
 ) -> list[Trigger]:
-    """Fires when a SKU crosses *into* a worse stock status than it held at the last tick.
+    """Fires when a SKU crosses *into* a worse stock status than it held at the last check.
 
     A SKU with no previous status recorded is treated as newly observed: it fires only if it
     is already low or critical, so a fleet started mid-surge still notices, but a fleet
@@ -96,7 +96,7 @@ def detect_stock_triggers(
                     "question — make the call and report what you did."
                 ),
                 memory_fact=(
-                    f"sim_day {sim_day}: {record['name']} ({sku}) stock went {was} -> {status} "
+                    f"{as_of}: {record['name']} ({sku}) stock went {was} -> {status} "
                     f"at {record['current_stock']} units, {runway}."
                 ),
                 context={
@@ -112,9 +112,9 @@ def detect_stock_triggers(
 
 
 def detect_fatigue_triggers(
-    unit_summary: dict[str, dict], previous_critical: dict[str, int], sim_day: int
+    unit_summary: dict[str, dict], previous_critical: dict[str, int], as_of: str
 ) -> list[Trigger]:
-    """Fires when a unit's count of critical-fatigue staff *increases* over the last tick.
+    """Fires when a unit's count of critical-fatigue staff *increases* over the last check.
 
     Deliberately keyed on the critical count rather than any individual's burndown ratio: an
     individual crossing the threshold is Shift's own recommendation to make when asked, while
@@ -148,7 +148,7 @@ def detect_fatigue_triggers(
                     "report what you did."
                 ),
                 memory_fact=(
-                    f"sim_day {sim_day}: {unit} critical-fatigue count rose {was} -> {critical}, "
+                    f"{as_of}: {unit} critical-fatigue count rose {was} -> {critical}, "
                     "triggering an autonomous coverage check."
                 ),
                 context={"unit": unit, "previous_critical": was, "critical": critical},
@@ -157,24 +157,86 @@ def detect_fatigue_triggers(
     return triggers
 
 
-def next_watch_state(par_records: list[dict], unit_summary: dict[str, dict], sim_day: int) -> dict:
-    """The snapshot the next tick compares against. Stored as one Firestore document."""
+def detect_credential_triggers(
+    credential_records: list[dict], previous_expired: set[str], as_of: str
+) -> list[Trigger]:
+    """Fires when a staff member's credential crosses *into* expired since the last check.
+
+    Same edge-triggered shape as the other two: a staff member who was already expired last
+    check is not a new event, or HR would be re-escalated about the same license every cycle.
+    Targets HR's existing `notify_staff_credential_escalation` tool — this is the third
+    autonomy axis (alongside stock and fatigue), closing the gap where HR was autonomy-capable
+    (services/autonomy.py's _AGENT_MODULES) but had no trigger kind that ever reached it.
+    """
+    triggers: list[Trigger] = []
+    for record in credential_records:
+        if record["credential_status"] != "expired":
+            continue
+        staff_id = record["staff_id"]
+        if staff_id in previous_expired:
+            continue
+
+        triggers.append(
+            Trigger(
+                kind="credential_breach",
+                subject=staff_id,
+                agent="hr_agent",
+                severity="critical",
+                summary=(
+                    f"{record['name']} ({record['role']}, {record['unit']})'s credential "
+                    "expired. HR was asked to escalate."
+                ),
+                prompt=(
+                    f"Automated credential watch: {record['name']} ({record['role']}, "
+                    f"{record['unit']})'s credential/license has just expired "
+                    f"({record['days_until_expiry']} days past expiry). Escalate this to the "
+                    "staff member and flag it for compliance follow-up. Nobody is watching "
+                    "this conversation, so do not ask a follow-up question — make the call and "
+                    "report what you did."
+                ),
+                memory_fact=(
+                    f"{as_of}: {record['name']} ({staff_id})'s credential expired, "
+                    "triggering an autonomous HR escalation."
+                ),
+                context={
+                    "staff_id": staff_id,
+                    "name": record["name"],
+                    "role": record["role"],
+                    "unit": record["unit"],
+                },
+            )
+        )
+    return triggers
+
+
+def next_watch_state(
+    par_records: list[dict],
+    unit_summary: dict[str, dict],
+    credential_records: list[dict],
+) -> dict:
+    """The snapshot the next check compares against. Stored as one Firestore document."""
     return {
-        "sim_day": sim_day,
         "sku_status": {r["sku"]: r["stock_status"] for r in par_records},
         "unit_critical": {unit: counts.get("critical", 0) for unit, counts in unit_summary.items()},
+        "expired_staff": sorted(
+            r["staff_id"] for r in credential_records if r["credential_status"] == "expired"
+        ),
     }
 
 
 def detect_all(
     par_records: list[dict],
     unit_summary: dict[str, dict],
+    credential_records: list[dict],
     watch_state: dict | None,
-    sim_day: int,
+    as_of: str,
 ) -> tuple[list[Trigger], dict]:
-    """Convenience entry point: everything the fleet should notice this tick, plus the state
+    """Convenience entry point: everything the fleet should notice this check, plus the state
     to persist for the next one."""
     state = watch_state or {}
-    triggers = detect_stock_triggers(par_records, state.get("sku_status", {}), sim_day)
-    triggers += detect_fatigue_triggers(unit_summary, state.get("unit_critical", {}), sim_day)
-    return triggers, next_watch_state(par_records, unit_summary, sim_day)
+    triggers = detect_stock_triggers(par_records, state.get("sku_status", {}), as_of)
+    triggers += detect_fatigue_triggers(unit_summary, state.get("unit_critical", {}), as_of)
+    triggers += detect_credential_triggers(
+        credential_records, set(state.get("expired_staff", [])), as_of
+    )
+    return triggers, next_watch_state(par_records, unit_summary, credential_records)

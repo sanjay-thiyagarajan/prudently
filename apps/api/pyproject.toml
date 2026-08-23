@@ -57,7 +57,6 @@ include = [
     "agents/inventory/par_levels.py",
     "agents/supply/reorder.py",
     "agents/hr/credentialing.py",
-    "services/simclock.py",
     "services/platform/armor_local.py",
     "services/platform/gateway_local.py",
     "services/admissions.py",

@@ -1,6 +1,10 @@
-"""Scripted flu-outbreak surge: a deterministic daily admissions time series that the
-simulation clock (apps/api/services/simclock.py) replays at compressed speed so "weeks of
-asynchronous operation" fits inside a ~4 minute demo video."""
+"""Scripted flu-outbreak surge: a deterministic daily admissions time series, generated once at
+seed time and displayed as static history on the Admissions page — not replayed or advanced by
+anything at runtime. (Earlier versions of this project had a "simulation clock" that replayed
+this series at compressed speed to fit weeks of activity into a short demo; that clock has since
+been removed in favor of the fleet watch acting on live state directly — see AGENTS.md's
+"De-simulation" section. This admissions curve is the one piece of that scripted-timeline
+design left as-is: reframing it as live ingestion is out of scope for that change.)"""
 
 from __future__ import annotations
 

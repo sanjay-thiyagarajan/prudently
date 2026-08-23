@@ -23,12 +23,13 @@ AGENT_NAME = "shift_allocation_agent"
 
 
 async def recall_unit_history(unit: str, question: str) -> dict:
-    """Recalls what has been observed about a unit on *earlier days* of this operation —
-    Memory Bank holds a fact per unit per simulated day (written by the sim clock as the
-    timeline advances), so this is how you answer anything about a trend, a change over time,
-    or "what happened last week" rather than the current snapshot. `unit` is the unit name
-    (e.g. "ICU"); `question` is what you want recalled (e.g. "when did critical fatigue first
-    appear"). get_shift_burndown tells you about *now*; this tells you about *before*."""
+    """Recalls what has been observed about a unit at *earlier points* in this operation —
+    Memory Bank holds a fact per unit written whenever the real-time fleet watch
+    (services/fleet_watch.py) observed conditions changing enough to matter, so this is how you
+    answer anything about a trend, a change over time, or "what happened earlier" rather than
+    the current snapshot. `unit` is the unit name (e.g. "ICU"); `question` is what you want
+    recalled (e.g. "when did critical fatigue first appear"). get_shift_burndown tells you about
+    *now*; this tells you about *before*."""
     with get_observability_service().span("shift.recall_unit_history", {"unit": unit}) as span:
         try:
             facts = await search_memory(app_name=AGENT_NAME, user_id=unit, query=question)
@@ -46,10 +47,10 @@ async def recall_unit_history(unit: str, question: str) -> dict:
             "unit": unit,
             "recalled_facts": facts,
             "note": (
-                "No history recorded for this unit yet — the simulated timeline may not have "
-                "advanced."
+                "No history recorded for this unit yet — the fleet watch may not have observed "
+                "a change here yet."
                 if not facts
-                else f"{len(facts)} fact(s) recalled from earlier days of this operation."
+                else f"{len(facts)} fact(s) recalled from earlier in this operation."
             ),
         }
 
