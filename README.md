@@ -1,5 +1,8 @@
 # Prudently
 
+[![CI](https://github.com/sanjay-thiyagarajan/prudently/actions/workflows/ci.yml/badge.svg)](https://github.com/sanjay-thiyagarajan/prudently/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Agent-monitored hospital operations.** Built for the
 [All Things Agentic Hackathon](https://allthingsagentichackathon.devpost.com/),
 Fortified Enterprise Fleet track.
