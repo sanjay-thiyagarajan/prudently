@@ -2,9 +2,12 @@
 
 ![Prudently architecture](./architecture.svg)
 
-`architecture.svg` is the source of truth; `architecture.png` is a 2× raster of the same file
-for the Devpost submission form. Both are also served by the dashboard at
-`/architecture.svg`.
+`architecture.svg` is the source of truth; `architecture.png` is a raster of the same file for
+the Devpost submission form. Both are also served by the dashboard at `/architecture.svg`. Two
+companion diagrams go deeper on one layer each: [`security-architecture.png`](./security-architecture.png)
+(every control, mapped to a `threat-model.md` finding) and
+[`deployment-architecture.png`](./deployment-architecture.png) (every deployed component and
+real connection between them, including the one genuine Agent2Agent network hop).
 
 ## The shape of it in one paragraph
 
@@ -12,21 +15,25 @@ A hospital operations manager talks to exactly one agent. The **Coordinator** �
 agent on Vertex AI Agent Engine — never answers from its own knowledge; it delegates. Every
 internal delegation passes through the **Agent Gateway**, an ADK `before_tool_callback` that
 looks the target up in a Firestore agent registry, checks a policy table, opens a Cloud Trace
-span, and only then lets the call through. Five specialists sit behind it. One of them, Supply
-Chain, reaches a sixth agent — the **Medical Representative** — across a real trust boundary
-over Agent2Agent, at the same public agent-card URL any outside client would use. That agent
-exists to handle untrusted vendor mail, and **Model Armor** screens everything it receives
-before a model sees any of it. Nothing with a real-world consequence happens without the
-manager clicking approve in their inbox.
+span, and only then lets the call through. Six specialists sit behind it — the newest,
+**Surgical Scheduling**, owns the one domain in this fleet with real-PII-shaped data (patient
+name, DOB, contact), encrypted field-by-field with Cloud KMS before it ever reaches Firestore.
+One specialist, Supply Chain, reaches a seventh agent — the **Medical Representative** — across
+a real trust boundary over Agent2Agent, at the same public agent-card URL any outside client
+would use. That agent exists to handle untrusted vendor mail, and **Model Armor** screens
+everything it receives before a model sees any of it. Nothing with a real-world consequence
+happens without the manager clicking approve in their inbox — and as of this pass, every one of
+those approval-gated, RBAC-gated, and encryption-gated routes is backed by a real, cited threat
+model (`docs/threat-model.md`, ten STRIDE findings, all fixed or honestly mitigated).
 
 ## What runs where
 
 | Component | Deployment | Notes |
 |---|---|---|
-| Coordinator | Vertex AI Agent Engine | Root agent, sole user-facing entry point |
-| Shift, Inventory, Supply Chain, HR, Chaos | In-process `AgentTool`s **and** one Reasoning Engine each | Coordinator stages each folder via `--extra_packages` |
-| Medical Representative | Own Reasoning Engine **and** a Cloud Run A2A mount | `/a2a/medrep` on `prudently-api` |
-| `prudently-api` | Cloud Run | FastAPI: dashboard routes, approvals, the A2A mount, the fleet watch |
+| Coordinator | Vertex AI Agent Engine, own service account | Root agent, sole user-facing entry point |
+| Shift, Inventory, Supply Chain, HR, Chaos, Surgical Scheduling | In-process `AgentTool`s **and** one Reasoning Engine each, each its own service account | Coordinator stages each folder via `--extra_packages`; each engine's own `.agent_engine_config.json` binds it to a dedicated `<agent>-agent-sa` |
+| Medical Representative | Own Reasoning Engine, own service account, **and** a Cloud Run A2A mount | `/a2a/medrep` on `prudently-api` |
+| `prudently-api` | Cloud Run, `coordinator-agent-sa` | FastAPI: dashboard routes, approvals, the A2A mount, the fleet watch |
 | `prudently-web` | Cloud Run | Next.js dashboard |
 
 ## Three things the diagram is making a point about
@@ -51,11 +58,25 @@ the moment that decision touches the outside world it becomes a pending approval
 manager's inbox. `check_policy()` fails closed, so a task type nobody has configured requires
 approval rather than silently auto-sending.
 
+**Agent Identity is real, not a diagram convention either.** Every one of the 8 deployed
+Reasoning Engines runs as its own dedicated service account — `effective_identity` confirmed
+live for each, not assumed from a Terraform diff. This closed the one Fortified Enterprise
+Fleet capability this project had been honestly documenting as unenforced: `adk deploy`'s CLI
+has no `--service_account` flag, which earlier notes here took as a hard platform limit, but
+the underlying `AgentEngineConfig` API it calls does — reachable through the same
+`.agent_engine_config.json` mechanism the CLI already reads per agent folder. See
+`docs/threat-model.md` finding 9 for the full story, including two real regressions it caught
+before shipping (Model Armor and Cloud Trace grants that only the old shared identity had).
+
 ## Where the data lives
 
-- **Firestore** — roster, shift history, inventory, vendors, purchase orders, payroll, plus the
-  audit surfaces: `activity_log`, `approvals`, `armor_events`, `chaos_experiments`,
-  `autonomous_actions`, and `fleet_watch/state`.
+- **Firestore** — roster, shift history, inventory, vendors, purchase orders, payroll, surgical
+  cases, plus the audit surfaces: `activity_log`, `approvals`, `armor_events`,
+  `chaos_experiments`, `autonomous_actions`, `patient_notification_log`, and `fleet_watch/state`.
+- **Cloud KMS** — direct field-level encrypt/decrypt on patient `name`/`date_of_birth`/
+  `contact_email`/`contact_phone` (never a bulk export or envelope encryption — every protected
+  value is a few dozen bytes). Grants scoped to exactly two identities:
+  `surgical-scheduling-agent-sa` and `coordinator-agent-sa`.
 - **Vertex AI Memory Bank** — one store per agent, on that agent's own Reasoning Engine, scoped
   by `(app_name, user_id)`: Shift by unit, Inventory by SKU. Written whenever the real-time
   fleet watch observes a real change and read back by each agent's own recall tool.
@@ -65,8 +86,10 @@ approval rather than silently auto-sending.
 
 ## Region
 
-`us-central1` for Cloud Run, Firestore, every Reasoning Engine, Memory Bank, and the Model
-Armor template. Firestore's location is immutable after creation, so this was decided once and
-has not moved since. See [`day1-probe-results.md`](./day1-probe-results.md) for which of the
-seven Fortified Enterprise Fleet capabilities are backed by a real, distinct Google Cloud
-product and which are built on ADK primitives — the honest version, with the evidence.
+`us-central1` for Cloud Run, Firestore, every Reasoning Engine, Memory Bank, Cloud KMS, and the
+Model Armor template. Firestore's location is immutable after creation, so this was decided
+once and has not moved since. See [`day1-probe-results.md`](./day1-probe-results.md) for which
+of the seven Fortified Enterprise Fleet capabilities were originally backed by a real, distinct
+Google Cloud product and which were built on ADK primitives, and
+[`threat-model.md`](./threat-model.md) for the security posture and the fix that moved Agent
+Identity from the second category into the first.

@@ -40,12 +40,12 @@ these run long.
 
 **On screen:** the Fleet overview at calm baseline.
 
-> A hospital's operations run on three things that nobody can watch continuously: who is on
-> shift and how tired they are, what's in the supply room, and which vendors can actually
-> deliver. Prudently puts seven agents on that, on Google Cloud. Fortified Enterprise Fleet
-> track.
+> A hospital's operations run on things that nobody can watch continuously: who is on shift and
+> how tired they are, what's in the supply room, which vendors can actually deliver, and whether
+> two surgeries just got double-booked into the same room. Prudently puts eight agents on that,
+> on Google Cloud. Fortified Enterprise Fleet track.
 
-Point at the top strip: the live pulse, fleet 7 of 7 active, signals needing attention.
+Point at the top strip: the live pulse, fleet 8 of 8 active, signals needing attention.
 
 ---
 
@@ -138,8 +138,9 @@ Show the blocked `armor_events` entry.
 
 **On screen:** Cloud console tab.
 
-> Seven Reasoning Engines on Vertex AI Agent Engine. Two Cloud Run services. All us-central1 —
-> Cloud Run, Firestore, every engine, Memory Bank, and the Model Armor template. Firestore's
+> Eight Reasoning Engines on Vertex AI Agent Engine, each running under its own dedicated
+> service account — not a shared one. Two Cloud Run services. All us-central1 — Cloud Run,
+> Firestore, every engine, Memory Bank, Cloud KMS, and the Model Armor template. Firestore's
 > location is immutable, so that was a one-way door decided on day one.
 
 Back in the dashboard, click a trace link from the activity feed.
@@ -155,19 +156,24 @@ Back in the dashboard, click a trace link from the activity feed.
 **On screen:** the architecture diagram (`/architecture.svg`).
 
 > Last thing, and it's the part I'd want to be asked about. The track names seven platform
-> capabilities. Two of them — Agent Engine and Memory Bank — are real Google Cloud products and
-> we use them as such. Model Armor is real and we use it at the one place in this design that
-> actually has an external trust boundary.
+> capabilities. Three of them — Agent Engine, Memory Bank, and Agent Identity — are real Google
+> Cloud products and we use them as such. Model Armor is real too, at the one place in this
+> design that actually has an external trust boundary.
 >
-> The other three — Agent Registry, Agent Identity, Agent Gateway — we went looking for and
-> could not find as distinct products, so we built them on ADK primitives and wrote down
-> exactly what we checked. The Gateway is a `before_tool_callback` on the hot path. The
-> registry is a Firestore catalog it consults on every call. Identity resolves metadata and
-> enforces nothing, because on Agent Engine every agent runs as the same service agent — so
-> access control lives in the Gateway's policy table instead, which is where we say it lives.
+> Agent Identity almost didn't make that list. `adk deploy`'s own CLI has no `--service_account`
+> flag, and for most of this build we documented that as "Agent Engine has no per-agent identity
+> support" — a platform limitation, not a bug. It was wrong. The SDK underneath that CLI has a
+> real `service_account` field; the CLI just doesn't expose it. Every one of these eight engines
+> now runs as its own dedicated identity because we went and checked the layer below the tool
+> instead of trusting its `--help` output.
 >
-> That's Prudently. Seven agents that notice things, remember them, and still ask before they
-> act.
+> The other two — Agent Registry, Agent Gateway — we did go looking for as distinct products and
+> could not find them, so we built them on ADK primitives and wrote down exactly what we checked.
+> The Gateway is a `before_tool_callback` on the hot path. The registry is a Firestore catalog it
+> consults on every call.
+>
+> That's Prudently. Eight agents that notice things, remember them, run under their own
+> identities, and still ask before they act.
 
 ---
 
@@ -189,9 +195,13 @@ Things that have actually gone wrong, and what to do on camera.
 - [ ] **Demo credentials in the submission text** — the dashboard opens on a login wall and a
       judge who can't get past it sees nothing
 - [ ] Repository access — it is private; add the judges or share via the form
-- [ ] Architecture diagram: `docs/architecture.png`
+- [ ] Architecture diagram: `docs/architecture.png` (plus `docs/security-architecture.png` and
+      `docs/deployment-architecture.png` if the form allows more than one image)
 - [ ] Video, per the beats above
 - [ ] Text description: features, technologies, data sources, learnings. The genuinely good
       "learnings" material is in `AGENTS.md` — the coverage gate that hung rather than failed,
       the `requirements.txt`-vs-`pyproject.toml` asymmetry, the stale warm sandbox that makes
-      `exit 0` untrustworthy, and the redaction gap on the public feed.
+      `exit 0` untrustworthy, the redaction gap on the public feed, the Agent Identity fix (a CLI
+      flag that doesn't exist isn't the same claim as an SDK field that doesn't exist), and the
+      `check_revoked` IAM gap that 401'd every authenticated route silently until a real user
+      report caught it.

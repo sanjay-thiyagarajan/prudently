@@ -2,7 +2,7 @@
 
 **The fleet that never waits to be asked.**
 
-![Prudently architecture — Coordinator, Agent Gateway, five specialists, one real A2A trust boundary, and a real-time fleet watch](./architecture.png)
+![Prudently architecture — Coordinator, Agent Gateway, six specialists, one real A2A trust boundary, and a real-time fleet watch](./architecture.png)
 
 ## Inspiration
 
@@ -21,46 +21,77 @@ checklist, not around it. And the clearest way to prove "agent-*monitored*," not
 
 ## What it does
 
-Seven agents run a hospital's staffing, supplies, and vendor relationships, live. A
-**Coordinator** is the only user-facing entry point and never answers from its own knowledge —
-every internal call it makes passes through an **Agent Gateway** that looks the target up in a
-Firestore registry, checks a policy table, and opens a real trace span, all before the tool body
-runs. Behind it: **Shift Allocation** (fatigue and overtime burndown), **Inventory Management**
-(par-level tracking), **Supply Chain Resiliency** (reorder decisions and vendor selection),
-**HR** (credentialing, and Shift's escalation target when coverage runs out), and **Chaos &
-Continuity** (what-if projections and fault injection against the fleet itself). A sixth agent,
-**Medical Representative**, is deployed and identified separately and reached only over genuine
-**Agent2Agent** — the one real external trust boundary in the design — where **Model Armor**
-screens every inbound vendor message *twice*: once before a model ever sees it, and again on the
-excerpt the model itself extracts, because a paraphrased injection slipped past the first layer
-in testing and the second one caught it.
+Eight agents run a hospital's staffing, supplies, vendor relationships, and surgical schedule,
+live. A **Coordinator** is the only user-facing entry point and never answers from its own
+knowledge — every internal call it makes passes through an **Agent Gateway** that looks the
+target up in a Firestore registry, checks a policy table, and opens a real trace span, all
+before the tool body runs. Behind it: **Shift Allocation** (fatigue and overtime burndown),
+**Inventory Management** (par-level tracking), **Supply Chain Resiliency** (reorder decisions
+and vendor selection, plus a real generated purchase-order document), **HR** (credentialing, and
+Shift's escalation target when coverage runs out), **Chaos & Continuity** (what-if projections
+and fault injection against the fleet itself), and **Surgical Scheduling** — the newest agent,
+and the one domain with real-PII-shaped data. It detects OR and surgeon double-bookings, resolves
+them, and notifies the affected patient only with their consent and only after manager approval;
+every patient's name, date of birth, and contact details are encrypted field-by-field with
+**Cloud KMS** before they ever reach Firestore. A seventh agent, **Medical Representative**, is
+deployed and identified separately and reached only over genuine **Agent2Agent** — the one real
+external trust boundary in the design — where **Model Armor** screens every inbound vendor
+message *twice*: once before a model ever sees it, and again on the excerpt the model itself
+extracts, because a paraphrased injection slipped past the first layer in testing and the second
+one caught it.
 
 The fleet doesn't wait to be asked. A real-time watch runs continuously against live Firestore
 state — no scripted timeline, no button to press — and wakes the responsible agent the instant
 something actually crosses a line: a SKU falling past its reorder point, a unit gaining another
-critically fatigued nurse, a staff credential expiring. Anything with a real-world consequence
-still comes back to a human first — contacting a vendor, notifying staff, replying to a vendor
-all land as a real email with an approve/reject link, governed by a manager-editable policy that
-fails closed. Every agent remembers across time in its own Vertex AI Memory Bank store, so
+critically fatigued nurse, a staff credential expiring, two surgeries double-booked into the same
+OR. Anything with a real-world consequence still comes back to a human first — contacting a
+vendor, notifying staff, notifying a patient, replying to a vendor all land as a real HTML email
+with an approve/reject link that expires after 14 days, governed by a manager-editable policy
+that fails closed. Every agent remembers across time in its own Vertex AI Memory Bank store, so
 asking Shift whether ICU fatigue has been building gets an answer that cites *when* it started,
 not just today's snapshot. And one Cloud Trace span follows every request end to end —
 Coordinator, the Gateway's decision, the A2A hop, Model Armor's verdict — so a blocked event in
 the dashboard pivots straight to the real waterfall behind it.
 
+None of this is theoretical about who's allowed to see what. Firebase custom claims gate
+`admin`/`clinician`/`ops` roles; a patient's decrypted identity is the one thing an `ops`-role
+viewer never sees. Every deployed Reasoning Engine — all eight — runs under its own dedicated
+service account, not a shared platform identity; Cloud KMS decrypt access is scoped to exactly
+two of them. Ten STRIDE threat-model findings, each cited to real file:line evidence, are each
+fixed or honestly mitigated — the full write-up is in the repo (`docs/threat-model.md`), because
+a security posture nobody can audit isn't one.
+
 ## How we built it
 
 Google ADK for every agent, each deployed individually to Vertex AI Agent Engine as its own
 Reasoning Engine, behind a FastAPI backend and a Next.js dashboard, both on Cloud Run. Firestore
-holds live state and every agent's audit trail. The Coordinator wraps its four gated specialists
+holds live state and every agent's audit trail. The Coordinator wraps its six gated specialists
 as in-process `AgentTool`s via a flattened-import trick that only resolves correctly under two
 different conditions locally vs. deployed — verified with a disposable probe deploy before
 betting the real build on it. Medical Representative is reached via
 `google.adk.a2a.utils.agent_to_a2a.to_a2a()`, mounted on the same Cloud Run service that serves
 the dashboard API, since its own separately-deployed Reasoning Engine already satisfies
-"separately deployed, separately identified." Registry, Identity, and Gateway are built honestly
-on Firestore and ADK primitives, not dressed up as distinct Google Cloud products — we went
-looking for real ones behind those three and documented exactly what we checked when we didn't
-find them, rather than claim more than what's there.
+"separately deployed, separately identified." Registry and Gateway are built honestly on
+Firestore and ADK primitives, not dressed up as distinct Google Cloud products — we went looking
+for a real one behind each and documented exactly what we checked when we didn't find one,
+rather than claim more than what's there.
+
+Agent Identity started in that same category — "no such product, built on a convention instead"
+— and stayed there for most of the build, on a real finding: `adk deploy agent_engine`'s CLI has
+no `--service_account` flag, so every deployed Reasoning Engine ran as the same Google-managed
+identity. What actually closed it was refusing to let that CLI limitation stand in for a platform
+limitation without checking: the SDK the CLI itself calls (`vertexai._genai.types.common
+.AgentEngineConfig`) has a real `service_account` field, reachable through a
+`.agent_engine_config.json` file the CLI already reads per agent folder. All eight engines now
+run as their own dedicated service account — confirmed live via each one's own
+`effective_identity`, not assumed from a Terraform plan — and Cloud KMS's patient-PII key is
+scoped to exactly two of them instead of the one shared identity every agent used to share.
+
+Patient PII is protected with direct Cloud KMS field-level encryption — not envelope encryption
+with a locally-managed key, since every value protected (a name, a DOB, an email, a phone number)
+is a few dozen bytes, well inside a symmetric key's payload limit, so a local DEK would add
+complexity without adding protection. RBAC rides on Firebase custom claims
+(`role: admin | clinician | ops`), checked server-side on every patient-identity route.
 
 The autonomous fleet watch runs its agent turns *in-process*, not through the Reasoning Engine
 network transport — a deliberate call after `stream_query` against a deployed engine reset
@@ -102,6 +133,19 @@ precisely, with zero runaway afterward. It's a fitting last bug for this project
 to prove the watch's edge-triggering logic was sound turned out to be watching it get raced by a
 real timing mistake, and then verifying the very next clean run got the count exactly right.
 
+The very last bug — after the Agent Identity fix above, and worse for being self-inflicted: a
+session-revocation improvement (`verify_id_token(..., check_revoked=True)`, so a manually
+revoked session actually stops working instead of riding out its natural expiry) makes one extra
+call to Firebase's Identity Toolkit API on every request. Nobody had granted the Cloud Run
+service's own identity permission to make that call. Every authenticated route on the deployed
+site 401'd for a genuinely signed-in user — for hours, invisibly, because the exception handler
+caught the real cause and returned a generic "Invalid or expired session" without ever logging
+it, exactly the failure shape every bug in this section already shares. Found from a plain user
+report ("I'm signed in and it still says sign in"), root-caused from Cloud Run's own request
+logs (every request truly was 401ing, confirming it wasn't a frontend bug), fixed with one scoped
+IAM grant and an actual `logger.warning` on the exception that should have said so from the
+start.
+
 ## Accomplishments that we're proud of
 
 Getting a genuine Agent2Agent hop working end to end, not a function call wearing an A2A
@@ -110,11 +154,15 @@ from Supply Chain's own process, through Cloud Run's ASGI root span, into Medica
 Representative's pre-LLM screening, all correctly nested in one Cloud Trace waterfall. Building
 a defense-in-depth Model Armor boundary and watching the second layer actually earn its keep in
 testing, not just on paper — the first layer let a paraphrased injection through, and the
-re-screen of the isolated excerpt caught it. And, in the final stretch, turning a fleet that only
-proved itself on command into one that proves itself on its own: checking the real seed
-generators directly rather than assuming, finding that fatigue and credential-expiry conditions
-are already critical at plain seed time, and wiring the watch so that's exactly when the fleet
-acts — verified live, down to the exact trigger count, against real production data.
+re-screen of the isolated excerpt caught it. Turning a fleet that only proved itself on command
+into one that proves itself on its own: checking the real seed generators directly rather than
+assuming, finding that fatigue and credential-expiry conditions are already critical at plain
+seed time, and wiring the watch so that's exactly when the fleet acts — verified live, down to
+the exact trigger count, against real production data. And, arguably the one we're proudest of:
+not accepting our own earlier documentation that Agent Identity "can't be enforced on this
+platform" at face value. That line was true of a CLI flag, not of the platform — reading the SDK
+underneath the CLI instead of the CLI's own `--help` output is what actually closed a mandatory
+Fortified Enterprise Fleet capability we'd otherwise have shipped honestly-disclosed-but-unfixed.
 
 ## What we learned
 
@@ -131,14 +179,17 @@ that makes a system trustworthy enough to run unattended in the first place.
 
 ## What's next for Prudently
 
-The Reasoning Engines still need redeploying with this session's changes before the de-simulated
-watch and the credential-expiry trigger are live anywhere but the Cloud Run backend — the
-in-process watch already runs the real agent code, but the standalone deployed engines are
-currently frozen at an earlier version. Past that: a fourth trigger axis for vendor reliability
-degradation, so Supply Chain can act on a pattern across purchase orders instead of only a
-single stock breach; real contact information once this moves past synthetic data, instead of
-every approval-gated send routing to the operations mailbox with a cosmetic recipient label; and
-a distributed lock around the watch loop before this ever runs on more than one Cloud Run
-instance at once — two independent loops on two instances would double-fire every check today,
-exactly the kind of failure mode this project has learned to go looking for instead of hoping
-isn't there.
+A fifth trigger axis for vendor reliability degradation, so Supply Chain can act on a pattern
+across purchase orders instead of only a single stock breach. Real contact information once this
+moves past synthetic data, instead of every approval-gated send routing to the operations
+mailbox with a cosmetic recipient label. A distributed lock around the watch loop before this
+ever runs on more than one Cloud Run instance at once — two independent loops on two instances
+would double-fire every check today, exactly the kind of failure mode this project has learned
+to go looking for instead of hoping isn't there. And the one honest gap the threat model states
+plainly rather than glosses over: Firestore has no native per-collection IAM, so even with every
+agent now running under its own dedicated identity, access to `patients`/`surgical_cases` is
+still enforced at the application layer (`services/platform/access_control.py`), not by IAM
+alone — a real, useful, but not cryptographic boundary. Closing that fully would mean either a
+Firestore-adjacent authorization layer this platform doesn't have yet, or moving patient data to
+a datastore that supports resource-level IAM natively — a bigger architectural call than a
+hackathon week has room for, and one we'd rather flag honestly than paper over.
