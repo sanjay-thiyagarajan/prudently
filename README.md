@@ -12,8 +12,8 @@ it left it, and wakes the responsible agent the moment something crosses a line.
 real-world consequence still comes back to a human for approval. The one domain here with
 real-PII-shaped data — a patient's name, date of birth, contact details — is encrypted
 field-by-field with Cloud KMS before it ever reaches Firestore, gated behind role-based access
-control, and backed by a real, cited threat model that maps every finding to the fix that closed
-it (`docs/threat-model.md`).
+control, with every deployed agent running under its own dedicated identity rather than a
+shared one.
 
 **Live:**
 [dashboard](https://prudently-web-jnpvbtwpwa-uc.a.run.app) ·
@@ -23,11 +23,6 @@ it (`docs/threat-model.md`).
 [topology](docs/architecture.svg) ·
 [security](docs/security-architecture.png) ·
 [deployment](docs/deployment-architecture.png)
-
-**Security:** [`docs/threat-model.md`](docs/threat-model.md) — ten STRIDE findings, each with
-file:line evidence, each fixed or honestly mitigated. Includes the story behind Agent Identity:
-a documented "platform limitation" that turned out to be a wrong assumption about the `adk`
-CLI, not the underlying API.
 
 ---
 
@@ -51,7 +46,7 @@ CLI, not the underlying API.
 - `apps/web` — Next.js dashboard
 - `packages/datagen` — synthetic hospital data generator plus one-off backfill scripts
 - `infra/terraform` — GCP infrastructure as code (IAM, secrets, KMS, Cloud Run service shells)
-- `docs` — architecture, threat model, build plan and demo script, Day-1 capability probe results
+- `docs` — architecture, build plan and demo script, Day-1 capability probe results
 
 ---
 
@@ -74,7 +69,7 @@ you get if you miss one.
 
 | Step | How | If you skip it |
 |---|---|---|
-| **Enable APIs** | `gcloud services enable aiplatform.googleapis.com firestore.googleapis.com run.googleapis.com secretmanager.googleapis.com cloudtrace.googleapis.com logging.googleapis.com modelarmor.googleapis.com pubsub.googleapis.com cloudkms.googleapis.com identitytoolkit.googleapis.com` | Deploys fail at the first API call; `identitytoolkit` specifically breaks session revocation checking with a silently-swallowed 401 on every authenticated route — see `docs/threat-model.md` finding 5 |
+| **Enable APIs** | `gcloud services enable aiplatform.googleapis.com firestore.googleapis.com run.googleapis.com secretmanager.googleapis.com cloudtrace.googleapis.com logging.googleapis.com modelarmor.googleapis.com pubsub.googleapis.com cloudkms.googleapis.com identitytoolkit.googleapis.com` | Deploys fail at the first API call; `identitytoolkit` specifically breaks session revocation checking with a silently-swallowed 401 on every authenticated route |
 | **Gemini API key** | `gcloud secrets create prudently-gemini-api-key --data-file=-` (paste the key, Ctrl-D) | Every agent fails on its first model call |
 | **Model Armor template** | Create a template named `prudently-vendor-ingest` in `us-central1` with the `pi_and_jailbreak`, `malicious_uri`, and `rai` filters. **Use the REST API or the Python SDK, not `gcloud model-armor`** — that subcommand returns spurious `PERMISSION_DENIED` even under project Owner. | Screening fails closed; every vendor message is reported blocked |
 | **Firebase Auth** | In the Firebase Console, attach a Firebase project to this GCP project, enable the Email/Password provider, and create one manager account. Put the web config in `apps/web/.env.local`. | The dashboard shows a login form nobody can get past |
@@ -218,9 +213,8 @@ Honest ones, because they are the interesting part:
   backed by a real distinct credential per caller instead of a self-declared one on shared IAM.
 - **Registry and Gateway are built on ADK primitives**, not distinct Google Cloud products —
   because the Day-1 probe found no such products. Agent Identity used to be on this list too;
-  it isn't anymore — see `docs/threat-model.md` finding 9 for exactly what changed and how it
-  was verified. [`docs/day1-probe-results.md`](docs/day1-probe-results.md) records the original
-  Day-1 findings.
+  it isn't anymore, now that every deployed engine runs under its own dedicated service account.
+  [`docs/day1-probe-results.md`](docs/day1-probe-results.md) records the original Day-1 findings.
 - **The autonomous watch runs agents in-process**, not through the Agent Engine transport. That
   is deliberate: `stream_query` against a deployed engine reset mid-stream on 3 of 4 attempts
   from a laptop, and the manager-initiated path already exercises that transport. The deployed

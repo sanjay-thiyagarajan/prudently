@@ -223,5 +223,5 @@
   </g>
 
   <text x="48" y="892" class="mono" font-size="10">Real Google Cloud products: Agent Engine · Memory Bank · Model Armor · Cloud Run · Firestore · Cloud Trace · Cloud Logging · Secret Manager · Cloud KMS · IAM · Firebase Auth</text>
-  <text x="48" y="912" class="mono" font-size="10">Built on ADK primitives where no distinct product exists: Agent Registry (Firestore catalog) · Agent Gateway (before_tool_callback) — Agent Identity now real per-agent IAM, see docs/threat-model.md finding 9</text>
+  <text x="48" y="912" class="mono" font-size="10">Built on ADK primitives where no distinct product exists: Agent Registry (Firestore catalog) · Agent Gateway (before_tool_callback) — Agent Identity is real per-agent IAM, each engine its own dedicated service account</text>
 </svg>

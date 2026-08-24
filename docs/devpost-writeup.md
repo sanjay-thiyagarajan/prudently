@@ -57,9 +57,7 @@ None of this is theoretical about who's allowed to see what. Firebase custom cla
 `admin`/`clinician`/`ops` roles; a patient's decrypted identity is the one thing an `ops`-role
 viewer never sees. Every deployed Reasoning Engine — all eight — runs under its own dedicated
 service account, not a shared platform identity; Cloud KMS decrypt access is scoped to exactly
-two of them. Ten STRIDE threat-model findings, each cited to real file:line evidence, are each
-fixed or honestly mitigated — the full write-up is in the repo (`docs/threat-model.md`), because
-a security posture nobody can audit isn't one.
+two of them.
 
 ## How we built it
 
@@ -185,8 +183,8 @@ moves past synthetic data, instead of every approval-gated send routing to the o
 mailbox with a cosmetic recipient label. A distributed lock around the watch loop before this
 ever runs on more than one Cloud Run instance at once — two independent loops on two instances
 would double-fire every check today, exactly the kind of failure mode this project has learned
-to go looking for instead of hoping isn't there. And the one honest gap the threat model states
-plainly rather than glosses over: Firestore has no native per-collection IAM, so even with every
+to go looking for instead of hoping isn't there. And the one honest gap worth stating plainly
+rather than glossing over: Firestore has no native per-collection IAM, so even with every
 agent now running under its own dedicated identity, access to `patients`/`surgical_cases` is
 still enforced at the application layer (`services/platform/access_control.py`), not by IAM
 alone — a real, useful, but not cryptographic boundary. Closing that fully would mean either a

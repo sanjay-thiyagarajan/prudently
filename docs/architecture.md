@@ -5,7 +5,7 @@
 `architecture.svg` is the source of truth; `architecture.png` is a raster of the same file for
 the Devpost submission form. Both are also served by the dashboard at `/architecture.svg`. Two
 companion diagrams go deeper on one layer each: [`security-architecture.png`](./security-architecture.png)
-(every control, mapped to a `threat-model.md` finding) and
+(every control, perimeter through identity) and
 [`deployment-architecture.png`](./deployment-architecture.png) (every deployed component and
 real connection between them, including the one genuine Agent2Agent network hop).
 
@@ -22,9 +22,9 @@ One specialist, Supply Chain, reaches a seventh agent — the **Medical Represen
 a real trust boundary over Agent2Agent, at the same public agent-card URL any outside client
 would use. That agent exists to handle untrusted vendor mail, and **Model Armor** screens
 everything it receives before a model sees any of it. Nothing with a real-world consequence
-happens without the manager clicking approve in their inbox — and as of this pass, every one of
-those approval-gated, RBAC-gated, and encryption-gated routes is backed by a real, cited threat
-model (`docs/threat-model.md`, ten STRIDE findings, all fixed or honestly mitigated).
+happens without the manager clicking approve in their inbox, and every one of those
+approval-gated, RBAC-gated, and encryption-gated routes runs on real, verifiable infrastructure —
+real GCP identities, real encryption keys, real audit records, not diagram conventions.
 
 ## What runs where
 
@@ -64,9 +64,7 @@ live for each, not assumed from a Terraform diff. This closed the one Fortified 
 Fleet capability this project had been honestly documenting as unenforced: `adk deploy`'s CLI
 has no `--service_account` flag, which earlier notes here took as a hard platform limit, but
 the underlying `AgentEngineConfig` API it calls does — reachable through the same
-`.agent_engine_config.json` mechanism the CLI already reads per agent folder. See
-`docs/threat-model.md` finding 9 for the full story, including two real regressions it caught
-before shipping (Model Armor and Cloud Trace grants that only the old shared identity had).
+`.agent_engine_config.json` mechanism the CLI already reads per agent folder.
 
 ## Where the data lives
 
@@ -90,6 +88,5 @@ before shipping (Model Armor and Cloud Trace grants that only the old shared ide
 Model Armor template. Firestore's location is immutable after creation, so this was decided
 once and has not moved since. See [`day1-probe-results.md`](./day1-probe-results.md) for which
 of the seven Fortified Enterprise Fleet capabilities were originally backed by a real, distinct
-Google Cloud product and which were built on ADK primitives, and
-[`threat-model.md`](./threat-model.md) for the security posture and the fix that moved Agent
-Identity from the second category into the first.
+Google Cloud product and which were built on ADK primitives — Agent Identity has since moved
+from the second category into the first.
