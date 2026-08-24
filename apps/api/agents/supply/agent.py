@@ -41,7 +41,19 @@ bootstrap_gemini_credentials()
 # Cloud Run A2A mount is the receiver half. HTTPXClientInstrumentor patches the httpx.AsyncClient
 # class itself, so this covers the client RemoteA2aAgent lazily creates later, regardless of
 # import order — confirmed by reading remote_a2a_agent.py's _ensure_httpx_client.
-with get_observability_service().span("supply.bootstrap_tracing", {}):
+#
+# Best-effort, not fatal: with OBSERVABILITY_BACKEND=vertex (the .env.example default),
+# constructing the tracer means a real `google.auth.default()` call, which raises
+# DefaultCredentialsError anywhere ADC isn't configured — a fresh clone before its first
+# `gcloud auth application-default login`, or a CI runner. That's exactly the "never make a
+# live GCP call at module-import time" rule `_attach_a2a_shared_secret`'s own docstring states
+# a few lines below — this block violated it. Caught live: it took CI actually running on a
+# credential-less runner to surface this locally-invisible failure, since a dev machine here
+# always had working ADC.
+try:
+    with get_observability_service().span("supply.bootstrap_tracing", {}):
+        pass
+except Exception:  # pylint: disable=broad-exception-caught
     pass
 HTTPXClientInstrumentor().instrument()
 

@@ -1,8 +1,14 @@
 name: CI
 
-# docs/threat-model.md finding 10: no CI existed at all — make lint/make test were real but
-# entirely local/manual, so a regression could merge without either ever running. This runs the
-# same gates a contributor is expected to run locally, on every push/PR, nothing more.
+# No CI existed at all before this — make lint/make test were real but entirely local/manual,
+# so a regression could merge without either ever running. This runs the same gates a
+# contributor is expected to run locally, on every push/PR, nothing more.
+#
+# ARMOR_BACKEND/OBSERVABILITY_BACKEND pinned to local here even though .env.example recommends
+# `vertex` for real dev: the vertex backends make a live `google.auth.default()` call at
+# agents/supply/agent.py's module import time (its own tracer-bootstrap block), which raises
+# DefaultCredentialsError with no ADC configured — exactly this runner's situation. Caught live
+# by this workflow's own first run, not in review.
 
 on:
   push:
@@ -17,6 +23,9 @@ jobs:
     defaults:
       run:
         working-directory: apps/api
+    env:
+      ARMOR_BACKEND: local
+      OBSERVABILITY_BACKEND: local
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
