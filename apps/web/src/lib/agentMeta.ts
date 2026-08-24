@@ -3,6 +3,7 @@ import {
   Handshake,
   Network,
   Package,
+  Scissors,
   ShieldCheck,
   Truck,
   Zap,
@@ -95,6 +96,14 @@ export const AGENT_META: Record<string, AgentMeta> = {
     kind: "external",
     memoryScope: null,
     autonomous: false,
+  },
+  surgical_scheduling_agent: {
+    label: "Surgical Scheduling",
+    icon: Scissors,
+    blurb: "OR/surgeon double-booking detection, patient status notifications",
+    kind: "specialist",
+    memoryScope: null,
+    autonomous: true,
   },
 };
 

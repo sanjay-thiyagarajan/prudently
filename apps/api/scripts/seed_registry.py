@@ -61,6 +61,13 @@ REGISTRY: list[dict] = [
         "reasoning_engine_id": None,
         "firestore_collections": ["chaos_experiments"],
     },
+    {
+        "agent_name": "surgical_scheduling_agent",
+        "role": "OR/surgeon double-booking detection + patient status notifications",
+        "status": "active",
+        "reasoning_engine_id": None,
+        "firestore_collections": ["patients", "surgical_cases", "patient_notification_log"],
+    },
 ]
 
 

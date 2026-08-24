@@ -41,6 +41,13 @@ const STATUS_TONE: Record<string, Tone> = {
   failed: "critical",
   autonomous: "autonomous",
   autonomous_watch: "autonomous",
+  scheduled: "neutral",
+  confirmed: "safe",
+  delayed: "critical",
+  in_progress: "elevated",
+  cancelled: "neutral",
+  consent_declined: "critical",
+  open: "neutral",
 };
 
 export function StatusPill({

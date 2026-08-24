@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-TriggerKind = Literal["stock_breach", "fatigue_breach", "credential_breach"]
+TriggerKind = Literal["stock_breach", "fatigue_breach", "credential_breach", "schedule_conflict"]
 
 # Severity ordering for stock status, so "was low, is now critical" reads as an escalation
 # while "was critical, is now low" does not re-fire.
@@ -209,10 +209,68 @@ def detect_credential_triggers(
     return triggers
 
 
+def _conflict_key(conflict: dict) -> str:
+    # Deliberately duplicated rather than importing agents/surgical_scheduling/conflicts.py's
+    # near-identical conflict_dedupe_keys — same rationale as agents/supply/reorder.py's own
+    # duplicated stock-status derivation: keeps this module agent-logic-free (it has never
+    # imported an agents.* module, and a schedule-conflict trigger isn't worth being the first
+    # exception) and avoids the adk-deploy per-folder staging fragility a cross-folder import
+    # would risk if this module is ever staged independently.
+    pair = tuple(sorted((conflict["case_id_a"], conflict["case_id_b"])))
+    return f"{pair[0]}::{pair[1]}"
+
+
+def detect_schedule_conflict_triggers(
+    conflicts: list[dict], previous_conflict_keys: set[str], as_of: str
+) -> list[Trigger]:
+    """Fires when a surgical-schedule conflict (agents/surgical_scheduling/conflicts.py's
+    `detect_conflicts`) is new since the last check — same edge-triggered shape as the other
+    three: a conflict already flagged last cycle is not a new event, or the fleet would
+    re-escalate the same OR double-booking on every check. `conflicts` carries no patient PII
+    (case_id/room/surgeon_id/time only — see conflicts.py's own docstring), so this function
+    never touches encrypted fields."""
+    triggers: list[Trigger] = []
+    for conflict in conflicts:
+        key = _conflict_key(conflict)
+        if key in previous_conflict_keys:
+            continue
+
+        triggers.append(
+            Trigger(
+                kind="schedule_conflict",
+                subject=key,
+                agent="surgical_scheduling_agent",
+                severity="critical",
+                summary=(
+                    f"Cases {conflict['case_id_a']} and {conflict['case_id_b']} conflict — "
+                    f"{conflict['reason']}. Surgical Scheduling was asked to recommend a fix."
+                ),
+                prompt=(
+                    f"Automated schedule watch: cases {conflict['case_id_a']} and "
+                    f"{conflict['case_id_b']} now conflict ({conflict['reason']}). Recommend "
+                    "which case should be rescheduled and to what slot. Nobody is watching this "
+                    "conversation, so do not ask a follow-up question — make the call and "
+                    "report what you did."
+                ),
+                memory_fact=(
+                    f"{as_of}: cases {conflict['case_id_a']} and {conflict['case_id_b']} "
+                    f"conflicted ({conflict['reason']}), triggering an autonomous review."
+                ),
+                context={
+                    "case_id_a": conflict["case_id_a"],
+                    "case_id_b": conflict["case_id_b"],
+                    "reason": conflict["reason"],
+                },
+            )
+        )
+    return triggers
+
+
 def next_watch_state(
     par_records: list[dict],
     unit_summary: dict[str, dict],
     credential_records: list[dict],
+    conflicts: list[dict] | None = None,
 ) -> dict:
     """The snapshot the next check compares against. Stored as one Firestore document."""
     return {
@@ -221,22 +279,30 @@ def next_watch_state(
         "expired_staff": sorted(
             r["staff_id"] for r in credential_records if r["credential_status"] == "expired"
         ),
+        "conflict_keys": sorted({_conflict_key(c) for c in (conflicts or [])}),
     }
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def detect_all(
     par_records: list[dict],
     unit_summary: dict[str, dict],
     credential_records: list[dict],
     watch_state: dict | None,
     as_of: str,
+    conflicts: list[dict] | None = None,
 ) -> tuple[list[Trigger], dict]:
     """Convenience entry point: everything the fleet should notice this check, plus the state
-    to persist for the next one."""
+    to persist for the next one. `conflicts` defaults to None/empty so every existing caller
+    (and every existing test) keeps working unchanged — the schedule-conflict axis is additive."""
     state = watch_state or {}
+    conflicts = conflicts or []
     triggers = detect_stock_triggers(par_records, state.get("sku_status", {}), as_of)
     triggers += detect_fatigue_triggers(unit_summary, state.get("unit_critical", {}), as_of)
     triggers += detect_credential_triggers(
         credential_records, set(state.get("expired_staff", [])), as_of
     )
-    return triggers, next_watch_state(par_records, unit_summary, credential_records)
+    triggers += detect_schedule_conflict_triggers(
+        conflicts, set(state.get("conflict_keys", [])), as_of
+    )
+    return triggers, next_watch_state(par_records, unit_summary, credential_records, conflicts)

@@ -212,6 +212,41 @@ class TestAgentDetailPublicView:
     def test_missing_live_state_does_not_crash(self):
         assert redact_agent_detail({"agent": {}}, authenticated=False)["_public_view"] is True
 
+    def test_activity_log_summary_is_genericised_for_staff_directed_tool_calls(self):
+        # The gap this closes: activity_log entries carry the identical subject string as the
+        # approvals list (both come from services/platform/approvals.py's `subject`), but only
+        # `approvals[].subject` was ever redacted — a signed-out caller could read the staff
+        # member's name straight off activity_log instead.
+        payload = {
+            "agent": {"agent_name": "hr_agent"},
+            "activity_log": [
+                {
+                    "id": "e1",
+                    "tool_name": "notify_staff_credential_escalation",
+                    "summary": "Credential/escalation notice for Nurse IC-01",
+                },
+                {
+                    "id": "e2",
+                    "tool_name": "contact_vendor_for_reorder",
+                    "summary": "Reorder request: 400 units of Nitrile exam gloves",
+                },
+            ],
+        }
+        public = redact_agent_detail(payload, authenticated=False)
+        by_id = {e["id"]: e for e in public["activity_log"]}
+        assert by_id["e1"]["summary"] == "Credential escalation for a staff member"
+        assert "Nitrile" in by_id["e2"]["summary"]
+        assert public["_redacted"]["activity_log"]["withheld_count"] == 1
+        assert "Nurse IC-01" not in repr(public)
+
+    def test_activity_log_authenticated_is_untouched(self):
+        payload = {
+            "activity_log": [
+                {"tool_name": "notify_staff_credential_escalation", "summary": "Nurse IC-01"}
+            ]
+        }
+        assert redact_agent_detail(payload, authenticated=True) is payload
+
 
 class TestMalformedPayloads:
     def test_missing_section_is_skipped(self):

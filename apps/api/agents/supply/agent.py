@@ -12,13 +12,20 @@ client would reach it — this agent has no special/internal path to it."""
 
 from __future__ import annotations
 
+import httpx
 from google.adk.agents import Agent
 from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
 from google.adk.tools import AgentTool, FunctionTool
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
-from config import bootstrap_gemini_credentials, get_settings, medrep_agent_card_url
+from config import (
+    a2a_shared_secret,
+    bootstrap_gemini_credentials,
+    get_settings,
+    medrep_agent_card_url,
+)
 from services.platform.approvals import perform_or_request
+from services.platform.email_templates import purchase_order
 from services.platform.observability import get_observability_service
 from services.state import get_inventory, get_vendors
 
@@ -38,10 +45,25 @@ with get_observability_service().span("supply.bootstrap_tracing", {}):
     pass
 HTTPXClientInstrumentor().instrument()
 
+
+async def _attach_a2a_shared_secret(request: httpx.Request) -> None:
+    """httpx request hook, not a header baked in at client-construction time: fetching the
+    secret lazily, on the first real outbound call, matches this codebase's established
+    discipline (config.py's bootstrap_gemini_credentials, email_gmail.py's _app_password) of
+    never making a live GCP call at module-import time — agents/supply/__init__.py imports this
+    module eagerly per ADK convention, including during plain pytest collection, where GCP
+    credentials may not be configured at all."""
+    request.headers["X-A2A-Shared-Secret"] = a2a_shared_secret()
+
+
 medical_representative_agent = RemoteA2aAgent(
     name="medical_representative_agent",
     description="External-facing vendor/pharma liaison, reached via genuine Agent2Agent.",
     agent_card=medrep_agent_card_url(),
+    httpx_client=httpx.AsyncClient(
+        timeout=httpx.Timeout(timeout=60.0),
+        event_hooks={"request": [_attach_a2a_shared_secret]},
+    ),
 )
 
 
@@ -82,17 +104,22 @@ def contact_vendor_for_reorder(vendor_id: str, sku: str, quantity: int) -> dict:
             return {"error": f"Unknown vendor_id '{vendor_id}' or sku '{sku}'."}
 
         subject = f"Reorder request: {quantity} units of {item['name']} ({sku})"
-        body = (
-            f"Please supply {quantity} units of {item['name']} (SKU {sku}), "
-            f"category {item['category']}. Requested by the Supply Chain Resiliency Agent."
+        po_plain, po_html = purchase_order(
+            vendor_name=vendor["name"],
+            sku=sku,
+            item_name=item["name"],
+            quantity=quantity,
+            unit_cost=item.get("unit_cost", 0.0),
+            category=item["category"],
         )
         result = perform_or_request(
             task_type="contact_vendor_for_reorder",
             to=get_settings().manager_email,
             recipient_label=vendor["name"],
             subject=subject,
-            body=body,
+            body=po_plain,
             requested_by="supply_chain_resiliency_agent",
+            html=po_html,
             metadata={
                 "sku": sku,
                 "item_name": item["name"],

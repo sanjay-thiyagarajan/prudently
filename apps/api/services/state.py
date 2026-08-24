@@ -8,6 +8,13 @@ from functools import lru_cache
 
 from google.cloud import firestore
 
+# Module-level, not the usual services/state.py "no ADK/heavy imports at module scope"
+# discipline's exception — neither of these two modules imports services.state (no circular
+# risk) nor pulls in ADK/model machinery (crypto.py's real Cloud KMS client is itself imported
+# lazily inside crypto_kms.py, only on first actual encrypt/decrypt call).
+from services.platform.access_control import require_access
+from services.platform.crypto import get_crypto_service
+
 # Vertex AI Agent Engine auto-injects GOOGLE_CLOUD_PROJECT into the sandbox as the numeric
 # *project number* (e.g. "439570031916"), not the project ID. pydantic-settings picks that env
 # var up automatically, silently overriding config.py's "prudently-hackathon" default — so
@@ -444,6 +451,36 @@ def get_autonomous_actions(limit: int = 30) -> list[dict]:
     return [{**doc.to_dict(), "id": doc.id} for doc in docs]
 
 
+# --- Facilities job sheets (routes/job_sheets.py) -------------------------------------------
+# Plain CRUD, deliberately not agent-backed (see routes/job_sheets.py's module docstring for
+# why) — a maintenance ticket has no autonomy story an LLM adds value to.
+
+
+def write_job_sheet(sheet: dict) -> str:
+    _, doc_ref = get_client().collection("job_sheets").add(sheet)
+    return doc_ref.id
+
+
+def get_job_sheets(limit: int = 100) -> list[dict]:
+    docs = (
+        get_client()
+        .collection("job_sheets")
+        .order_by("created_at", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    return [{**doc.to_dict(), "id": doc.id} for doc in docs]
+
+
+def get_job_sheet(sheet_id: str) -> dict | None:
+    doc = get_client().collection("job_sheets").document(sheet_id).get()
+    return {**doc.to_dict(), "id": doc.id} if doc.exists else None
+
+
+def update_job_sheet(sheet_id: str, patch: dict) -> None:
+    get_client().collection("job_sheets").document(sheet_id).update(patch)
+
+
 def get_activity_log(agent_name: str | None = None, limit: int = 100) -> list[dict]:
     """Most recent `activity_log` docs, newest first. Filters by agent_name in Python rather
     than a Firestore `where`, matching `get_approvals`' rationale — a `where` combined with
@@ -461,3 +498,100 @@ def get_activity_log(agent_name: str | None = None, limit: int = 100) -> list[di
     if agent_name is not None:
         entries = [entry for entry in entries if entry.get("agent_name") == agent_name]
     return entries
+
+
+# --- Patients / surgical cases (Part D — agents/surgical_scheduling) -------------------------
+# Every accessor below requires a `caller` and calls `require_access` first
+# (services/platform/access_control.py) — the application-layer mitigation for docs/threat-
+# model.md finding 9, given no platform-level per-agent identity exists to enforce this
+# instead. PII fields are encrypted at rest via services/platform/crypto.py before every write
+# and decrypted only inside these accessors, never left encrypted for a caller to accidentally
+# forward ciphertext as if it were plaintext.
+
+_PATIENT_PII_FIELDS = ("name", "date_of_birth", "contact_email", "contact_phone")
+
+
+def _encrypt_patient_fields(patient: dict) -> dict:
+    crypto = get_crypto_service()
+    encrypted = dict(patient)
+    for field in _PATIENT_PII_FIELDS:
+        if encrypted.get(field):
+            encrypted[field] = crypto.encrypt_field(encrypted[field])
+    return encrypted
+
+
+def _decrypt_patient_fields(patient: dict) -> dict:
+    crypto = get_crypto_service()
+    decrypted = dict(patient)
+    for field in _PATIENT_PII_FIELDS:
+        if decrypted.get(field):
+            decrypted[field] = crypto.decrypt_field(decrypted[field])
+    return decrypted
+
+
+def write_patient(patient: dict, *, caller: str) -> None:
+    require_access(caller)
+    get_client().collection("patients").document(patient["patient_id"]).set(
+        _encrypt_patient_fields(patient)
+    )
+
+
+def get_patients(*, caller: str) -> list[dict]:
+    require_access(caller)
+    docs = [doc.to_dict() for doc in get_client().collection("patients").stream()]
+    return [_decrypt_patient_fields(doc) for doc in docs]
+
+
+def get_patient(patient_id: str, *, caller: str) -> dict | None:
+    require_access(caller)
+    doc = get_client().collection("patients").document(patient_id).get()
+    return _decrypt_patient_fields(doc.to_dict()) if doc.exists else None
+
+
+def write_surgical_case(case: dict, *, caller: str) -> None:
+    require_access(caller)
+    get_client().collection("surgical_cases").document(case["case_id"]).set(case)
+
+
+def get_surgical_cases(*, caller: str) -> list[dict]:
+    """No PII on this collection at all — case_id/patient_id (an opaque FK, not a name)/
+    procedure/room/times/status — so unlike the patient accessors above there's genuinely
+    nothing to encrypt here; require_access still applies, since patient_id itself is enough to
+    look a specific patient's case up via get_patient."""
+    require_access(caller)
+    return [doc.to_dict() for doc in get_client().collection("surgical_cases").stream()]
+
+
+def get_surgical_case(case_id: str, *, caller: str) -> dict | None:
+    require_access(caller)
+    doc = get_client().collection("surgical_cases").document(case_id).get()
+    return doc.to_dict() if doc.exists else None
+
+
+def update_surgical_case(case_id: str, patch: dict, *, caller: str) -> None:
+    require_access(caller)
+    get_client().collection("surgical_cases").document(case_id).update(patch)
+
+
+def write_patient_notification_log(entry: dict) -> None:
+    """PHI-adjacent notification history gets its own audit trail — `patient_notification_log`
+    — separate from the general `activity_log` (see agents/surgical_scheduling/agent.py's
+    module docstring for why). No `caller`/require_access gate here: this collection carries no
+    patient identity, only a `patient_id` FK (an opaque reference, same non-PII shape as
+    `surgical_cases` itself), and every call site is already inside a caller that passed
+    require_access to reach the patient in the first place. Auto-stamps `timestamp`, same
+    convenience `log_activity` gives its own callers."""
+    get_client().collection("patient_notification_log").add(
+        {**entry, "timestamp": firestore.SERVER_TIMESTAMP}
+    )
+
+
+def get_patient_notification_log(limit: int = 100) -> list[dict]:
+    docs = (
+        get_client()
+        .collection("patient_notification_log")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+        .stream()
+    )
+    return [{**doc.to_dict(), "id": doc.id} for doc in docs]

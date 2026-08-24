@@ -3,10 +3,13 @@
 import {
   Activity,
   ClipboardCheck,
+  ClipboardList,
   LogOut,
   Network,
   Package,
+  Scissors,
   ShieldAlert,
+  ShieldOff,
   Stethoscope,
   Truck,
   UserRound,
@@ -44,6 +47,8 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
       { href: "/inventory", label: "Inventory", icon: Package },
       { href: "/vendors", label: "Vendors", icon: Truck },
       { href: "/admissions", label: "Admissions", icon: Stethoscope },
+      { href: "/surgical-schedule", label: "Surgical scheduling", icon: Scissors },
+      { href: "/job-sheets", label: "Job sheets", icon: ClipboardList },
       { href: "/payroll", label: "Payroll", icon: Wallet },
     ],
   },
@@ -58,7 +63,7 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
+  const { user, signOut, signOutEverywhere } = useAuth();
 
   return (
     <aside className="sticky top-0 flex h-screen w-[236px] shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-raised)]">
@@ -132,6 +137,19 @@ export function Sidebar() {
             >
               <LogOut size={16} strokeWidth={2} />
               Sign out
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Sign out everywhere? This ends every session for this account, on every device.")) {
+                  signOutEverywhere();
+                }
+              }}
+              title="Revoke every session for this account, not just this device"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[12px] font-medium text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-critical-soft)] hover:text-[var(--color-critical)]"
+            >
+              <ShieldOff size={15} strokeWidth={2} />
+              Sign out everywhere
             </button>
           </div>
         )}

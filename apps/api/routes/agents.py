@@ -25,6 +25,7 @@ _AGENT_TASK_TYPE: dict[str, str] = {
     "shift_allocation_agent": "notify_staff_reallocation",
     "supply_chain_resiliency_agent": "contact_vendor_for_reorder",
     "medical_representative_agent": "send_vendor_reply",
+    "surgical_scheduling_agent": "notify_patient_of_status_change",
 }
 
 # Same rationale: which slice of /dashboard/overview's payload is this agent's own "current
@@ -36,6 +37,7 @@ _AGENT_LIVE_STATE_KEYS: dict[str, tuple[str, ...]] = {
     "inventory_management_agent": ("inventory",),
     "medical_representative_agent": ("armor_events",),
     "chaos_continuity_agent": ("chaos_experiments",),
+    "surgical_scheduling_agent": ("surgical_schedule",),
 }
 
 

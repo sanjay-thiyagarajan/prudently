@@ -15,8 +15,11 @@ from pathlib import Path
 
 from datagen.admissions import as_dicts as admissions_as_dicts
 from datagen.admissions import generate_admissions
+from datagen.crypto import encrypt_patient_record
 from datagen.inventory import as_dicts as inventory_as_dicts
 from datagen.inventory import generate_inventory
+from datagen.patients import as_dicts as patients_as_dicts
+from datagen.patients import generate_patients, generate_surgical_cases
 from datagen.roster import as_dicts as roster_as_dicts
 from datagen.roster import generate_roster
 
@@ -38,6 +41,10 @@ def _doc_id_for(collection: str, record: dict, index: int) -> str:
         return f"{record['sim_day']:02d}-{record['unit'].replace(' ', '_')}"
     if collection == "shift_history":
         return f"{record['staff_id']}__{record['shift_date']}"
+    if collection == "patients":
+        return record["patient_id"]
+    if collection == "surgical_cases":
+        return record["case_id"]
     return record.get("staff_id") or record.get("sku") or record.get("vendor_id") or str(index)
 
 
@@ -56,16 +63,27 @@ def build_dataset(seed: int) -> dict[str, list[dict]]:
     admissions = generate_admissions(seed)
     admissions_dicts = admissions_as_dicts(admissions)
 
+    surgeon_ids = [s["staff_id"] for s in staff_dicts if s["role"] == "physician"]
+    patients = generate_patients(seed)
+    surgical_cases = generate_surgical_cases(patients, surgeon_ids, seed)
+    patient_dicts, case_dicts = patients_as_dicts(patients, surgical_cases)
+
     return {
         "staff_roster": staff_dicts,
         "shift_history": shift_dicts,
         "inventory": item_dicts,
         "vendors": vendor_dicts,
         "admissions_timeseries": admissions_dicts,
+        "patients": patient_dicts,
+        "surgical_cases": case_dicts,
     }
 
 
 def write_local(dataset: dict[str, list[dict]]) -> None:
+    """Plaintext on disk, including `patients` — deliberate. Nothing under .local_output/ ever
+    reaches a real datastore, so there is nothing for field-level encryption to protect here;
+    encrypting local inspection output would only make `patients.json` unreadable to the
+    developer looking at it. write_firestore below is the path that actually encrypts."""
     LOCAL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     for collection, records in dataset.items():
         path = LOCAL_OUTPUT_DIR / f"{collection}.json"
@@ -84,6 +102,12 @@ def write_firestore(dataset: dict[str, list[dict]], project: str) -> None:
             batch = client.batch()
             for offset, record in enumerate(chunk):
                 doc_id = _doc_id_for(collection, record, chunk_start + offset)
+                # `patients` carries real-PII-shaped fields (name/DOB/contact) — encrypted here
+                # via the same Cloud KMS key apps/api's services/state.py decrypts through, so
+                # a raw Firestore console read of this collection shows ciphertext, never
+                # plaintext, matching the same guarantee a live write_patient() call gives.
+                if collection == "patients":
+                    record = encrypt_patient_record(record)
                 batch.set(coll_ref.document(doc_id), record)
             batch.commit()
         print(f"  wrote {len(records):>4} records -> Firestore/{collection}")

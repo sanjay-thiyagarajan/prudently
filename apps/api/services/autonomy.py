@@ -47,6 +47,7 @@ _AGENT_MODULES = {
     "inventory_management_agent": "agents.inventory.agent",
     "supply_chain_resiliency_agent": "agents.supply.agent",
     "hr_agent": "agents.hr.agent",
+    "surgical_scheduling_agent": "agents.surgical_scheduling.agent",
 }
 
 # A single autonomous turn is one specialist answering one specific, already-scoped question.

@@ -18,8 +18,8 @@ class FakeEmailService:
     def __init__(self) -> None:
         self.sent: list[dict] = []
 
-    def send(self, to, subject, body, cc=None):
-        self.sent.append({"to": to, "subject": subject, "body": body, "cc": cc})
+    def send(self, to, subject, body, cc=None, *, html=None):
+        self.sent.append({"to": to, "subject": subject, "body": body, "cc": cc, "html": html})
         return EmailSendResult(sent=True)
 
 
@@ -186,3 +186,105 @@ def test_resolve_approval_unknown_token(monkeypatch):
     _patch_common(monkeypatch, FakeEmailService())
     result = approvals.resolve_approval("does-not-exist", "approved")
     assert result == {"error": "not_found"}
+
+
+def test_html_override_is_sent_immediately_and_verbatim(monkeypatch):
+    # contact_vendor_for_reorder (agents/supply/agent.py) renders its own itemized purchase
+    # order document and passes it as `html` — perform_or_request must send it verbatim rather
+    # than falling back to the generic action_sent() wrapper.
+    fake_email = FakeEmailService()
+    _patch_common(
+        monkeypatch, fake_email, policies={"vendor_reorder": {"requires_approval": False}}
+    )
+    approvals.perform_or_request(
+        "vendor_reorder",
+        "vendor@example.com",
+        "MedSupply Primary",
+        "Reorder gloves",
+        "plain body",
+        "supply_chain_agent",
+        html="<html>real po document</html>",
+    )
+    assert fake_email.sent[0]["html"] == "<html>real po document</html>"
+    assert fake_email.sent[0]["body"] == "plain body"
+
+
+def test_html_override_survives_the_approval_gate(monkeypatch):
+    fake_email = FakeEmailService()
+    store = _patch_common(
+        monkeypatch,
+        fake_email,
+        policies={"vendor_reorder": {"requires_approval": True, "approver_email": "mgr@x.com"}},
+    )
+    result = approvals.perform_or_request(
+        "vendor_reorder",
+        "vendor@example.com",
+        "MedSupply Primary",
+        "Reorder gloves",
+        "plain body",
+        "supply_chain_agent",
+        html="<html>real po document</html>",
+    )
+    token = result["approval_id"]
+    assert store[token]["html"] == "<html>real po document</html>"
+    fake_email.sent.clear()
+
+    approvals.resolve_approval(token, "approved")
+    # The final send to the vendor uses the stored document, not the generic wrapper — the
+    # approval-request email to the manager (already sent above, now cleared) is the only place
+    # the generic approval_request() template applies.
+    assert fake_email.sent[0]["html"] == "<html>real po document</html>"
+
+
+def test_expired_approval_cannot_be_resolved(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    fake_email = FakeEmailService()
+    store = _patch_common(
+        monkeypatch,
+        fake_email,
+        policies={"vendor_reorder": {"requires_approval": True, "approver_email": "mgr@x.com"}},
+    )
+    result = approvals.perform_or_request(
+        "vendor_reorder",
+        "vendor@example.com",
+        "MedSupply Primary",
+        "Reorder gloves",
+        "body",
+        "supply_chain_agent",
+    )
+    token = result["approval_id"]
+    # Back-date the record past the TTL, exactly like a real link that's sat unread for a month.
+    store[token]["expires_at"] = datetime.now(timezone.utc) - timedelta(days=1)
+    fake_email.sent.clear()
+
+    outcome = approvals.resolve_approval(token, "approved")
+    assert outcome == {"error": "expired"}
+    assert store[token]["status"] == "expired"
+    assert len(fake_email.sent) == 0
+
+
+def test_approval_without_expires_at_is_never_treated_as_expired(monkeypatch):
+    # Records written before this field existed have no expires_at at all — _is_expired must
+    # treat that as "not expired," not crash or reject every pre-existing pending approval.
+    fake_email = FakeEmailService()
+    store = _patch_common(
+        monkeypatch,
+        fake_email,
+        approvals_store={
+            "legacy-token": {
+                "status": "pending",
+                "task_type": "vendor_reorder",
+                "to": "vendor@example.com",
+                "recipient_label": "MedSupply Primary",
+                "subject": "Reorder",
+                "body": "body",
+                "requested_by": "supply_chain_agent",
+                "notify_emails": [],
+                "notify_on_complete": False,
+            }
+        },
+    )
+    outcome = approvals.resolve_approval("legacy-token", "approved")
+    assert outcome["status"] == "approved"
+    assert store["legacy-token"]["status"] == "approved"

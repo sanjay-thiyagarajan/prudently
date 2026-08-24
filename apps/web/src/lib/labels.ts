@@ -49,6 +49,15 @@ export const STATUS_LABEL: Record<string, string> = {
   ordered: "Ordered",
   received: "Received",
   invoiced: "Invoiced",
+  // surgical cases
+  scheduled: "Scheduled",
+  confirmed: "Confirmed",
+  delayed: "Delayed",
+  in_progress: "In progress",
+  cancelled: "Cancelled",
+  consent_declined: "Consent declined",
+  // job sheets
+  open: "Open",
 };
 
 export function statusLabel(status: string): string {
