@@ -3,6 +3,7 @@
 import { Loader2, Radio, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useAuth } from "@/contexts/AuthContext";
 import { triggerWatchCheck, useWatchStatus } from "@/lib/api/watch";
 
 interface BoardStripProps {
@@ -67,6 +68,7 @@ export function BoardStrip({
   autonomousToday,
 }: BoardStripProps) {
   const { status, refresh } = useWatchStatus();
+  const { idToken } = useAuth();
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -79,10 +81,11 @@ export function BoardStrip({
   }, []);
 
   async function runCheckNow() {
+    if (!idToken) return;
     setChecking(true);
     setError(null);
     try {
-      await triggerWatchCheck();
+      await triggerWatchCheck(idToken);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fleet check failed.");
@@ -146,7 +149,7 @@ export function BoardStrip({
           <button
             type="button"
             onClick={runCheckNow}
-            disabled={checking}
+            disabled={checking || !idToken}
             title="Run one fleet watch cycle immediately, without waiting for the interval"
             className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-ink-primary)] transition-colors hover:bg-[var(--color-surface-hover)] disabled:opacity-50"
           >

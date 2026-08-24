@@ -1,23 +1,29 @@
 """Cloud Trace / Cloud Logging query routes — on-demand fetches for the agent detail page's
 trace/log viewer, not a polled feed. A trace is fetched only when a manager clicks a specific
 activity_log entry that carries a trace_id (see services/state.py's log_activity); logs are
-fetched per agent, filtered by that agent's own Reasoning Engine resource label. Public, same
-rationale as routes/agents.py and routes/dashboard.py: read-only, no financial/PII data, and
-judges need the hosted URL reachable without a login present."""
+fetched per agent, filtered by that agent's own Reasoning Engine resource label.
+
+Auth-gated, unlike routes/agents.py/routes/dashboard.py (docs/threat-model.md finding 2): a raw
+trace's span attributes carry the real manager_email and unredacted subjects (email_gmail.py
+sets them as span attributes on every send), and raw log payloads are unfiltered text — neither
+went through services/redaction.py, so this surface bypassed every redaction path built for the
+public overview. This is the agent detail page's own "technical detail" drill-down, not the
+judge-facing overview, so gating it costs nothing a judge needs."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from google.cloud import logging as cloud_logging
 from google.cloud.trace_v1 import TraceServiceClient
 
+from services.auth import require_firebase_auth
 from services.state import FIRESTORE_PROJECT_ID, get_agent_registry
 
 router = APIRouter(tags=["observability"])
 
 
 @router.get("/traces/{trace_id}")
-def get_trace(trace_id: str) -> dict:
+def get_trace(trace_id: str, _uid: str = Depends(require_firebase_auth)) -> dict:
     """Fetches one Cloud Trace trace by ID and returns its spans as a flat list the frontend
     can render as a waterfall, sorted by start time. 404s (rather than a 500) for a trace ID
     that doesn't exist or hasn't finished exporting yet — Cloud Trace's own export is
@@ -46,13 +52,17 @@ def get_trace(trace_id: str) -> dict:
 
 
 @router.get("/agents/{agent_name}/logs")
-def get_agent_logs(agent_name: str, limit: int = 50) -> dict:
+def get_agent_logs(
+    agent_name: str, limit: int = 50, _uid: str = Depends(require_firebase_auth)
+) -> dict:
     """Recent Cloud Logging entries for the Reasoning Engine hosting `agent_name`, filtered by
     that engine's `reasoning_engine_id` resource label (present on every
     aiplatform.googleapis.com/ReasoningEngine log entry). Coordinator's own engine bundles
     Shift/Inventory/Supply/HR/Chaos's flattened logic when reached via
     Coordinator, so log entries returned for those agents when invoked through Coordinator are
     engine-scoped, not cleanly agent-scoped — same caveat as the trace viewer."""
+    limit = min(limit, 200)  # was unbounded — a caller-supplied limit shouldn't drive an
+    # arbitrarily large Cloud Logging read.
     entry = next((a for a in get_agent_registry() if a["agent_name"] == agent_name), None)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"Unknown agent '{agent_name}'.")

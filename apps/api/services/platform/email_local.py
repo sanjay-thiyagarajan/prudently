@@ -11,7 +11,13 @@ from .email import EmailSendResult  # pylint: disable=cyclic-import
 
 
 class LocalEmailService:  # pylint: disable=too-few-public-methods
-    def send(  # pylint: disable=unused-argument
-        self, to: str, subject: str, body: str, cc: list[str] | None = None
+    def send(  # pylint: disable=unused-argument,too-many-arguments,too-many-positional-arguments
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        cc: list[str] | None = None,
+        *,
+        html: str | None = None,
     ) -> EmailSendResult:
         return EmailSendResult(sent=True, reason="EMAIL_BACKEND=local — not actually sent.")

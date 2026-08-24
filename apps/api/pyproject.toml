@@ -22,6 +22,8 @@ dependencies = [
     "firebase-admin>=6.5",
     "opentelemetry-instrumentation-httpx>=0.63b1",
     "opentelemetry-instrumentation-asgi>=0.63b1",
+    "slowapi>=0.1.9",
+    "google-cloud-kms>=3.0",
 ]
 
 [dependency-groups]
@@ -57,6 +59,7 @@ include = [
     "agents/inventory/par_levels.py",
     "agents/supply/reorder.py",
     "agents/hr/credentialing.py",
+    "agents/surgical_scheduling/conflicts.py",
     "services/platform/armor_local.py",
     "services/platform/gateway_local.py",
     "services/admissions.py",
@@ -64,6 +67,7 @@ include = [
     "services/inventory_sim.py",
     "services/triggers.py",
     "services/redaction.py",
+    "services/platform/rate_limit.py",
 ]
 omit = ["tests/*", "evals/*"]
 

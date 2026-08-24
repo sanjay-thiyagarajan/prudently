@@ -121,6 +121,34 @@ def _redact_recipient_labels(payload: dict) -> None:
             approval["subject"] = _GENERIC_SUBJECT.get(task_type, "Action for a staff member")
 
 
+def _redact_activity_log(payload: dict) -> None:
+    """Genericises `activity_log[].summary` for staff-directed task types, in place.
+
+    Fixes a real gap: `redact_agent_detail` redacted the `approvals` list's `subject` for these
+    same task types but never touched `activity_log`, which is populated from the identical
+    `subject` string at the same call sites (`services/platform/approvals.py`'s
+    `_request_approval`/`perform_or_request`/`resolve_approval`, all of which pass
+    `tool_name=task_type`) — so `GET /agents/hr_agent` (anonymous) returned the exact
+    per-employee text the `approvals` redaction was built to hide, through a sibling field.
+    """
+    entries = payload.get("activity_log")
+    if not isinstance(entries, list):
+        return
+    withheld = 0
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        task_type = entry.get("tool_name")
+        if task_type in _STAFF_DIRECTED_TASKS:
+            entry["summary"] = _GENERIC_SUBJECT.get(task_type, "Action for a staff member")
+            withheld += 1
+    if withheld:
+        payload.setdefault("_redacted", {})["activity_log"] = {
+            "withheld_count": withheld,
+            "reason": _REASON,
+        }
+
+
 def _redact_chaos_results(payload: dict) -> None:
     """Drops the per-staff rows out of chaos what-if results, in place."""
     experiments = payload.get("chaos_experiments")
@@ -180,5 +208,6 @@ def redact_agent_detail(payload: dict, *, authenticated: bool) -> dict:
     _redact_agent_prose(redacted)
     _redact_recipient_labels(redacted)
     _redact_chaos_results(redacted)
+    _redact_activity_log(redacted)
     redacted["_public_view"] = True
     return redacted

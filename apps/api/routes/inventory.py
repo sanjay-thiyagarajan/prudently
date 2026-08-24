@@ -1,7 +1,8 @@
-"""Inventory movement history + purchase-order lifecycle — public reads (same treatment as
-the existing Inventory/Supply Chain panels via /dashboard/overview, operational data, not
-compensation or manager-config data), auth-gated writes for the two consequential state
-transitions (receive, invoice), mirroring routes/policy.py's write-gating pattern."""
+"""Inventory movement history + purchase-order lifecycle — auth-gated reads (docs/threat-
+model.md finding 2: PO records carry unit_cost/total_cost, the same class of financial data
+payroll.py already hard-gates; these were inconsistently left public), auth-gated writes for the
+two consequential state transitions (receive, invoice), mirroring routes/policy.py's
+write-gating pattern."""
 
 from __future__ import annotations
 
@@ -22,12 +23,16 @@ router = APIRouter(prefix="/inventory", tags=["inventory"])
 
 
 @router.get("/transactions")
-def list_transactions(sku: str | None = None) -> list[dict]:
+def list_transactions(
+    sku: str | None = None, _uid: str = Depends(require_firebase_auth)
+) -> list[dict]:
     return get_inventory_transactions(sku=sku)
 
 
 @router.get("/purchase-orders")
-def list_purchase_orders(vendor_id: str | None = None) -> list[dict]:
+def list_purchase_orders(
+    vendor_id: str | None = None, _uid: str = Depends(require_firebase_auth)
+) -> list[dict]:
     orders = get_purchase_orders()
     if vendor_id is not None:
         orders = [po for po in orders if po.get("vendor_id") == vendor_id]
@@ -35,7 +40,7 @@ def list_purchase_orders(vendor_id: str | None = None) -> list[dict]:
 
 
 @router.get("/purchase-orders/{po_id}")
-def get_purchase_order_detail(po_id: str) -> dict:
+def get_purchase_order_detail(po_id: str, _uid: str = Depends(require_firebase_auth)) -> dict:
     po = get_purchase_order(po_id)
     return po if po is not None else {"error": "not_found"}
 

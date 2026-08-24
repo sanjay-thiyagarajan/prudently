@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from agents.shift.burndown import compute_burndown, unit_summary
+from agents.shift.burndown import compute_burndown, duty_job_sheet, unit_summary
 
 TODAY = date(2026, 8, 21)
 
@@ -110,3 +110,30 @@ def test_unit_summary_aggregates_risk_counts():
     assert summary["ER"]["critical"] == 1
     assert summary["ER"]["safe"] == 1  # er-01 untouched
     assert summary["ICU"]["safe"] == 1
+
+
+class TestDutyJobSheet:
+    def test_only_the_requested_unit_is_included(self):
+        records = compute_burndown(STAFF, [], TODAY)
+        sheet = duty_job_sheet(STAFF, records, "ER")
+        assert sheet["unit"] == "ER"
+        assert {s["staff_id"] for s in sheet["staff"]} == {"er-00", "er-01"}
+
+    def test_carries_role_and_current_fatigue_status(self):
+        shifts = [shift("er-00", d, 8) for d in range(7)]  # er-00 critical
+        records = compute_burndown(STAFF, shifts, TODAY)
+        sheet = duty_job_sheet(STAFF, records, "ER")
+        by_id = {s["staff_id"]: s for s in sheet["staff"]}
+        assert by_id["er-00"]["risk_level"] == "critical"
+        assert by_id["er-00"]["role"] == "nurse"
+        assert by_id["er-01"]["risk_level"] == "safe"
+
+    def test_unit_with_no_staff_returns_an_empty_roster_not_a_crash(self):
+        records = compute_burndown(STAFF, [], TODAY)
+        sheet = duty_job_sheet(STAFF, records, "Pharmacy")
+        assert sheet == {"unit": "Pharmacy", "staff": []}
+
+    def test_roster_is_sorted_by_role_then_name(self):
+        records = compute_burndown(STAFF, [], TODAY)
+        sheet = duty_job_sheet(STAFF, records, "ER")
+        assert [s["name"] for s in sheet["staff"]] == ["Nurse ER-00", "Nurse ER-01"]

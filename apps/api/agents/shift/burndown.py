@@ -84,6 +84,27 @@ def compute_burndown(
     return records
 
 
+def duty_job_sheet(staff: list[dict], burndown_records: list[dict], unit: str) -> dict:
+    """A per-unit duty roster: who's assigned, their role, and their current fatigue status —
+    the thing a shift supervisor would actually pin to a board. Built from the same
+    `burndown_records` `compute_burndown` already produced, not a second computation over
+    `shifts` — this function never touches Firestore or the raw shift history itself."""
+    risk_by_id = {r["staff_id"]: r for r in burndown_records}
+    roster = [
+        {
+            "staff_id": member["staff_id"],
+            "name": member["name"],
+            "role": member["role"],
+            "risk_level": risk_by_id.get(member["staff_id"], {}).get("risk_level", "safe"),
+            "trailing_hours": risk_by_id.get(member["staff_id"], {}).get("trailing_hours", 0.0),
+        }
+        for member in staff
+        if member["unit"] == unit
+    ]
+    roster.sort(key=lambda r: (r["role"], r["name"]))
+    return {"unit": unit, "staff": roster}
+
+
 def unit_summary(burndown_records: list[dict]) -> dict[str, dict]:
     """Aggregate per-unit counts of at-risk staff — what the Coordinator/dashboard actually
     wants to show at a glance rather than the full per-staff list."""

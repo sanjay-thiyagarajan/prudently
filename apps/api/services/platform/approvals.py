@@ -15,11 +15,13 @@ nothing in this codebase could resume the agent turn that requested it."""
 from __future__ import annotations
 
 import secrets
+from datetime import datetime, timedelta, timezone
 
 from google.cloud import firestore
 
 from config import PUBLIC_API_BASE_URL, get_settings
 from services.platform.email import get_email_service
+from services.platform.email_templates import action_sent, approval_request
 from services.platform.observability import get_observability_service
 from services.state import (
     get_approval,
@@ -37,6 +39,20 @@ _DEFAULT_POLICY = {
     "notify_emails": [],
     "notify_on_complete": True,
 }
+
+# docs/threat-model.md finding 4: a bearer-capability token with no expiry is a permanent
+# credential once leaked from an inbox or an intermediate mail-scanner's log. 14 days comfortably
+# covers "the manager was on vacation," which is the real failure mode this has to tolerate —
+# an approval nobody acted on in two weeks should require a fresh look anyway, not stay silently
+# actionable forever.
+APPROVAL_TTL = timedelta(days=14)
+
+
+def _is_expired(record: dict) -> bool:
+    expires_at = record.get("expires_at")
+    if expires_at is None:
+        return False  # pre-existing records written before this field existed
+    return datetime.now(timezone.utc) > expires_at
 
 
 def check_policy(task_type: str) -> dict:
@@ -108,7 +124,7 @@ def _create_purchase_order_if_applicable(task_type: str, metadata: dict | None) 
 # Internal helper, called from exactly one call site (perform_or_request) purely to keep that
 # function's own local-variable count under pylint's threshold — the parameter count here is a
 # direct consequence of that split, not a design smell worth restructuring further.
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments,too-many-locals
 def _request_approval(
     task_type: str,
     to: str,
@@ -119,9 +135,11 @@ def _request_approval(
     policy: dict,
     trace_id,
     metadata: dict | None = None,
+    html: str | None = None,
 ) -> dict:
     token = secrets.token_urlsafe(24)
     approver_email = policy["approver_email"] or get_settings().manager_email
+    expires_at = datetime.now(timezone.utc) + APPROVAL_TTL
 
     write_approval(
         token,
@@ -132,22 +150,34 @@ def _request_approval(
             "recipient_label": recipient_label,
             "subject": subject,
             "body": body,
+            # A task-specific rendered document (e.g. contact_vendor_for_reorder's itemized PO
+            # — see agents/supply/agent.py) that resolve_approval should send verbatim once
+            # decided, instead of falling back to the generic action_sent() wrapper. None for
+            # every task type that doesn't render its own document.
+            "html": html,
             "requested_by": requested_by,
             "notify_emails": policy["notify_emails"],
             "notify_on_complete": policy["notify_on_complete"],
             "timestamp": firestore.SERVER_TIMESTAMP,
             "decided_at": None,
+            "expires_at": expires_at,
             "metadata": metadata,
         },
     )
 
-    request_body = (
-        f"{requested_by} wants to: {subject}\n\nTo: {recipient_label}\n\n{body}\n\n"
-        f"Approve: {PUBLIC_API_BASE_URL}/approvals/{token}/approve\n"
-        f"Reject: {PUBLIC_API_BASE_URL}/approvals/{token}/reject\n"
+    approve_url = f"{PUBLIC_API_BASE_URL}/approvals/{token}/approve"
+    reject_url = f"{PUBLIC_API_BASE_URL}/approvals/{token}/reject"
+    request_plain, request_html = approval_request(
+        requested_by=requested_by,
+        subject=subject,
+        recipient_label=recipient_label,
+        body=body,
+        approve_url=approve_url,
+        reject_url=reject_url,
+        expires_at=expires_at.date(),
     )
     request_result = get_email_service().send(
-        approver_email, f"Approval needed: {subject}", request_body
+        approver_email, f"Approval needed: {subject}", request_plain, html=request_html
     )
     _log(task_type, approver_email, f"Approval needed: {subject}", request_result, trace_id)
 
@@ -182,6 +212,7 @@ def perform_or_request(
     body: str,
     requested_by: str,
     metadata: dict | None = None,
+    html: str | None = None,
 ) -> dict:
     """The single entry point every approval-gated tool calls. `to` is the address actually
     used (routed to the operations mailbox for demo safety — see the four agent tools'
@@ -190,6 +221,13 @@ def perform_or_request(
     is the real-world party a human should see instead ("MedSupply Primary", "Tech ER-00") —
     it's what the pending-approval message, the Firestore record, and the confirm-page all
     show, so the demo reads as "contacting the vendor," not "contacting the ops mailbox."
+
+    `html`: an already-rendered document (services/platform/email_templates.py) a caller wants
+    sent verbatim once the action actually happens — e.g. contact_vendor_for_reorder's itemized
+    purchase-order document — instead of the generic action_sent() wrapper this function falls
+    back to when `html` is None. Only the *final* send (immediate, or post-approval) ever uses
+    it; the approval-request email itself always uses the generic wrapper, since that email is
+    Prudently asking the manager for a decision, not the document itself.
 
     If the manager-configured policy for `task_type` doesn't require approval, sends
     immediately (copying any configured notify_emails) and returns a normal success dict. If
@@ -204,7 +242,13 @@ def perform_or_request(
         if not policy["requires_approval"]:
             span.set_attribute("approvals.decision", "sent_immediately")
             notify = policy["notify_emails"] if policy["notify_on_complete"] else None
-            result = get_email_service().send(to, subject, body, cc=notify)
+            if html:
+                sent_plain, sent_html = body, html
+            else:
+                sent_plain, sent_html = action_sent(
+                    subject=subject, recipient_label=recipient_label, body=body
+                )
+            result = get_email_service().send(to, subject, sent_plain, cc=notify, html=sent_html)
             _log(task_type, to, subject, result, span.trace_id)
             _create_purchase_order_if_applicable(task_type, metadata)
             try:
@@ -236,6 +280,7 @@ def perform_or_request(
             policy,
             span.trace_id,
             metadata,
+            html,
         )
 
 
@@ -253,13 +298,26 @@ def resolve_approval(token: str, decision: str) -> dict:
         if record["status"] != "pending":
             span.set_attribute("approvals.outcome", "already_decided")
             return {"error": "already_decided", "status": record["status"]}
+        if _is_expired(record):
+            span.set_attribute("approvals.outcome", "expired")
+            update_approval(token, {"status": "expired", "decided_at": firestore.SERVER_TIMESTAMP})
+            return {"error": "expired"}
 
         if decision == "approved":
+            if record.get("html"):
+                sent_plain, sent_html = record["body"], record["html"]
+            else:
+                sent_plain, sent_html = action_sent(
+                    subject=record["subject"],
+                    recipient_label=record.get("recipient_label", record["to"]),
+                    body=record["body"],
+                )
             result = get_email_service().send(
                 record["to"],
                 record["subject"],
-                record["body"],
+                sent_plain,
                 cc=record["notify_emails"] if record["notify_on_complete"] else None,
+                html=sent_html,
             )
             _log(record["task_type"], record["to"], record["subject"], result, span.trace_id)
             _create_purchase_order_if_applicable(record["task_type"], record.get("metadata"))

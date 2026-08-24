@@ -13,6 +13,7 @@ export const TASK_LABEL: Record<string, string> = {
   notify_staff_credential_escalation: "Notify staff — credential escalation",
   notify_staff_reallocation: "Notify staff — shift reallocation",
   send_vendor_reply: "Reply to vendor",
+  notify_patient_of_status_change: "Notify patient — status change",
 };
 
 export function PolicyRow({ policy }: { policy: ApprovalPolicy }) {

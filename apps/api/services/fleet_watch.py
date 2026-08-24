@@ -34,6 +34,7 @@ from datetime import date
 from agents.hr.credentialing import compute_credential_status
 from agents.inventory.par_levels import compute_par_levels
 from agents.shift.burndown import compute_burndown, unit_summary
+from agents.surgical_scheduling.conflicts import detect_conflicts
 from config import get_settings
 from services.autonomy import run_triggers
 from services.inventory_sim import compute_consumption_delta
@@ -43,6 +44,7 @@ from services.state import (
     get_inventory,
     get_shift_history,
     get_staff_roster,
+    get_surgical_cases,
     get_watch_state,
     write_inventory_transaction,
     write_watch_state,
@@ -112,6 +114,7 @@ async def _compute_snapshot(ctx: dict) -> None:
     burndown = compute_burndown(staff, shifts, as_of=date.today())
     ctx["unit_summary"] = unit_summary(burndown)
     ctx["credential_records"] = compute_credential_status(staff, as_of=date.today())
+    ctx["conflicts"] = detect_conflicts(get_surgical_cases(caller="fleet_watch"))
 
 
 async def _write_memory_facts(ctx: dict) -> None:
@@ -160,6 +163,7 @@ async def _detect_and_act(ctx: dict) -> None:
         ctx["credential_records"],
         ctx["watch_state"],
         ctx["as_of"],
+        conflicts=ctx["conflicts"],
     )
     next_state["cycle"] = ctx["cycle"]
     write_watch_state(next_state)

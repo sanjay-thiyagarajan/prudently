@@ -15,7 +15,7 @@ from services.platform.approvals import perform_or_request
 from services.platform.observability import get_observability_service
 from services.state import get_shift_history, get_staff_roster
 
-from .burndown import compute_burndown, unit_summary
+from .burndown import compute_burndown, duty_job_sheet, unit_summary
 
 bootstrap_gemini_credentials()
 
@@ -67,6 +67,18 @@ def get_shift_burndown() -> dict:
         "staff_burndown": records,
         "unit_summary": unit_summary(records),
     }
+
+
+def generate_duty_job_sheet(unit: str) -> dict:
+    """Returns today's duty roster for `unit`: every assigned staff member, their role, and
+    their current fatigue status — the printable sheet a shift supervisor would post. Read-only,
+    no approval gate (an informational roster, not a consequential action) — use this when asked
+    for "today's roster/duty sheet" for a unit, as distinct from get_shift_burndown's
+    fleet-wide risk view."""
+    staff = get_staff_roster()
+    shifts = get_shift_history()
+    records = compute_burndown(staff, shifts, as_of=date.today())
+    return duty_job_sheet(staff, records, unit)
 
 
 def notify_staff_reallocation(staff_id: str, new_unit: str, shift_date: str) -> dict:
@@ -127,11 +139,14 @@ root_agent = Agent(
         "actually notify a staff member of a reallocation, call notify_staff_reallocation — "
         "this may require manager approval first, in which case the tool returns a "
         "pending_approval status; report that plainly ('awaiting manager approval') rather "
-        "than claiming the staff member was notified."
+        "than claiming the staff member was notified. When asked for today's duty roster or "
+        "job sheet for a unit, call generate_duty_job_sheet rather than get_shift_burndown — "
+        "it returns exactly the staff/role/status list for that one unit."
     ),
     tools=[
         FunctionTool(get_shift_burndown),
         FunctionTool(recall_unit_history),
         FunctionTool(notify_staff_reallocation),
+        FunctionTool(generate_duty_job_sheet),
     ],
 )

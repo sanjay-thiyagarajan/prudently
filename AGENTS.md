@@ -1023,3 +1023,333 @@ units' fatigue, 5 expired credentials, 2 tight SKUs — matching the live data p
 project: the fastest way to prove the fleet watch's edge-triggering logic was correct was to
 watch it get raced by a real timing bug and then confirm the *next* clean run produced exactly
 the right count, live, against real Firestore state — not a unit test with synthetic input.
+
+## Real-PII-ready security hardening + HTML email + four new features (Aug 23-24)
+
+User-directed: the logo/favicon weren't rendering, session management needed a real design, and
+"this platform is meant for hospital data (PII)" — so it should be **architected for real PII
+from day one**, with a real threat model and a fix for every finding, real HTML email instead of
+plain text, and four new features (staff duty job sheets, facilities job sheets, purchase-order
+documents, surgical scheduling + patient notifications) built together with the hardening rather
+than after it, since the new features are exactly what the hardening has to hold up against.
+**Resolving principle, stated explicitly because it's the one real tension in this brief:** the
+*controls* are built to real-PII standards (field-level encryption, RBAC, consent-gated
+notifications, audit logging) — the *data actually entered* stays fabricated test data, same
+honest-synthetic discipline `packages/datagen` already uses everywhere else. Never real people.
+
+**Threat model: `docs/threat-model.md`.** Ten STRIDE findings, each backed by a file:line
+citation, not assumed — an unauthenticated A2A mount and unauthenticated mutating watch routes
+(Spoofing/DoS), fully public `traces`/`inventory`/`vendors` routes and an `activity_log`
+redaction gap that leaked staff names to anonymous callers, approval tokens with no expiry or
+rate limit, no session revocation, no RBAC, unescaped HTML interpolation on the approvals
+confirm page, wildcard CORS, the shared Reasoning Engine identity's blast radius, and no CI/
+dependency scanning. Every finding maps to a specific fix below; the doc's closing table is the
+actual remediation plan, not just a list of problems.
+
+**Security remediation, one fix per finding.** `services/auth.py`: `verify_id_token(...,
+check_revoked=True)` (revocation now actually checked, not just token-signature-valid), a
+generic 401 detail instead of echoing verifier internals, `require_role(*roles)` built on
+`require_firebase_auth` reading a `role` custom claim (`scripts/set_user_role.py`, a one-time
+admin CLI), and `POST /auth/sign-out-everywhere` (`routes/auth.py`) calling
+`firebase_auth.revoke_refresh_tokens(uid)` server-side — wired to a real "Sign out everywhere"
+control in `Sidebar.tsx`, plus a 15-minute client-side idle timeout in `AuthContext.tsx`.
+`app.py` gained a `SharedSecretASGIMiddleware` on the A2A mount (`X-A2A-Shared-Secret`, Secret
+Manager-backed, fail-closed if the secret is unreachable — `agents/supply/agent.py`'s
+`RemoteA2aAgent` sends it via an httpx event hook) and an explicit CORS origin allowlist
+replacing `["*"]`. `routes/watch.py`'s mutating routes, `routes/traces.py`, and the GET routes
+on `routes/inventory.py`/`routes/vendors.py` moved onto `require_firebase_auth`.
+`services/redaction.py`'s `redact_agent_detail` now also strips `activity_log[].summary` for
+anonymous callers. `routes/approvals.py`'s confirm page runs every interpolated value through
+`html.escape()`. `services/platform/approvals.py` gained a 14-day `expires_at` on every
+approval, checked before a token can resolve. `services/platform/rate_limit.py` (new) wraps
+`slowapi`, applied to every public POST — **two real bugs found live, not in review**: slowapi's
+default `key_func=get_remote_address` reads `request.client.host`, which behind Cloud Run's load
+balancer is the LB's own connection peer rather than a stable per-client key (fixed with a
+custom `_real_client_ip` reading `X-Forwarded-For`'s first hop), and slowapi's default
+`key_style="url"` folds the literal request path — including an interpolated `{token}` path
+segment — into the bucket key, so a burst using a *different* candidate token per request (the
+realistic brute-force case) never rate-limited even with a stable IP key (fixed with
+`key_style="endpoint"`). Both were isolated by hitting the *same* path repeatedly first (which
+did rate-limit correctly, proving the decorator/middleware wiring was never the problem) before
+tracing the discrepancy to path-keying specifically. `.github/workflows/ci.yml` (lint + test on
+PR) and `.github/dependabot.yml` (npm + pip, weekly) are new — this repo had neither before.
+`services/platform/access_control.py` (new) is this project's honestly-framed answer to the one
+finding with no platform-level fix available: Agent Engine has no per-agent `--service_account`,
+so every deployed agent shares one Reasoning Engine identity with a project-wide
+`roles/datastore.user` grant. `require_access(caller)` checks a self-declared caller identity
+against an explicit allowlist (`surgical_scheduling_agent`, `dashboard_route`, `fleet_watch`)
+before any `patients`/`surgical_cases` accessor in `services/state.py` proceeds — its own
+docstring is explicit that this is a real, useful catch against *accidental* cross-agent access
+(a function added to the wrong agent module) and not cryptographic enforcement against a
+genuinely malicious caller, which no application-layer check can be on this platform.
+
+**HTML email: `services/platform/email_templates.py` (new).** One dark-branded shell (inlined
+base64 logo, matching the dashboard's mission-control palette) plus five render functions —
+`approval_request`, `action_sent`, `purchase_order`, `job_sheet`, `patient_notification` — each
+returning `(plain_text, html)`. `email_gmail.py` now builds a real `MIMEMultipart("alternative")`
+carrying both parts; every `EmailService.send()` call site across `services/platform/
+approvals.py`, the new job-sheets route, and the supply/surgical-scheduling agents passes
+through a template function instead of a raw f-string. `routes/approvals.py`'s confirm page gets
+the same shell. **Caught by an actual Playwright screenshot pass, not code review:** the Reject
+button's unfilled/outline style rendered with no visible border at all — invisible, not just
+plain — fixed by giving `_button(..., filled: bool)` an explicit outlined style for the unfilled
+case.
+
+**Four new features.** (1) **Staff duty job sheets** — `agents/shift/burndown.py` gained a pure
+`duty_job_sheet(staff, burndown_records, unit)`; `routes/job_sheets.py`'s `GET /job-sheets/
+duty/{unit}` calls it directly with no LLM turn (a read-only reformat of data Shift's tools
+already compute identically would be pure latency spent on nothing). (2) **Facilities job
+sheets** — deliberately **not** a new agent: a maintenance ticket doesn't need a model to reason
+about it, and a new Reasoning Engine (its own Terraform SA, `requirements.txt`, Gateway policy
+entry, Coordinator `--extra_packages`, deploy step) is real infrastructure spent on a domain
+with no autonomy story. Plain CRUD against a new `job_sheets` Firestore collection,
+`require_firebase_auth`-gated. (3) **Purchase-order documents** — no new agent or data model;
+`agents/supply/agent.py`'s existing `contact_vendor_for_reorder` now renders a real PO through
+the `purchase_order` template instead of a plain-text body. (4) **Surgical scheduling + patient
+notifications** — the one genuinely new domain, and where the real-PII architecture actually
+lives. New `patients`/`surgical_cases` Firestore collections (`packages/datagen/datagen/
+patients.py`, same honest-fabrication discipline as `roster.py` — a small combinatorial name
+pool, never a real-person source). `services/platform/crypto.py` (new platform adapter,
+`crypto_kms.py`/`crypto_local.py`) does direct per-field Cloud KMS encrypt/decrypt — not
+envelope encryption with a local DEK, since every protected value (a name, a DOB, an email, a
+phone number) is a few dozen bytes, comfortably inside KMS's payload limit, so a locally-managed
+DEK would buy nothing a direct call doesn't already provide. `infra/terraform/modules/kms/` (new)
+provisions the key ring/key with 90-day rotation and IAM scoped to only the shared Reasoning
+Engine identity + Coordinator's own SA. `services/state.py` encrypts `name`/`date_of_birth`/
+`contact_email`/`contact_phone` on every `patients` write and decrypts only for callers that
+already passed `require_access`. `agents/surgical_scheduling/` (new agent, `AGENT_NAME =
+"surgical_scheduling_agent"`) has four tools: `get_surgical_schedule`/
+`detect_scheduling_conflicts` (never decrypt or return patient identity — a schedule/conflict
+view only ever needs case_id/room/surgeon/time, and the fewer tools that ever see a decrypted
+name, the smaller the surface a compromised turn could leak it through), `update_case_status`
+(not approval-gated — an internal record change), and `notify_patient_of_status_change`
+(approval-gated through the existing `perform_or_request`, sends only if
+`notification_consent_email` is true, every send/decline logged to a dedicated
+`patient_notification_log` — separate from `activity_log` because PHI-adjacent access deserves
+its own audit trail). Conflict detection (`agents/surgical_scheduling/conflicts.py`) is a pure
+function over plain dicts, unit-tested exhaustively (11 tests) the same way as `burndown.py`/
+`par_levels.py`; `services/triggers.py` gained a `schedule_conflict` trigger kind
+(`detect_schedule_conflict_triggers`), same edge-triggered discipline as the other three axes.
+`services/fleet_watch.py` computes conflicts every real-time cycle (`caller="fleet_watch"`, the
+one non-agent, non-route entry in `access_control.py`'s allowlist, since this read never touches
+`patients` — only the PII-free `surgical_cases` collection) and feeds them into `detect_all`.
+`routes/surgical_scheduling.py` (new) gives the dashboard `GET /cases` (any authenticated role —
+no patient identity on this shape at all) and `GET/POST /cases/{case_id}` +
+`.../status`/`.../notify` (`require_role("admin", "clinician")` — the one place decrypted
+identity reaches the browser, closing threat-model finding 6 for real). The manual notify route
+reuses the agent tool's own logic (`notify_patient_of_status_change_as`, exported specifically
+for this) rather than re-implementing the encryption/consent/approval/audit path a second time —
+but with its own `caller="dashboard_route"`/`requested_by="manager_dashboard"` rather than
+silently borrowing the agent's identity, which would misattribute a human-initiated action to
+the fleet, the same conflation this file's autonomous-watch section calls out for `initiated_by`
+in the opposite direction. `notify_patient_of_status_change`'s tool-facing signature deliberately
+does **not** take `caller`/`requested_by` as parameters, even though the reusable core does:
+ADK's `FunctionTool` only strips a `tool_context` parameter from what it hands the model, so a
+`caller` kwarg on the LLM-facing function would let the model (or a successful prompt injection)
+supply its own value for either, reaching the access-control allowlist and the approval audit
+trail. Only trusted Python call sites choose those two values. Wired into the Coordinator
+(sixth `AgentTool`) and the Gateway's `_POLICY_TABLE`; `scripts/seed_registry.py` and
+`scripts/seed_policy.py` both gained the new agent's entries; `routes/dashboard.py`'s
+`build_overview()` gained a `surgical_schedule` slice (cases + conflicts, no PII, safe on the
+public feed like admissions); `routes/agents.py`'s `_AGENT_TASK_TYPE`/`_AGENT_LIVE_STATE_KEYS`
+and the frontend's `AGENT_META`/`TASK_LABEL` maps all got the new agent's entries too — a
+registry row with no frontend meta entry was the most likely way the fleet overview would have
+silently broken.
+
+**A generator bug caught before it ever reached a live watch cycle, not after.** The first
+version of `generate_surgical_cases` cycled a small physician pool (as few as 4 in some seeds)
+across 10 cases with only 4 distinct time slots across 3 rooms — pigeonhole guaranteed far more
+than the two *deliberately* engineered conflicts; a direct run produced **12** incidental
+conflicts. Traced forward through the code just wired rather than dismissed as a data-shape
+curiosity: `detect_schedule_conflict_triggers` emits one trigger per new conflict key,
+`run_triggers` runs them strictly sequentially (by design, so a viewer can follow one causal
+chain), each trigger opens a real agent turn with `TURN_TIMEOUT_SECONDS = 90` — 12 conflicts on
+the very first watch cycle after seeding could mean up to 18 minutes in one cycle and a dozen
+approval emails, directly violating both `autonomy.py`'s own "well under
+`WATCH_INTERVAL_SECONDS`" invariant and the autonomous-watch safety claim that "the blast radius
+of a false trigger is one email." Fixed by building the baseline schedule to have *zero*
+incidental overlap (each room's cases laid out back-to-back with a buffer; at most one case per
+surgeon) and forcing exactly two conflicts afterward via `dataclasses.replace` — verified by
+regenerating and running the real `detect_conflicts` against the output: exactly 2 conflicts,
+both the intended ones.
+
+**Frontend.** New `/surgical-schedule` and `/job-sheets` pages (`Sidebar.tsx` nav entries under
+"Ward"), both consuming the same `authedFetcher<T>` SWR pattern `staff.ts`/`payroll.ts` already
+established. The surgical-schedule page shows the case table + a conflict banner to any signed-in
+role; clicking a case attempts the identity-bearing detail fetch and renders a plain "restricted
+to admin/clinician" message on a 403 rather than a broken panel, so an `ops`-role viewer sees a
+real least-privilege boundary, not an error. `AuthContext.tsx`'s `signIn` now force-refreshes the
+ID token (`getIdToken(true)`) immediately after sign-in, closing the gap where `set_user_role.py`
+sets a custom claim moments before (or during) a session and the cached token wouldn't otherwise
+carry it until Firebase's natural ~1-hour refresh — the difference between `require_role`
+correctly 403ing a real non-admin and incorrectly 403ing a judge whose role was set correctly.
+
+**Verified:** `black --check .`, `pylint agents routes services` at 10.00/10, full backend suite
+(187 tests, 97.17% coverage), a live rate-limit burst test that 429'd only after both bugs above
+were fixed, and `tsc --noEmit`/`eslint .`/`next build` all clean on the frontend including the
+two new pages. **Cross-package KMS round-trip, specifically checked rather than assumed:**
+`packages/datagen`'s `crypto.py` is a deliberate small duplicate of `apps/api`'s
+`crypto_kms.py` (packages/datagen and apps/api are independent uv projects with no shared
+workspace — see `services/triggers.py`'s own precedent for this shape of duplication), so
+nothing before this actually proved a value one encrypts, the other decrypts. Checked directly
+against the real deployed `prudently-patient-data`/`patient-pii` key: `datagen.crypto.
+encrypt_field("Test Patient Name")` produced real ciphertext, and `apps/api`'s own
+`KmsCryptoService.decrypt_field` on that exact ciphertext returned `"Test Patient Name"` back —
+confirmed the two implementations are genuinely interoperable, not just individually
+self-consistent.
+
+**Deploy wave — done, and a real bug caught mid-sequence, not in review.** Shift and Supply
+redeployed in place (existing engine ids); Surgical Scheduling deployed fresh (new engine id
+`4989418290347507712`, written into `config.py`); Coordinator redeployed last with
+`--extra_packages=agents/surgical_scheduling` added — the first Coordinator attempt hit the
+exact `Connection reset by peer`-with-`exit 0` failure this file's "Running / deploying an
+agent" section already documents, and the retry then hit a second, previously-unseen variant of
+the same underlying flakiness: `400 FAILED_PRECONDITION ... not in ACTIVE state. Current state:
+UPDATING`, because the first "failed" attempt had actually landed server-side and was still
+applying. Confirmed via the engine's own `operations` list (`GET .../operations`, not assumed)
+that the in-flight update was genuinely progressing, not stuck; a clean redeploy once it reached
+`ACTIVE` succeeded, and a fresh `stream_query` round-tripped cleanly per this section's own
+"unverified until a fresh call round-trips" rule. `scripts/verify_deploys.py` gained a smoke
+prompt for `surgical_scheduling_agent`; every one of the 8 engines verified live (`--query`).
+`scripts/seed_registry.py`/`scripts/seed_policy.py` re-run to add the new agent and task type —
+the first live Coordinator→Surgical-Scheduling routing attempt, before this, genuinely failed
+with "the Surgical Scheduling Agent is currently not registered" (the Gateway's real
+authorization check working exactly as designed, not a bug) until the registry write landed.
+`bash infra/scripts/deploy.sh` redeployed `prudently-api`/`prudently-web`; both live, and the
+site's `<title>`/favicon/apple-icon all confirmed 200 from the deployed URL, closing the
+original "logo, favicon are all not visible" complaint that opened this entire body of work.
+`scripts/set_user_role.py manager@prudently.app admin` set the real demo account's role,
+confirmed via a direct Admin SDK read of its custom claims (`{'role': 'admin'}`), not just the
+script's own stdout.
+
+**The live end-to-end pass happened on its own, not as a scripted step — real patient data was
+seeded via the new `packages/datagen/datagen/backfill_patients.py`** (an additive backfill
+against the live project, deliberately not a full `make seed` rerun — see that script's own
+docstring for why re-running the whole generator would have overwritten weeks of accumulated
+live fleet-watch state in `staff_roster`/`inventory`/etc.). Within roughly a minute of
+`prudently-api` going live with the already-running background watch loop, the fleet noticed
+the two deliberately-seeded conflicts on its own: `activity_log` shows two real
+`autonomous_action` entries for `schedule_conflict` (CASE-0000/CASE-0001 in OR-1, CASE-0002/
+CASE-0003 sharing surgeon `pd-er-00`), each followed by the agent calling `update_case_status`
+(one case in each pair moved to `delayed`) and `notify_patient_of_status_change` — which,
+correctly, produced a `pending_approval` status rather than actually sending anything, and
+generated two real approval-request emails to the manager inbox
+(`manager_email` = the platform owner's own address), exactly matching how every other
+approval-gated action in this fleet already behaves — not a new behavior, not a bug, just this
+feature's first live instance of it. `patient_notification_log` shows the matching
+`pending`→`pending_approval` audit trail, with plain-language messages ("your procedure has
+been rescheduled to avoid a scheduling conflict") carrying no internal jargon, per the agent's
+own instruction. A direct Firestore read of `patients/PT-0000` confirmed ciphertext (not
+plaintext) for every PII field, and `get_patient(caller="dashboard_route")` against that same
+document round-tripped to the correct decrypted values. This is the plan's own "Verification"
+section's live end-to-end pass, achieved without a single scripted trigger call — the fleet did
+it unprompted, which is the entire thesis of this project. **One piece deliberately not
+claimed as verified:** an actual authenticated HTTP round-trip through
+`require_role("admin", "clinician")` against the deployed API, using a real ID token minted for
+`manager@prudently.app`. The demo account's password isn't something this session has or should
+obtain, so what's confirmed instead is each piece independently — the custom claim is correctly
+set on the real account (read back via the Admin SDK, not just the setter script's stdout), and
+`require_role`'s 401/403 branching is covered by the existing unit-test suite — not the full
+signed-in-browser path together in one live call. `docs/threat-model.md`'s finding 6 stays
+marked Fixed on the strength of those two pieces plus the routes existing and passing local
+tests; a real browser sign-in as the demo account would be the remaining confirmation.
+
+**One live side effect worth naming plainly:** the two approval-request emails above are real
+mail in a real inbox, generated by testing this feature against production, not by any user
+action — consistent with the platform's existing behavior for every other approval-gated
+action, but worth surfacing explicitly rather than leaving a judge (or the project owner) to
+discover two unexplained emails on their own.
+
+## Agent Identity, actually fixed — finding 9 closed for real (Aug 24)
+
+A hackathon-judge evaluation of this project (scored against the actual published rubric —
+Innovation 40%, Architecture 30%, Demo/Production Readiness 30% — fetched live, not assumed)
+called out `docs/threat-model.md` finding 9 as the weakest piece of an otherwise strong
+Architectural Discipline score: **Agent Identity is a mandatory Fortified Enterprise Fleet
+component**, and every deployed Reasoning Engine ran under one shared Google-managed identity
+(`service-<project-number>@gcp-sa-aiplatform-re.iam.gserviceaccount.com`) with a project-wide
+`roles/datastore.user` grant. The finding, and this file's own earlier notes, treated that as a
+hard platform limitation — "Agent Engine has no per-agent service account support," confirmed
+(so it seemed) by `adk deploy agent_engine --help` showing no `--service_account` flag.
+
+**That premise was wrong, and checking it instead of restating it is what actually closed this
+finding.** `adk deploy`'s CLI has no such flag — but the underlying API it calls does:
+`vertexai._genai.types.common.AgentEngineConfig` (confirmed by reading the installed SDK
+directly, `AgentEngineConfig.model_fields`) has a real `service_account` field, and the proto it
+maps to (`ReasoningEngineSpec.service_account`) documents exactly this use: "the service account
+that the Reasoning Engine artifact runs as... If not specified, the Vertex AI Reasoning Engine
+Service Agent in the project will be used." `adk deploy`'s own `.agent_engine_config.json`
+mechanism (already in the CLI, reading a JSON file from each agent's own folder and merging its
+keys into the same config the CLI itself builds) is the way in — no new deploy tooling, no fork
+of `adk`, just a JSON file per agent.
+
+**What actually shipped.** `infra/terraform/modules/iam` already provisioned one dedicated SA
+per agent (`<agent>-agent-sa`) — they existed since early in this project but were never bound
+to anything, a fact the finding's own evidence should have been a bigger flag than it was. Added
+the 8th (`surgical-scheduling-agent-sa` — hyphenated, not underscored: GCP service account ids
+reject `_`), gave it the same baseline grants every other per-agent SA already had
+(`aiplatform.user`, `aiplatform.memoryEditor`, `datastore.user`, Secret Manager access to the
+Gemini key and Gmail password), and additionally scoped Cloud KMS `patient-pii` decrypt to it
+specifically (plus `coordinator-agent-sa`, for the reason below) instead of the shared identity.
+A new `.agent_engine_config.json` — `{"service_account": "<agent>-agent-sa@...iam.gserviceaccount
+.com"}` — went into each of the 8 agent folders. Redeployed all 8 via the exact same `adk deploy
+agent_engine` commands this file already documents, no flag changes. Two of the eight hit the
+same transport flakiness this file already has a name for (`Connection reset by peer` with `exit
+0`, and — a variant not seen before — `400 FAILED_PRECONDITION ... not in ACTIVE state` on an
+immediate retry, because the "failed" attempt had actually landed and was still applying);
+confirmed via each engine's own `operations` list before retrying, same discipline as the
+Coordinator redeploy flakiness already documented here.
+
+**Verified live, not assumed from the Terraform diff.** `client.agent_engines.get(...)
+.api_resource.spec.effective_identity` read back as each agent's own dedicated SA for all 8 —
+`shift-agent-sa`, `supply-agent-sa`, ..., `surgical-scheduling-agent-sa` — not the shared
+identity. Before removing the shared identity's grants, two functional checks specifically
+chosen to exercise the capabilities that would break first: a live `stream_query` against the
+deployed `surgical_scheduling_agent` asking it to notify a patient with `notification_consent_
+email=False` (CASE-0009 / Elena Patel) — genuinely called `get_patient()`, genuinely decrypted
+through Cloud KMS under the new SA, correctly returned `consent_declined` with zero side
+effects (no email, no approval created) — and a live `stream_query` against `medical_
+representative_agent`, which on the very first attempt under its new SA responded "Blocked by
+Model Armor... Model Armor call failed" — a real regression, caught immediately rather than
+missed: `medrep-agent-sa` had never been granted `roles/modelarmor.user` (only the shared
+identity and `coordinator-agent-sa` had it, from before any agent had its own SA). Fixed with a
+dedicated `medrep_sa_modelarmor_user` grant; re-verified clean. The same audit also caught that
+Cloud Trace span export (`roles/cloudtrace.agent`) had only ever been granted to `coordinator-
+agent-sa` and the shared identity — meaning every other agent's spans would have silently
+stopped exporting under its own new identity (a dropped span, not a raised exception, so nothing
+would have *looked* broken) — fixed with a `for_each` grant across all 8 SAs before it ever
+shipped silently broken.
+
+**Only then** — after every engine's own functionality was independently reverified under its
+new identity — were the shared Reasoning Engine service agent's now-vestigial grants removed:
+`roles/datastore.user`, `roles/modelarmor.user`, `roles/cloudtrace.agent` (all project-level),
+plus its Secret Manager access to the Gemini key, Gmail password, and A2A shared secret. The A2A
+shared secret's grant moved to `supply-agent-sa` specifically (the standalone deployed
+`supply_chain_resiliency_agent` engine's own identity when invoked directly, e.g. via
+`stream_query` — distinct from the live in-process A2A path, which already runs as
+`coordinator-agent-sa` via Cloud Run and was never affected). The shared identity now holds
+**zero** grants on this project's Firestore, Model Armor, Cloud Trace, Secret Manager, or Cloud
+KMS resources — confirmed by reading the Terraform plan's diff, not assumed from the intent.
+
+**What this does not fix, stated the same way the original finding did.** Firestore has no
+native per-collection IAM, so `roles/datastore.user` is still project-wide on every per-agent
+SA — identity separation is real (independent audit trail, independent revocation, independent
+rotation), but it is not per-collection least privilege by itself; `services/platform/
+access_control.py`'s application-layer allowlist is still the actual mechanism restricting which
+agents may touch `patients`/`surgical_cases`, now backed by a real distinct credential instead
+of a self-declared string riding on shared IAM. And `coordinator-agent-sa` necessarily keeps
+broad access, because Coordinator's "frozen copies" architecture executes every specialist's
+tool code in-process inside both Coordinator's own Reasoning Engine and `prudently-api`'s Cloud
+Run container (which also runs as `coordinator-agent-sa`) — an inherent consequence of in-process
+bundling, not something reachable by a different IAM setup without re-architecting how
+Coordinator invokes specialists.
+
+**Docs updated to match:** `docs/threat-model.md` finding 9 rewritten from "Accepted, as
+designed" to "Fixed," with the two residual limits above stated explicitly rather than left
+implicit. `docs/security-architecture.png`/`.svg` regenerated — the "Shared Reasoning Engine
+identity" card that read Accepted/red now reads Fixed/green as "Per-agent Reasoning Engine
+identity," and the "Application access control" card's framing updated to "now backed by real
+per-agent identity, not a self-declared caller on shared IAM." No Cloud Run redeploy was needed
+— `prudently-api`'s own runtime identity was already `coordinator-agent-sa` via `modules/
+cloud_run_api/main.tf`, untouched by this change; only the 8 Reasoning Engine deploys and two
+Terraform applies (IAM/KMS grants, then Secret Manager grants) were required.

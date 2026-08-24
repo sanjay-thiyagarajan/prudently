@@ -39,7 +39,13 @@ class EmailSendResult:
 
 class EmailService(Protocol):  # pylint: disable=too-few-public-methods
     def send(
-        self, to: str, subject: str, body: str, cc: list[str] | None = None
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        cc: list[str] | None = None,
+        *,
+        html: str | None = None,
     ) -> EmailSendResult: ...  # noqa: E704
 
 

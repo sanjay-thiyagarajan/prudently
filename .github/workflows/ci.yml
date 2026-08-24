@@ -1,0 +1,41 @@
+name: CI
+
+# docs/threat-model.md finding 10: no CI existed at all — make lint/make test were real but
+# entirely local/manual, so a regression could merge without either ever running. This runs the
+# same gates a contributor is expected to run locally, on every push/PR, nothing more.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  api:
+    name: apps/api — lint + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run black --check .
+      - run: uv run pylint agents routes services
+      - run: uv run pytest --cov --cov-fail-under=80
+
+  web:
+    name: apps/web — lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit

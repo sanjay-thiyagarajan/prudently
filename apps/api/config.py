@@ -39,6 +39,7 @@ AGENT_ENGINE_SETTING: dict[str, str] = {
     "hr_agent": "hr_agent_engine_id",
     "medical_representative_agent": "medrep_agent_engine_id",
     "chaos_continuity_agent": "chaos_agent_engine_id",
+    "surgical_scheduling_agent": "surgical_scheduling_agent_engine_id",
 }
 
 
@@ -66,12 +67,17 @@ class Settings(BaseSettings):
     medrep_agent_engine_id: str = "6319035711584468992"
     chaos_agent_engine_id: str = "2682941962436214784"
     coordinator_agent_engine_id: str = "6956858008810815488"
+    surgical_scheduling_agent_engine_id: str = "4989418290347507712"
 
     registry_backend: Backend = "local"
     identity_backend: Backend = "local"
     gateway_backend: Backend = "local"
     armor_backend: Backend = "vertex"
     observability_backend: Backend = "vertex"
+    # Field-level encryption for patient PII (Part D) — "vertex" here follows this file's own
+    # existing real-vs-local naming convention (armor_backend/observability_backend), not a
+    # literal claim that Cloud KMS is a Vertex AI product.
+    crypto_backend: Backend = "vertex"
     # Same pattern as armor_backend/observability_backend: only flips to a real backend once
     # independently verified against the live service.
     email_backend: Literal["gmail", "local"] = "gmail"
@@ -81,6 +87,20 @@ class Settings(BaseSettings):
     manager_email: str = "sanjayipscoc@gmail.com"
     gmail_sender_email: str = "sanjayipscoc@gmail.com"
     gmail_app_password_secret: str = "prudently-gmail-app-password"
+
+    # docs/threat-model.md finding 1: the A2A mount has no auth of its own — Cloud Run's
+    # `allUsers` invoker grant makes the whole service publicly reachable, and Agent Engine has
+    # no per-agent mTLS. This is the pragmatic middle ground: a shared secret both the sender
+    # (agents/supply/agent.py's RemoteA2aAgent httpx client) and the receiver (app.py's ASGI
+    # gate in front of the mount) fetch from the same Secret Manager entry.
+    a2a_shared_secret_secret: str = "prudently-a2a-shared-secret"
+
+    # Cloud KMS key protecting patient PII fields (services/platform/crypto_kms.py). Regional,
+    # not multi-region — same "must match the region lock" pattern as memory_bank_location and
+    # model_armor_location above.
+    kms_location: str = "us-central1"
+    kms_key_ring: str = "prudently-patient-data"
+    kms_key_id: str = "patient-pii"
 
     # Model Armor templates are regional, not multi-region — same "must match the region
     # lock" pattern as memory_bank_location above.
@@ -112,6 +132,26 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+@lru_cache
+def a2a_shared_secret() -> str:
+    """Fetches the A2A shared secret from Secret Manager, cached for the process lifetime —
+    same pattern as services/platform/email_gmail.py's `_app_password()`. Both the A2A sender
+    (agents/supply/agent.py) and the receiver (app.py) call this so the two sides can never
+    drift onto different values. Deliberately allowed to raise: unlike email (fail-soft is
+    correct — a failed send shouldn't crash a tool call) an agent that cannot resolve its own
+    A2A credential should fail loudly at startup, not silently send unauthenticated requests
+    that the receiver will reject anyway."""
+    from google.cloud import secretmanager  # pylint: disable=import-outside-toplevel
+
+    client = secretmanager.SecretManagerServiceClient()
+    name = (
+        f"projects/{GCP_PROJECT_ID}/secrets/"
+        f"{get_settings().a2a_shared_secret_secret}/versions/latest"
+    )
+    response = client.access_secret_version(name=name)
+    return response.payload.data.decode("utf-8")
 
 
 def medrep_agent_card_url() -> str:

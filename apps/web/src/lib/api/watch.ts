@@ -17,6 +17,8 @@ async function getStatus(url: string): Promise<WatchStatus> {
   return response.json();
 }
 
+// GET /watch/status stayed public (an inert read, no reason to gate it) — only the two mutating
+// routes below moved behind auth, so this hook is deliberately unauthenticated.
 export function useWatchStatus() {
   const { data, error, isLoading, mutate } = useSWR<WatchStatus>(
     `${API_BASE_URL}/watch/status`,
@@ -29,9 +31,16 @@ export function useWatchStatus() {
 /** Fires one watch cycle immediately — fire-and-return, same shape as the old /sim/advance:
  * the backend starts the cycle as a background task and responds before it finishes, so the
  * caller should poll useWatchStatus()/the activity feed to see the result land rather than
- * await this for completion. */
-export async function triggerWatchCheck(): Promise<{ status: string }> {
-  const response = await fetch(`${API_BASE_URL}/watch/check-now`, { method: "POST" });
+ * await this for completion.
+ *
+ * Auth-gated as of docs/threat-model.md finding 1 (this can trigger real LLM/agent turns and
+ * real approval emails) — `idToken` is required, not optional, so a caller can't accidentally
+ * ship an unauthenticated request that just 401s. */
+export async function triggerWatchCheck(idToken: string): Promise<{ status: string }> {
+  const response = await fetch(`${API_BASE_URL}/watch/check-now`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${idToken}` },
+  });
   if (!response.ok) {
     throw new Error(`Watch check-now failed: ${response.status} ${response.statusText}`);
   }

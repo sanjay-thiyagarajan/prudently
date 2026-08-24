@@ -13,10 +13,11 @@ from __future__ import annotations
 from config import get_settings
 from services.state import get_client
 
-# One entry per approval-gated tool added across Supply Chain, HR, Shift, and Medical
-# Representative (see AGENTS.md's Gmail/approvals section for why these four and not all 7
-# agents). requires_approval=True by default for all of them -- the manager can relax any of
-# these from the dashboard's policy-editor panel; this script only sets the initial state.
+# One entry per approval-gated tool added across Supply Chain, HR, Shift, Medical
+# Representative, and Surgical Scheduling (see AGENTS.md's Gmail/approvals section for why
+# these five and not all 7 agents). requires_approval=True by default for all of them -- the
+# manager can relax any of these from the dashboard's policy-editor panel; this script only
+# sets the initial state.
 POLICIES: list[dict] = [
     {
         "task_type": "contact_vendor_for_reorder",
@@ -41,6 +42,13 @@ POLICIES: list[dict] = [
     },
     {
         "task_type": "send_vendor_reply",
+        "requires_approval": True,
+        "approver_email": None,
+        "notify_emails": [],
+        "notify_on_complete": True,
+    },
+    {
+        "task_type": "notify_patient_of_status_change",
         "requires_approval": True,
         "approver_email": None,
         "notify_emails": [],

@@ -309,6 +309,79 @@ export interface AgentLogsData {
   logs: AgentLogEntry[];
 }
 
+export type SurgicalCaseStatus =
+  | "scheduled"
+  | "confirmed"
+  | "delayed"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
+
+/** No patient identity on this shape at all — patient_id is an opaque FK, not a name. See
+ * apps/api/services/state.py's get_surgical_cases docstring. */
+export interface SurgicalCase {
+  case_id: string;
+  patient_id: string;
+  procedure_name: string;
+  specialty: string;
+  surgeon_staff_id: string | null;
+  operating_room: string;
+  scheduled_start: string;
+  scheduled_end: string;
+  status: SurgicalCaseStatus;
+}
+
+export interface SurgicalCaseConflict {
+  case_id_a: string;
+  case_id_b: string;
+  reason: string;
+  operating_room: string | null;
+  surgeon_staff_id: string | null;
+  scheduled_start: string;
+}
+
+/** Only returned by GET /surgical-schedule/cases/{case_id}, which is require_role("admin",
+ * "clinician")-gated — the one place decrypted patient identity ever reaches the browser. */
+export interface PatientDetail extends SurgicalCase {
+  patient: {
+    patient_id: string;
+    name: string;
+    date_of_birth: string;
+    contact_email: string;
+    contact_phone: string;
+    notification_consent_email: boolean;
+  } | null;
+}
+
+export interface DutyJobSheetEntry {
+  staff_id: string;
+  name: string;
+  role: string;
+  risk_level: RiskLevel;
+  trailing_hours: number;
+}
+
+export interface DutyJobSheet {
+  unit: string;
+  staff: DutyJobSheetEntry[];
+}
+
+export type FacilityJobSheetPriority = "low" | "normal" | "high" | "urgent";
+export type FacilityJobSheetStatus = "open" | "in_progress" | "completed";
+
+export interface FacilityJobSheet {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  assigned_to: string;
+  priority: FacilityJobSheetPriority;
+  status: FacilityJobSheetStatus;
+  created_by: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export interface DashboardOverview {
   as_of: string;
   fleet: FleetAgent[];
@@ -333,6 +406,10 @@ export interface DashboardOverview {
     unit_totals: UnitAdmissionsTotal[];
   };
   guest_doctor_hours: GuestDoctorHours[];
+  surgical_schedule: {
+    cases: SurgicalCase[];
+    conflicts: SurgicalCaseConflict[];
+  };
   armor_events: ArmorEvent[];
   chaos_experiments: ChaosExperiment[];
   autonomous_actions: AutonomousAction[];

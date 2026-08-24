@@ -40,6 +40,10 @@ _SMOKE_PROMPT = {
     "hr_agent": "Whose credentials have expired?",
     "chaos_continuity_agent": "List the fault-injection experiments you can run.",
     "medical_representative_agent": "What is your role in one sentence?",
+    "surgical_scheduling_agent": (
+        "Are there any OR or surgeon scheduling conflicts right now? "
+        "Do not update any case or notify any patient."
+    ),
 }
 
 _QUERY_ATTEMPTS = 3

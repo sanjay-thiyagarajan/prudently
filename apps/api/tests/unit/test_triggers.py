@@ -10,6 +10,7 @@ from services.triggers import (
     detect_all,
     detect_credential_triggers,
     detect_fatigue_triggers,
+    detect_schedule_conflict_triggers,
     detect_stock_triggers,
     next_watch_state,
 )
@@ -145,6 +146,40 @@ class TestCredentialTriggers:
         assert trigger.dedupe_key == "credential_breach:hr-01"
 
 
+def conflict(case_a="A", case_b="B", reason="both scheduled in OR-1"):
+    return {"case_id_a": case_a, "case_id_b": case_b, "reason": reason}
+
+
+class TestScheduleConflictTriggers:
+    def test_fires_on_a_new_conflict(self):
+        triggers = detect_schedule_conflict_triggers([conflict()], set(), AS_OF)
+        assert len(triggers) == 1
+        assert triggers[0].kind == "schedule_conflict"
+        assert triggers[0].agent == "surgical_scheduling_agent"
+
+    def test_does_not_refire_on_an_already_seen_conflict(self):
+        triggers = detect_schedule_conflict_triggers([conflict()], {"A::B"}, AS_OF)
+        assert triggers == []
+
+    def test_key_is_order_independent_with_previous_state(self):
+        # A::B and B::A must be treated as the same conflict regardless of which case a given
+        # detect_conflicts() run happened to list first.
+        triggers = detect_schedule_conflict_triggers(
+            [conflict(case_a="B", case_b="A")], {"A::B"}, AS_OF
+        )
+        assert triggers == []
+
+    def test_prompt_forbids_asking_a_follow_up(self):
+        trigger = detect_schedule_conflict_triggers([conflict()], set(), AS_OF)[0]
+        assert "do not ask a follow-up question" in trigger.prompt
+
+    def test_no_patient_identity_anywhere_in_the_trigger(self):
+        # conflicts carry only case_id/room/surgeon/time — asserting this the way
+        # test_redaction.py asserts no staff name leaks onto the public payload.
+        trigger = detect_schedule_conflict_triggers([conflict()], set(), AS_OF)[0]
+        assert "patient" not in repr(trigger).lower()
+
+
 class TestWatchState:
     def test_next_state_captures_every_sku_including_ok(self):
         # "ok" must be recorded, or a SKU recovering then re-breaching would look unchanged.
@@ -171,6 +206,12 @@ class TestWatchState:
         )
         assert {t.kind for t in triggers} == {"stock_breach", "fatigue_breach", "credential_breach"}
         assert state["expired_staff"] == ["hr-01"]
+        assert state["conflict_keys"] == []  # additive axis, defaults to empty
+
+    def test_detect_all_includes_schedule_conflicts_when_given(self):
+        triggers, state = detect_all([], {}, [], None, AS_OF, conflicts=[conflict()])
+        assert {t.kind for t in triggers} == {"schedule_conflict"}
+        assert state["conflict_keys"] == ["A::B"]
 
     def test_detect_all_with_no_prior_state_treats_everything_as_new(self):
         triggers, _ = detect_all([par("A", "low")], {}, [], None, AS_OF)
