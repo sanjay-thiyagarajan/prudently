@@ -1,102 +1,81 @@
 # Demo recording kit
 
-A ~4 minute video, shot by shot. The one thing worth internalising before recording: **the
-strongest claim this project can make is that the fleet acts without being asked, and that it
-remembers.** Everything else — the topology, the Gateway, Model Armor, the trace waterfall —
-is supporting evidence for that. Lead with it, don't build up to it.
+A ~4 minute video, shot by shot. **The fleet acts without being asked, and it remembers** —
+everything else is supporting evidence. Lead with it.
 
 ---
 
-## Pre-flight (do this every take, not just the first)
+## Pre-flight (every take, not just the first)
 
 ```bash
 cd apps/api
 
-# 1. Clean slate. Without this the fleet stays SILENT on a replay — the watch already
-#    remembers every SKU as breached, so nothing reads as a new crossing.
+# 1. Clean slate — without this the watch stays silent on a replay.
 uv run python -m scripts.demo_reset --restock
 
-# 2. Clear the watch's memory of what it has already seen (it keeps checking on its own —
-#    this only resets what counts as "new").
+# 2. Clear what the watch has already seen.
 curl -X POST https://prudently-api-jnpvbtwpwa-uc.a.run.app/watch/reset
 
-# 3. Confirm the fleet is up and every engine is active.
+# 3. Confirm the fleet is up.
 curl -s https://prudently-api-jnpvbtwpwa-uc.a.run.app/dashboard/overview \
   | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d['fleet']),'agents', \
     [a['status'] for a in d['fleet']])"
 ```
 
-Then, in the browser: sign in as the manager account, set the theme deliberately (light reads
-better on most projectors; dark reads better on a dark slide deck — just pick one and stay in
-it), and leave the tab on the Fleet overview.
-
-**Have a second tab open** on the Google Cloud console, already signed in, showing the Agent
-Engine list. You will need it for beat 6 and fumbling for it on camera is the most common way
-these run long.
+Sign in as the manager account, pick a theme and stay in it, leave the tab on Fleet overview.
+Open a second tab on the Cloud console's Agent Engine list for beat 6.
 
 ---
 
 ## Beat 1 · 0:00–0:25 — The problem
 
-**On screen:** the Fleet overview at calm baseline.
+**On screen:** Fleet overview at calm baseline.
 
-> A hospital's operations run on things that nobody can watch continuously: who is on shift and
-> how tired they are, what's in the supply room, which vendors can actually deliver, and whether
-> two surgeries just got double-booked into the same room. Prudently puts eight agents on that,
-> on Google Cloud. Fortified Enterprise Fleet track.
+> A hospital runs on things nobody can watch continuously: who's on shift and how tired, what's
+> in the supply room, which vendors can deliver, whether two surgeries just got double-booked.
+> Prudently puts eight agents on that, on Google Cloud. Fortified Enterprise Fleet track.
 
-Point at the top strip: the live pulse, fleet 8 of 8 active, signals needing attention.
+Point at the top strip: 8 of 8 active.
 
 ---
 
 ## Beat 2 · 0:25–1:05 — The fleet acts on its own
 
-**This is the beat that wins or loses it. Give it the most time.**
+**The beat that wins or loses it. Give it the most time.**
 
-**On screen:** press **Run fleet check now** in the top strip. It returns instantly. Talk while
-the autonomous feed fills in.
+**On screen:** press **Run fleet check now**. Talk while the feed fills in.
 
-> Nobody is going to ask an agent anything in this shot. I'm pulling the fleet's next check
-> forward, and it's going to notice things by itself — it would have noticed them on its own
-> within the next minute or two anyway, this just puts it on camera now.
->
-> The watch runs continuously, comparing the ward to the snapshot it kept from the last check.
-> It only fires on *transitions* — a SKU crossing its par level, a unit gaining another
-> critically fatigued nurse, a credential expiring. Something that's still bad now because it
-> was bad a minute ago is not news, and a fleet that emails you about the same box of gloves on
-> every single check is worse than no fleet at all.
+> Nobody's asking an agent anything here — I'm just pulling the next check forward. It fires
+> only on *transitions*: a SKU crossing par, a nurse crossing fatigue, a credential expiring.
+> Still bad because it was bad a minute ago isn't news.
 
-As rows appear, expand one with **What it did**.
+Expand a row with **What it did**.
 
-> Here's what actually happened. The watch woke Shift Allocation about the ICU. That's a real
-> agent turn — real model call, real tools — and this is its answer.
+> The watch woke Shift Allocation about the ICU. Real agent turn, real model call, real tools.
 
-**Point at the recalled fact explicitly.** This is the money shot:
+Point at the recalled fact — the money shot:
 
-> And look at this line. It's citing what the watch observed earlier — a real timestamp, not
-> today's snapshot restated. That's Vertex AI Memory Bank: every agent has its own store on its
-> own Reasoning Engine, written whenever the watch sees something worth remembering and read
-> back by that agent's own recall tool. It's telling me when this started, not just where it
-> stands now.
+> This line cites what the watch observed earlier — a real timestamp, not today's snapshot
+> restated. Every agent has its own Vertex AI Memory Bank store, written when the watch sees
+> something worth remembering, read back by that agent's own recall tool.
 
 ---
 
 ## Beat 3 · 1:05–1:35 — But it can't act unsupervised
 
-**On screen:** the Approvals page, showing a pending request the autonomous run created.
+**On screen:** Approvals page, a pending request from the autonomous run.
 
-> The fleet decided *when to raise this*. It did not get permission to act. The moment a
-> decision touches the outside world it becomes an approval request.
+> The fleet decided *when* to raise this. It didn't get permission to act — the moment a
+> decision touches the outside world, it's an approval request.
 
 Switch to your inbox, show the real email, click **Approve**, land on the confirm page.
 
-> That's a real email from the deployed system. The link renders a page — it doesn't act.
-> Mail scanners prefetch links, so the actual change only happens on the button press.
+> Real email from the deployed system. The link renders a page — it doesn't act. The change only
+> happens on the button press.
 
-Press it, then return to the dashboard and show the status flipped.
+Press it, return to the dashboard, show the status flipped.
 
-> And the policy is per-action and manager-editable. If nobody's configured a task type, it
-> requires approval — it fails closed.
+> Policy is per-action, manager-editable, and fails closed by default.
 
 ---
 
@@ -104,33 +83,28 @@ Press it, then return to the dashboard and show the status flipped.
 
 **On screen:** scroll to the fleet topology.
 
-> One way in. The Coordinator delegates and never answers from its own knowledge. Every
-> internal call goes through the Agent Gateway — registry lookup, policy check, trace span —
-> and an agent that isn't registered, or isn't active, or isn't on the caller's list, is
-> refused before its tool body runs.
+> One way in. The Coordinator delegates, never answers from its own knowledge. Every internal
+> call goes through the Agent Gateway — registry lookup, policy check, trace span — before the
+> tool body runs.
 >
-> Below the dashed line is the part that isn't a diagram convention. Medical Representative is
-> a separately deployed agent, reached over genuine Agent2Agent at the same public agent-card
-> URL any outside client would use. Supply Chain has no privileged path to it.
+> Below the dashed line isn't a diagram convention. Medical Representative is a separately
+> deployed agent, reached over genuine Agent2Agent at the same public URL any outside client
+> would use. Supply Chain has no privileged path to it.
 
 ---
 
 ## Beat 5 · 2:10–2:50 — Untrusted input gets blocked
 
-**On screen:** Security & resilience page.
+**On screen:** Security & resilience page. Send the poisoned vendor message:
 
-Send the poisoned vendor message (have this ready to paste):
-
-> A vendor emails us. Except it isn't a vendor — it's a prompt injection telling the fleet to
-> wire money to a new account.
+> A vendor emails us. Except it's a prompt injection telling the fleet to wire money to a new
+> account.
 
 Show the blocked `armor_events` entry.
 
-> Model Armor caught it. And note *where*: this is a `before_model_callback`, so the message
-> never reached a model at all — not Supply Chain's, not the Medical Representative's. It's
-> screened again on the excerpt the model itself pulls out, and that second layer is not
-> theatre: it's what actually caught a version of this where the agent paraphrased the message
-> before passing it on.
+> Model Armor caught it before a model ever saw it — that's a `before_model_callback`. It
+> screens again on the excerpt the model extracts, and that second layer is real: it's what
+> caught a paraphrased version of this in testing.
 
 ---
 
@@ -138,39 +112,31 @@ Show the blocked `armor_events` entry.
 
 **On screen:** Cloud console tab.
 
-> Eight Reasoning Engines on Vertex AI Agent Engine, each running under its own dedicated
-> service account — not a shared one. Two Cloud Run services. All us-central1 — Cloud Run,
-> Firestore, every engine, Memory Bank, Cloud KMS, and the Model Armor template. Firestore's
-> location is immutable, so that was a one-way door decided on day one.
+> Eight Reasoning Engines, each its own service account. Two Cloud Run services. All
+> us-central1 — Cloud Run, Firestore, every engine, Memory Bank, KMS, Model Armor.
 
-Back in the dashboard, click a trace link from the activity feed.
+Click a trace link from the activity feed.
 
-> And this is one trace. Coordinator, the Gateway's routing decision, the A2A hop, Cloud Run
-> receiving it, the pre-LLM screen, Model Armor returning blocked. Not stitched together
-> afterwards — one trace ID, pivoted to straight from the blocked event in Firestore.
+> One trace: Coordinator, the Gateway's decision, the A2A hop, the pre-LLM screen, Model Armor
+> returning blocked. Not stitched together after the fact — one trace ID from the blocked event.
 
 ---
 
 ## Beat 7 · 3:30–4:00 — Close on the honest bit
 
-**On screen:** the architecture diagram (`/architecture.svg`).
+**On screen:** the architecture diagram.
 
-> Last thing, and it's the part I'd want to be asked about. The track names seven platform
-> capabilities. Three of them — Agent Engine, Memory Bank, and Agent Identity — are real Google
-> Cloud products and we use them as such. Model Armor is real too, at the one place in this
-> design that actually has an external trust boundary.
+> The track names seven capabilities. Agent Engine, Memory Bank, and Agent Identity are real
+> Google Cloud products, used as such. Model Armor's real too, at the one place with an external
+> trust boundary.
 >
-> Agent Identity almost didn't make that list. `adk deploy`'s own CLI has no `--service_account`
-> flag, and for most of this build we documented that as "Agent Engine has no per-agent identity
-> support" — a platform limitation, not a bug. It was wrong. The SDK underneath that CLI has a
-> real `service_account` field; the CLI just doesn't expose it. Every one of these eight engines
-> now runs as its own dedicated identity because we went and checked the layer below the tool
-> instead of trusting its `--help` output.
+> Agent Identity almost didn't make that list — `adk deploy`'s CLI has no `--service_account`
+> flag, and for most of this build we called that a platform limitation. It wasn't. The SDK
+> underneath has a real `service_account` field the CLI just doesn't expose. Every engine now
+> runs under its own identity because we checked the layer below the tool.
 >
-> The other two — Agent Registry, Agent Gateway — we did go looking for as distinct products and
-> could not find them, so we built them on ADK primitives and wrote down exactly what we checked.
-> The Gateway is a `before_tool_callback` on the hot path. The registry is a Firestore catalog it
-> consults on every call.
+> Registry and Gateway we couldn't find as distinct products, so we built them honestly on ADK
+> primitives and said so.
 >
 > That's Prudently. Eight agents that notice things, remember them, run under their own
 > identities, and still ask before they act.
@@ -179,29 +145,21 @@ Back in the dashboard, click a trace link from the activity feed.
 
 ## Fallbacks
 
-Things that have actually gone wrong, and what to do on camera.
-
 | If | Then |
 |---|---|
-| **Run fleet check now** produces no autonomous rows | The watch has already seen this state. Run `demo_reset --restock`, `POST /watch/reset`, and press it again. This is the single most likely failure. |
-| A turn shows **turn failed** | Leave it on screen and say so — a failed turn is recorded rather than hidden, and that's a feature. Press **Run fleet check now** again. |
-| Stock never goes low | The two seeded-tight SKUs (N95-001, O2-006) should already be low/critical right after a fresh `make seed` — if they're not, the ongoing consumption noise is gradual by design; press **Run fleet check now** a few times before the take, or run `demo_reset --restock` and start from a lower baseline deliberately. |
-| An engine call hangs | Don't narrate over a live `stream_query`. Three of four bare calls reset mid-stream from a laptop; the dashboard path is polling-based and doesn't have this problem, which is why every beat above drives the UI rather than a terminal. |
-| The dashboard shows a **Public view** banner | You're signed out. Staff-level rows are withheld from anonymous callers by design — sign in. |
+| No autonomous rows appear | Watch already saw this state. `demo_reset --restock`, `POST /watch/reset`, try again. Most likely failure. |
+| A turn shows **turn failed** | Leave it — a failed turn is recorded, not hidden. Press **Run fleet check now** again. |
+| Stock never goes low | N95-001/O2-006 should be low right after `make seed`. Press check a few times, or `demo_reset --restock`. |
+| An engine call hangs | Don't narrate over a live `stream_query` — flaky from a laptop. Every beat above drives the UI instead. |
+| **Public view** banner | You're signed out — sign in. |
 
 ## Submission checklist
 
 - [ ] Hosted URL: the `prudently-web` Cloud Run URL
-- [ ] **Demo credentials in the submission text** — the dashboard opens on a login wall and a
-      judge who can't get past it sees nothing
-- [ ] Repository access — it is private; add the judges or share via the form
-- [ ] Architecture diagram: `docs/architecture.png` (plus `docs/security-architecture.png` and
-      `docs/deployment-architecture.png` if the form allows more than one image)
+- [ ] Demo credentials in the submission text
+- [ ] Repository access (private — add judges or share via the form)
+- [ ] Architecture diagram(s): `docs/architecture.png`, `docs/security-architecture.png`,
+      `docs/deployment-architecture.png`
 - [ ] Video, per the beats above
-- [ ] Text description: features, technologies, data sources, learnings. The genuinely good
-      "learnings" material is in `AGENTS.md` — the coverage gate that hung rather than failed,
-      the `requirements.txt`-vs-`pyproject.toml` asymmetry, the stale warm sandbox that makes
-      `exit 0` untrustworthy, the redaction gap on the public feed, the Agent Identity fix (a CLI
-      flag that doesn't exist isn't the same claim as an SDK field that doesn't exist), and the
-      `check_revoked` IAM gap that 401'd every authenticated route silently until a real user
-      report caught it.
+- [ ] Text description: features, technologies, data sources, learnings — see
+      `docs/devpost-writeup.md`

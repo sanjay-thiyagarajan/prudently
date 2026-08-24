@@ -1373,3 +1373,23 @@ identity — without citing a file. README, `docs/architecture.md`, and `docs/de
 had their direct mentions/links removed the same way, keeping every surrounding factual claim
 (ten controls existing, Agent Identity being real, KMS grants being scoped to two identities) —
 only the citation to the now-deleted file is gone, not the substance it was citing.
+
+## `docs/day1-probe-results.md` removed; judge-facing docs cut way down (Aug 24)
+
+User-directed, both parts. `docs/day1-probe-results.md` — the Day-1 spike report (account
+numbers, per-capability findings, several since superseded by later work like the Agent Identity
+fix) — is deleted, same "remove the file, keep the surrounding facts, drop only the citation"
+treatment as the threat-model removal above. References in README and `docs/architecture.md`
+reworded; the many rationale-comment citations inside `apps/api/services/platform/*.py` and
+`config.py` are untouched, same reasoning as before — internal engineering provenance, not
+judge-facing documentation, out of scope.
+
+Second, separate ask: make the judge-facing docs read like a top hackathon submission, not an
+engineering journal. README (223 → 164 lines), `docs/architecture.md` (93 → 62), and
+`docs/devpost-writeup.md` (194 → 114) all got the same treatment — long multi-clause paragraphs
+cut to short ones, repeated justification removed, one concrete example kept where three used to
+make the same point. `docs/demo.md` (208 → 165) kept its full shot structure — it's an
+operational script, not prose — but the spoken lines themselves got the same trim. This file
+(`AGENTS.md`) and `docs/build-plan.md` are deliberately untouched: they're dated engineering
+journals for a coding agent, not something a judge reads, and "crisp" isn't the right standard
+for either.
