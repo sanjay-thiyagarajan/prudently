@@ -1393,3 +1393,43 @@ operational script, not prose — but the spoken lines themselves got the same t
 (`AGENTS.md`) and `docs/build-plan.md` are deliberately untouched: they're dated engineering
 journals for a coding agent, not something a judge reads, and "crisp" isn't the right standard
 for either.
+
+## `docs/devpost-writeup.md` restructured as bulletins (Aug 24)
+
+User-directed follow-up to the crisping pass above: prose paragraphs became bullet clusters
+throughout, "What it does" and "How we built it" gained bold sub-topic labels (The fleet /
+Autonomy / Security, Stack / The Agent Identity fix / Everything else) instead of one dense
+paragraph, and a new "By the numbers" section gives a five-line scannable stat strip (8 agents,
+187 tests, 26 emails / 11 triggers, etc. — numbers already stated elsewhere in the doc, repeated
+here deliberately as a skim-friendly summary, not new claims). `security-architecture.png` and
+`deployment-architecture.png` are now embedded inline at the sections they illustrate, alongside
+the existing `architecture.png` at the top — all three diagrams referenced, not just one.
+
+## `docs/devpost-writeup.md` rewritten for technical density; CI's first real bug (Aug 24)
+
+Two changes. First, another user-directed pass on the writeup: more implementation detail (real
+field names, IAM role names, class paths, ADK version), and a hard cut on "real"/"genuine" as a
+crutch word — down from 15+ uses to 4, each one now actually disambiguating something instead of
+just adding emphasis.
+
+Second: `.github/workflows/ci.yml` (committed two entries back) had never actually passed —
+`gh run list` showed every run red. `agents/supply/agent.py`'s module-level tracer-bootstrap
+block (`with get_observability_service().span("supply.bootstrap_tracing", {}): pass`, added to
+force the Cloud-Trace-exporting TracerProvider global before `HTTPXClientInstrumentor
+().instrument()` runs) calls `google.auth.default()` through `CloudTraceSpanExporter`'s
+constructor whenever `OBSERVABILITY_BACKEND=vertex` — which is `.env.example`'s own recommended
+default. On a GitHub Actions runner, or any fresh clone before its first `gcloud auth
+application-default login`, that raises `DefaultCredentialsError` and kills `pytest` at
+collection time, since `agents/supply/__init__.py` imports the module eagerly and
+`tests/unit/test_reorder.py` imports the package. The exact "never make a live GCP call at
+module-import time" rule this same file's `_attach_a2a_shared_secret` docstring states four
+lines below it — this block broke its own stated neighbor's rule, and nothing local ever caught
+it because this environment's ADC has always been configured.
+
+Fixed both ends: the bootstrap block wrapped in `try/except Exception: pass` (best-effort,
+matching every other optional-side-effect write in this codebase), and `ci.yml` pins
+`ARMOR_BACKEND=local`/`OBSERVABILITY_BACKEND=local` for the test job as defense-in-depth on top
+of that. Verified both independently — `env -i` with no ADC and no override still imports
+cleanly (the real fix), and the same with the two backend env vars set the way CI now sets them
+(the belt-and-suspenders one). `ci.yml`'s own top comment, which cited the now-deleted
+`docs/threat-model.md`, was rewritten to describe the bug it just caught instead.

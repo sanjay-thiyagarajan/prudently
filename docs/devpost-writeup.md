@@ -2,113 +2,154 @@
 
 **The fleet that never waits to be asked.**
 
-![Prudently architecture — Coordinator, Agent Gateway, six specialists, one real A2A trust boundary, and a real-time fleet watch](./architecture.png)
+![Prudently architecture — Coordinator, Agent Gateway, six specialists, one A2A trust boundary, and a real-time fleet watch](./architecture.png)
 
 ## Inspiration
 
-A hospital runs on things nobody can watch every minute: who's on shift and how tired they are,
-what's left in the supply room, which vendors can actually deliver, whether two surgeries just
-got double-booked. Those are slow-burning signals a chatbot is bad at and a fleet of specialists
-is good at. The Fortified Enterprise Fleet track's seven capabilities — Registry, Identity,
-Gateway, Model Armor, Observability, Agent Engine, Memory Bank — read like a real hospital IT
-checklist. We built for that checklist, not around it. And the clearest way to prove
-"agent-*monitored*," not just "agent-*assisted*," was to make the fleet act before anyone asks.
+- A hospital runs on things nobody can watch every minute: who's on shift and how tired, what's
+  left in the supply room, which vendors can deliver, whether two surgeries just got
+  double-booked.
+- Those are slow-burning signals a chatbot handles badly and a fleet of specialists handles well.
+- The Fortified Enterprise Fleet track lists seven capabilities — Registry, Identity, Gateway,
+  Model Armor, Observability, Agent Engine, Memory Bank. That list matches a hospital IT
+  checklist more than a demo checklist, so we built to it directly instead of bolting it on
+  after.
+- Proving "agent-*monitored*" instead of "agent-*assisted*" meant the fleet had to act before
+  anyone opened the dashboard.
 
 ## What it does
 
-Eight agents run a hospital's staffing, supplies, vendor relationships, and surgical schedule,
-live. A **Coordinator** never answers from its own knowledge — every call passes through an
-**Agent Gateway**: registry lookup, policy check, trace span, then the call. Behind it: **Shift
-Allocation**, **Inventory Management**, **Supply Chain Resiliency** (real generated purchase
-orders), **HR** (Shift's escalation target), **Chaos & Continuity** (fault injection against the
-fleet itself), and **Surgical Scheduling** — the newest, and the one domain with real-PII-shaped
-data. It detects OR/surgeon double-bookings, resolves them, and notifies the patient only with
-consent and only after approval; name, DOB, and contact are encrypted field-by-field with
-**Cloud KMS** before they reach Firestore. A seventh agent, **Medical Representative**, is
-reached only over genuine **Agent2Agent** — the one real external trust boundary — where **Model
-Armor** screens every inbound message twice: once before a model sees it, again on the excerpt
-the model extracts, because a paraphrased injection slipped past the first layer in testing.
+Eight agents on live Firestore state, deployed as eight separate Vertex AI Reasoning Engines.
 
-The fleet doesn't wait to be asked. A real-time watch runs against live Firestore state — no
-scripted timeline — and wakes the responsible agent the instant something crosses a line.
-Anything consequential still comes back to a human: a real HTML email with an approve/reject
-link that expires in 14 days, governed by a fail-closed policy. Every agent remembers across
-time in its own Vertex AI Memory Bank store. One Cloud Trace span follows every request end to
-end, so a blocked event pivots straight to the real waterfall behind it.
+**The fleet**
+- **Coordinator** — root agent, delegates only. Every call it makes goes through the **Agent
+  Gateway**, an ADK `before_tool_callback` that does a Firestore registry lookup and a policy
+  check before the tool body runs.
+- **Shift Allocation** — burndown ratio (trailing hours vs. a per-role safe-hours cap) drives
+  fatigue risk and reallocation.
+- **Inventory Management** — par-level math against `baseline_daily_consumption` and
+  `reorder_point`.
+- **Supply Chain Resiliency** — picks a vendor on lead time and reliability score, flags
+  `routine` vs. `expedited`, generates a purchase-order document.
+- **HR** — credential expiry tracking, activates the per-diem pool when Shift runs out of
+  reallocation options.
+- **Chaos & Continuity** — three fault-injection modes (kill an agent, poison Memory Bank,
+  inject latency) plus hospital what-if projections.
+- **Surgical Scheduling** — pure interval-overlap check on `operating_room`/`surgeon_staff_id`
+  for double-bookings; patient name, DOB, and contact are AES-backed Cloud KMS ciphertext at
+  rest, decrypted only for `admin`/`clinician` roles.
+- **Medical Representative** — a `RemoteA2aAgent` reaching a separately deployed engine over
+  Agent2Agent, the one external trust boundary in the design. Model Armor runs
+  `sanitizeUserPrompt` before the message reaches a model and `sanitizeModelResponse` on the
+  excerpt the model extracts — the second pass caught a paraphrased injection the first one let
+  through.
 
-None of this is theoretical about who sees what. Firebase custom claims gate `admin`/`clinician`/
-`ops`; a patient's decrypted identity is the one thing `ops` never sees. All eight Reasoning
-Engines run under their own dedicated identity, not a shared one — Cloud KMS decrypt is scoped
-to exactly two of them.
+**Autonomy**
+- `services/triggers.py` diffs current state against the last snapshot and fires only on a
+  transition — a SKU crossing `reorder_point`, a unit's critical-fatigue count going up.
+- Anything with a side effect routes through `perform_or_request`: an HTML email, approve/reject
+  links, a 14-day token expiry, fail-closed if nobody's configured a policy for that task type.
+- Vertex AI Memory Bank, scoped `(app_name, user_id)` per agent — Shift by unit, Inventory by
+  SKU.
+- One OpenTelemetry trace, exported to Cloud Trace, spans Coordinator → Gateway → the A2A hop →
+  Model Armor's verdict.
+
+**Security**
+- Firebase custom claims (`role: admin | clinician | ops`) checked server-side on every
+  patient-identity route; no claim gets rejected, not defaulted.
+- Every one of the 8 Reasoning Engines runs under its own dedicated IAM service account.
+- `roles/cloudkms.cryptoKeyEncrypterDecrypter` on the patient-PII key is granted to exactly two
+  of those service accounts.
+
+![Prudently security architecture — perimeter through identity, every control mapped to what it actually does](./security-architecture.png)
 
 ## How we built it
 
-Google ADK for every agent, each its own Vertex AI Reasoning Engine, behind FastAPI and Next.js
-on Cloud Run. Firestore holds live state and every agent's audit trail. Coordinator wraps six
-specialists as in-process `AgentTool`s. Medical Representative is reached via ADK's `to_a2a()`,
-mounted on the same Cloud Run service as the dashboard API. Registry and Gateway are built
-honestly on Firestore and ADK primitives — we looked for real GCP products behind each and
-documented what we found when we didn't.
+**Stack**
+- Google ADK 2.7.1, each agent its own Vertex AI Reasoning Engine
+- FastAPI backend, Next.js/React dashboard, both on Cloud Run; Firestore (Native mode) for live
+  state and every audit collection
+- Coordinator wraps six specialists as in-process `AgentTool`s, staged via `adk deploy`'s
+  `--extra_packages` flattened-import mechanism
+- Medical Representative mounted through ADK's `to_a2a()` on the same Cloud Run service as the
+  dashboard API
+- Registry and Gateway run on Firestore + an ADK interceptor — we checked for a distinct GCP
+  product behind each and wrote down what we found instead of assuming one existed
 
-Agent Identity started in that same bucket, on a real finding: `adk deploy`'s CLI has no
-`--service_account` flag, so every engine ran as one shared identity. What closed it was not
-trusting that CLI limitation as a platform one — the SDK underneath (`AgentEngineConfig`) has a
-real `service_account` field, reachable through a config file the CLI already reads per agent.
-All eight engines now run under their own identity, confirmed live via `effective_identity`, and
-Cloud KMS's patient key is scoped to exactly two of them instead of the one shared identity
-everyone used to share.
+**The Agent Identity fix**
+- `adk deploy agent_engine` has no `--service_account` flag, so by default every Reasoning
+  Engine authenticates as one Google-managed service agent
+- `vertexai._genai.types.common.AgentEngineConfig` — the object that CLI actually builds — has a
+  `service_account` field, reachable via a `.agent_engine_config.json` file the CLI already
+  reads per agent folder
+- All 8 engines now carry their own service account, confirmed against
+  `client.agent_engines.get(...).api_resource.spec.effective_identity` for each
 
-Patient PII gets direct Cloud KMS field-level encryption — every value protected is a few dozen
-bytes, well inside a symmetric key's limit, so envelope encryption would add nothing. The
-autonomous watch runs its agent turns *in-process*, not through the Reasoning Engine transport
-— `stream_query` was flaky from this environment, and the backend already runs the same agent
-objects the engines serve. It didn't start this way: for most of the build the fleet only acted
-on a scripted 21-day sim clock. The day before submission we tore that out for a background loop
-that checks live state on its own, every 90 seconds.
+**Everything else**
+- Cloud KMS field-level encrypt/decrypt on patient PII, not envelope encryption — each protected
+  value is a few dozen bytes, well under a symmetric key's payload limit
+- Autonomous turns run through an in-process `google.adk.runners.Runner`, not
+  `stream_query` against the deployed engine — `stream_query` reset mid-stream on 3 of 4 calls
+  from this environment during testing
+- For most of the build, triggers only fired off a scripted 21-day sim clock. The day before
+  submission that got replaced with an asyncio loop polling live state every 90 seconds
+
+![Prudently deployment architecture — every deployed component and connection between them](./deployment-architecture.png)
+
+## By the numbers
+
+- 8 agents, 1 Agent2Agent hop, 0 simulated ones
+- 187 backend tests, 97% line coverage, pylint 10.00/10
+- 26 approval emails sent by a consumption-scaling bug, 11 triggers on the corrected run
+- 2 IAM grants missing after the identity migration (`roles/modelarmor.user`,
+  `roles/cloudtrace.agent`), caught before the old shared identity's grants were removed
+- 1 session-revocation IAM gap that 401'd every authenticated route until a user reported it
 
 ## Challenges we ran into
 
-Nearly every hard bug had the same shape: something that looked like success while the real
-thing quietly failed. `adk deploy` exits clean and can still serve a stale sandbox before a cold
-start reveals the real error. A misconfigured Memory Bank region silently killed the entire
-autonomy pipeline with no error anywhere. A `shift_history` doc-ID collision collapsed 21 days of
-fatigue history into one document per person — the flagship risk feature had likely never
-actually flagged anyone, in production, until the document count didn't add up.
-
-Hours before submission, a scaling bug in the ambient-consumption tick crashed every SKU to
-critical within five minutes of deploying — **26 real approval emails** landed in an actual
-inbox before we caught it in Firestore rather than the deploy log. Fixed, redeployed, and forced
-one clean cycle: **exactly 11 triggers**, matching live reality precisely.
-
-The very last bug was self-inflicted: a session-revocation improvement made one extra API call
-Cloud Run's own identity had no permission for. Every authenticated route 401'd for genuinely
-signed-in users — invisibly, because the exception handler swallowed the real cause instead of
-logging it. Found from a plain user report, root-caused from Cloud Run's own logs, fixed with
-one scoped IAM grant.
+- `adk deploy` exits 0 and can still serve a stale sandbox for a few calls before a cold start
+  surfaces the real `ModuleNotFoundError`.
+- A misconfigured Memory Bank region (`us` instead of `us-central1`) killed the whole autonomy
+  pipeline with no exception anywhere an operator would look.
+- A `shift_history` document-ID collision collapsed 21 days of fatigue history into one document
+  per staff member — the fatigue-risk feature had likely never flagged anyone correctly until
+  the record count stopped matching the seed.
+- A consumption-scaling bug applied a full day's inventory depletion on every 90-second cycle
+  instead of a fraction of one. Every SKU hit critical stock in about five minutes, and 26 real
+  approval emails went out before Firestore data — not the deploy log — caught it.
+- The `check_revoked=True` session-revocation change added a call to Identity Toolkit that
+  `coordinator-agent-sa` had no IAM grant for. Every authenticated route 401'd for signed-in
+  users, and the exception handler discarded the underlying error before it ever reached Cloud
+  Logging. A support ticket surfaced it; Cloud Run's own request logs confirmed it wasn't a
+  frontend bug; one `roles/firebaseauth.viewer` grant closed it.
 
 ## Accomplishments we're proud of
 
-A genuine Agent2Agent hop, confirmed end to end in one Cloud Trace waterfall, not a function
-call wearing an A2A costume. A Model Armor boundary whose second layer actually earned its keep
-— it caught what the first layer missed. A fleet that proves itself unprompted: real seed data
-already critical at plain seed time, the watch wired to act on exactly that. And the one we're
-proudest of — refusing to accept our own documentation that Agent Identity "can't be enforced on
-this platform." That was true of a CLI flag, not the platform.
+- An Agent2Agent call that shows up as a distinct httpx span inside one Cloud Trace waterfall,
+  not a same-process function call relabeled as A2A.
+- A Model Armor second pass that caught something the pre-model pass missed, in testing, not
+  hypothetically.
+- Trigger detection that fires correctly off unmodified seed data, verified against the exact
+  count a clean watch cycle produced.
+- Reopening our own note that said Agent Identity "can't be enforced on this platform" and
+  finding out it described a CLI flag, not the platform.
 
 ## What we learned
 
-"The deploy succeeded" and "the deployed thing works" are different claims, and almost every
-real bug here lived in that gap — which is why nearly every milestone ends with a live check,
-not a trusted exit code. Pure-logic modules pulled out of ADK orchestration glue paid for
-themselves: a same-day rewrite of the autonomy mechanism shipped with 97% coverage and zero
-regressions. And a system built to survive being replayed — deterministic seeding, edge-triggered
-logic — is the same discipline that makes it trustworthy enough to run unattended at all.
+- A deploy exiting 0 and a deployed engine actually working are two different claims, and most
+  of the real bugs here lived in the gap between them.
+- Pulling burndown math, par-level checks, and trigger logic out of the ADK orchestration layer
+  into plain functions made a same-day rewrite of the autonomy path land at 97% coverage with no
+  regressions.
+- Deterministic seeding and edge-triggered logic — built for replaying demos cleanly — turned out
+  to be the same property that makes unattended operation safe.
 
 ## What's next
 
-A fifth trigger axis for vendor reliability. Real contact information once this moves past
-synthetic data. A distributed lock around the watch loop before this runs on more than one Cloud
-Run instance. And the one honest gap worth stating plainly: Firestore has no per-collection IAM,
-so patient-data access is enforced at the application layer, not by IAM alone — a real, useful,
-but not cryptographic boundary. Closing it fully means a bigger architectural call than a
-hackathon week has room for.
+- A fifth trigger axis for vendor reliability degradation across purchase-order history
+- Real contact fields once this runs on anything other than synthetic data
+- A distributed lock on the watch loop before it runs on more than one Cloud Run instance
+- Firestore has no per-collection IAM — patient-data access is enforced by
+  `services/platform/access_control.py`'s allowlist at the application layer, not by IAM alone.
+  Closing that gap means either a Firestore-adjacent authorization layer or a datastore with
+  native resource-level IAM, neither of which fit in a hackathon week.
