@@ -1353,3 +1353,23 @@ per-agent identity, not a self-declared caller on shared IAM." No Cloud Run rede
 — `prudently-api`'s own runtime identity was already `coordinator-agent-sa` via `modules/
 cloud_run_api/main.tf`, untouched by this change; only the 8 Reasoning Engine deploys and two
 Terraform applies (IAM/KMS grants, then Secret Manager grants) were required.
+
+## `docs/threat-model.md` removed; diagrams de-statused (Aug 24)
+
+User-directed. `docs/threat-model.md` — referenced extensively in the dated entries above, where
+it was current — is deleted. Every entry above stays as written, since this file is a dated
+journal of what was true at the time, not a rewritten one; a `docs/threat-model.md` reference in
+an entry above documents that the file existed and said that when the entry was written, not that
+it exists now. **A session reading those entries should not expect the file to be there.**
+
+`docs/security-architecture.svg`/`.png` — built entirely around per-finding "Fixed"/"Mitigated"/
+"Accepted" badges citing that file — lost the badges, the legend entries for them, and the
+closing "10/10 STRIDE findings" line, along with every remaining per-card `SAFE`/`ELEVATED`/
+`CRITICAL` accent border that existed only to encode that status. Cards now read as a plain
+inventory of what each control is and does, styled like `deployment-architecture.svg` and
+`architecture.svg` (no status coloring, ever). `docs/architecture.svg`'s own single reference
+(a disclosure line citing "finding 9") was reworded to state the fact — every engine has its own
+identity — without citing a file. README, `docs/architecture.md`, and `docs/devpost-writeup.md`
+had their direct mentions/links removed the same way, keeping every surrounding factual claim
+(ten controls existing, Agent Identity being real, KMS grants being scoped to two identities) —
+only the citation to the now-deleted file is gone, not the substance it was citing.
