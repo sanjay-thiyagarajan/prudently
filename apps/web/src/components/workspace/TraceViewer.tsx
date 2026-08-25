@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Loader2, TriangleAlert, Waypoints, X } from "lucide-react";
+import { useState } from "react";
 
 import { useTrace } from "@/lib/api/traces";
 import type { TraceSpan } from "@/lib/types/dashboard";
@@ -15,8 +16,27 @@ function offsetAndWidth(span: TraceSpan, traceStartMs: number, traceDurationMs: 
   return { left, width };
 }
 
-export function TraceViewer({ traceId, onClose }: { traceId: string; onClose: () => void }) {
+// Above this age, a still-missing trace isn't "still exporting" — it's gone. Cloud Trace
+// export is synchronous on the writing side (services/platform/observability_vertex.py's
+// SimpleSpanProcessor), so a real delay is a few seconds at most; a few minutes means the
+// export never landed.
+const EXPORT_LAG_GRACE_MS = 2 * 60 * 1000;
+
+export function TraceViewer({
+  traceId,
+  timestamp,
+  onClose,
+}: {
+  traceId: string;
+  timestamp?: string;
+  onClose: () => void;
+}) {
   const { data, error, isLoading } = useTrace(traceId);
+  // Captured once, at mount — a lazy initializer, not a read during render, so this stays
+  // pure from React's own point of view even though Date.now() itself isn't.
+  const [openedAtMs] = useState(() => Date.now());
+  const ageMs = timestamp ? openedAtMs - new Date(timestamp).getTime() : 0;
+  const likelyGone = ageMs > EXPORT_LAG_GRACE_MS;
 
   const spans = data?.spans ?? [];
   const times = spans
@@ -71,11 +91,25 @@ export function TraceViewer({ traceId, onClose }: { traceId: string; onClose: ()
               <Loader2 className="animate-spin text-[var(--color-ink-muted)]" size={20} />
             </div>
           ) : error || !data ? (
-            <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 text-center">
+            <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 px-4 text-center">
               <TriangleAlert className="text-[var(--color-elevated)]" size={24} />
-              <p className="text-sm text-[var(--color-ink-secondary)]">
-                Trace not found yet — Cloud Trace export can lag a few seconds behind the call.
-              </p>
+              {likelyGone ? (
+                <>
+                  <p className="text-sm text-[var(--color-ink-secondary)]">
+                    This trace never reached Cloud Trace — it isn&apos;t just running late.
+                  </p>
+                  <p className="max-w-sm text-xs text-[var(--color-ink-muted)]">
+                    Spans generated when an agent runs on its own deployed Reasoning Engine
+                    (rather than the fleet watch&apos;s in-process path) aren&apos;t always
+                    exported successfully. The action itself still happened and is recorded
+                    above — only this step-by-step replay is missing.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-[var(--color-ink-secondary)]">
+                  Trace not found yet — Cloud Trace export can lag a few seconds behind the call.
+                </p>
+              )}
             </div>
           ) : spans.length === 0 ? (
             <p className="text-sm text-[var(--color-ink-secondary)]">No spans in this trace.</p>

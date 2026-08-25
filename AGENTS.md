@@ -1507,3 +1507,38 @@ full enriched item shape, `/dashboard/overview`'s approvals carry `id: null` whe
 the backfill's actual effect read back from Firestore directly. `make test`/`make lint`
 (192 tests, pylint 10.00/10, black clean) and the web build (`tsc`, `eslint`, `next build`) all
 green.
+
+## Diagnosed a real "trace not found" gap: Reasoning Engine spans aren't reliably exported (Aug 25)
+
+User reported a specific trace 404ing in the dashboard's TraceViewer. Root-caused rather than
+assumed: `google.cloud.trace_v1.TraceServiceClient.get_trace()` confirmed the trace was
+genuinely gone (checked directly, not just through the UI) — over a day old, well past any
+plausible export lag. Cross-referenced Firestore's `activity_log` for the entry that produced
+it: a `routing_decision` (`agent_name: "coordinator"`) with no matching Cloud Run HTTP request
+in `prudently-api`'s own logs anywhere near that timestamp. Checked Cloud Logging for
+`resource.type="aiplatform.googleapis.com/ReasoningEngine"` on Coordinator's own engine instead
+— found `POST /api/stream_reasoning_engine`, confirming the call ran on the *deployed Reasoning
+Engine*, not the in-process Cloud Run path `services/autonomy.py` uses for the autonomous fleet
+watch.
+
+That distinction is the whole finding. Confirmed by direct comparison: `autonomous_action`
+traces (in-process, Cloud Run) came back complete every time — one pull showed 26 full spans,
+tool calls and all. A hand-built span exported with my own ADC credentials, using the exact
+same `CloudTraceSpanExporter` code path, also landed and was retrievable within seconds. But
+every trace_id traceable to an actual Coordinator *Reasoning Engine* session — three checked,
+three missing — was gone, with zero corresponding error in that engine's own Cloud Logging
+output (searched broadly, not just for a specific string). `services/platform/
+observability_vertex.py`'s own docstring already flags this exact risk ("not safe to assume
+[background export] works correctly inside the Reasoning Engine's sandboxed/possibly-forking
+container") as the reason `SimpleSpanProcessor` was chosen over `BatchSpanProcessor` — this is
+that risk actually materializing, on the one interactive path (asking Coordinator something
+against its real deployed engine) that doesn't run through Cloud Run at all.
+
+Not a one-line fix: the failure is silent on the Reasoning Engine's own side, so there's nothing
+in this codebase's control to catch or retry. Fixed what's actually fixable — the *lie* in the
+UI, not the export gap itself. `TraceViewer`'s generic "Cloud Trace export can lag a few seconds"
+message was true for the common case (in-process spans) and false for this one; it now takes the
+activity's own timestamp (threaded through from `ActivityFeed`'s `onSelectTrace`, which already
+has it) and only shows the "still exporting" message under a 2-minute grace window — past that,
+it says plainly that the trace is gone and names the Reasoning Engine sandbox as the likely
+reason, without hiding that the action itself is still on record in the activity log above it.

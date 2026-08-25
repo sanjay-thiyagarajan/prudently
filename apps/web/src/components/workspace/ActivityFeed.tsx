@@ -41,7 +41,7 @@ function ActivityRow({
   onSelectTrace,
 }: {
   entry: ActivityLogEntry;
-  onSelectTrace: (traceId: string) => void;
+  onSelectTrace: (traceId: string, timestamp: string) => void;
 }) {
   const Icon = TYPE_ICON[entry.activity_type] ?? Activity;
   const unprompted = entry.initiated_by === "autonomous_watch";
@@ -84,7 +84,7 @@ function ActivityRow({
             {entry.trace_id && (
               <button
                 type="button"
-                onClick={() => onSelectTrace(entry.trace_id as string)}
+                onClick={() => onSelectTrace(entry.trace_id as string, entry.timestamp)}
                 className="font-medium text-[var(--color-hero)] hover:underline"
               >
                 View trace
@@ -102,7 +102,7 @@ export function ActivityFeed({
   onSelectTrace,
 }: {
   entries: ActivityLogEntry[];
-  onSelectTrace: (traceId: string) => void;
+  onSelectTrace: (traceId: string, timestamp: string) => void;
 }) {
   return (
     <Panel title="Activities" icon={History} live>
