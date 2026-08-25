@@ -16,6 +16,7 @@ from agents.medrep.agent import root_agent as medrep_agent
 from config import a2a_shared_secret, get_settings
 from routes.agents import router as agents_router
 from routes.approvals import router as approvals_router
+from routes.audit import router as audit_router
 from routes.auth import router as auth_router
 from routes.dashboard import router as dashboard_router
 from routes.inventory import router as inventory_router
@@ -144,6 +145,7 @@ app.add_middleware(
 app.include_router(watch_router)
 app.include_router(dashboard_router)
 app.include_router(approvals_router)
+app.include_router(audit_router)
 app.include_router(policy_router)
 app.include_router(payroll_router)
 app.include_router(agents_router)

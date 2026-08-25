@@ -34,7 +34,7 @@ async function fetcher(url: string, idToken: string | null): Promise<DashboardOv
 
 export function useDashboardOverview() {
   const { idToken } = useAuth();
-  const { data, error, isLoading } = useSWR<DashboardOverview>(
+  const { data, error, isLoading, mutate } = useSWR<DashboardOverview>(
     [`${API_BASE_URL}/dashboard/overview`, idToken],
     ([url, token]: [string, string | null]) => fetcher(url, token),
     {
@@ -50,5 +50,6 @@ export function useDashboardOverview() {
     isLoading: isLoading && !data,
     /** True when the API withheld staff-level rows because the caller was anonymous. */
     isPublicView: data?._public_view === true,
+    refresh: mutate,
   };
 }

@@ -8,6 +8,7 @@ import {
   Network,
   Package,
   Scissors,
+  ScrollText,
   ShieldAlert,
   ShieldOff,
   Stethoscope,
@@ -56,6 +57,7 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
     heading: "Governance",
     items: [
       { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
+      { href: "/audit", label: "Audit log", icon: ScrollText },
       { href: "/security", label: "Security & resilience", icon: ShieldAlert },
     ],
   },

@@ -46,12 +46,14 @@ def overview_payload() -> dict:
         ],
         "approvals": [
             {
+                "id": "tok_vendor_abc123",
                 "task_type": "contact_vendor_for_reorder",
                 "status": "pending",
                 "recipient_label": "MedSupply Primary",
                 "subject": "Reorder request: 400 units of Nitrile exam gloves",
             },
             {
+                "id": "tok_staff_def456",
                 "task_type": "notify_staff_reallocation",
                 "status": "pending",
                 "recipient_label": "Nurse IC-01 (ICU)",
@@ -131,6 +133,20 @@ class TestPublicView:
         # The vendor one describes goods, not a person, and stays intact.
         assert "Nitrile" in by_task["contact_vendor_for_reorder"]["subject"]
 
+    def test_approval_bearer_token_is_withheld(self):
+        # `id` is the literal approve/reject capability (services/state.py's get_approvals) —
+        # unlike every other approvals field, leaking it doesn't just describe an action, it
+        # lets an anonymous caller resolve it via routes/approvals.py's email-click-through path.
+        public = redact_overview(overview_payload(), authenticated=False)
+        assert all(a["id"] is None for a in public["approvals"])
+
+    def test_authenticated_view_keeps_the_approval_bearer_token(self):
+        payload = overview_payload()
+        authenticated = redact_overview(payload, authenticated=True)
+        ids = {a["task_type"]: a["id"] for a in authenticated["approvals"]}
+        assert ids["contact_vendor_for_reorder"] == "tok_vendor_abc123"
+        assert ids["notify_staff_reallocation"] == "tok_staff_def456"
+
     def test_chaos_results_drop_staff_rows_but_keep_the_projection(self):
         public = redact_overview(overview_payload(), authenticated=False)
         result = public["chaos_experiments"][0]["result"]
@@ -187,6 +203,15 @@ class TestPublicView:
 
 
 class TestAgentDetailPublicView:
+    def test_approval_bearer_token_is_withheld(self):
+        payload = {
+            "agent": {"agent_name": "supply_chain_resiliency_agent"},
+            "live_state": {},
+            "approvals": [{"id": "tok_abc123", "task_type": "contact_vendor_for_reorder"}],
+        }
+        public = redact_agent_detail(payload, authenticated=False)
+        assert public["approvals"][0]["id"] is None
+
     def test_nested_live_state_is_redacted(self):
         payload = {
             "agent": {"agent_name": "shift_allocation_agent"},

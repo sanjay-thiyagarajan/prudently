@@ -149,6 +149,23 @@ def _redact_activity_log(payload: dict) -> None:
         }
 
 
+def _redact_approval_ids(payload: dict) -> None:
+    """Strips the real approve/reject bearer token off `approvals[].id`, in place.
+
+    Every other field project_approval() returns is already safe to publish (that's the whole
+    point of projecting it), but `id` is the literal Firestore doc key for the `approvals`
+    collection, which routes/approvals.py's email-click-through path treats as a standalone
+    capability — anyone holding it can resolve that approval with no further auth. Publishing
+    it on the anonymous feed would hand out that capability to anyone with the link, not just
+    the signed-in manager routes/approvals.py's new dashboard resolve route is meant for."""
+    approvals = payload.get("approvals")
+    if not isinstance(approvals, list):
+        return
+    for approval in approvals:
+        if isinstance(approval, dict):
+            approval["id"] = None
+
+
 def _redact_chaos_results(payload: dict) -> None:
     """Drops the per-staff rows out of chaos what-if results, in place."""
     experiments = payload.get("chaos_experiments")
@@ -185,6 +202,7 @@ def redact_overview(payload: dict, *, authenticated: bool) -> dict:
         _redact_at(redacted, path)
     _redact_agent_prose(redacted)
     _redact_recipient_labels(redacted)
+    _redact_approval_ids(redacted)
     _redact_chaos_results(redacted)
     redacted["_public_view"] = True
     return redacted
@@ -192,9 +210,10 @@ def redact_overview(payload: dict, *, authenticated: bool) -> dict:
 
 def redact_agent_detail(payload: dict, *, authenticated: bool) -> dict:
     """Per-agent detail page equivalent. The agent payload nests each specialist's live state
-    under `live_state`, so the same paths apply one level down; anything else it carries
-    (activity log summaries, projected approvals, registry metadata) is already public-safe.
-    """
+    under `live_state`, so the same paths apply one level down; activity log summaries and
+    registry metadata are already public-safe, but the projected approvals list carries a real
+    bearer token in `id` (see `_redact_approval_ids`) that needs the same treatment as
+    redact_overview's."""
     if authenticated:
         return payload
     redacted = deepcopy(payload)
@@ -207,6 +226,7 @@ def redact_agent_detail(payload: dict, *, authenticated: bool) -> dict:
         _redact_chaos_results(live_state)
     _redact_agent_prose(redacted)
     _redact_recipient_labels(redacted)
+    _redact_approval_ids(redacted)
     _redact_chaos_results(redacted)
     _redact_activity_log(redacted)
     redacted["_public_view"] = True

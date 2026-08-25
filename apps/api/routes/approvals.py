@@ -1,20 +1,30 @@
-"""Manager approval click-through endpoints — reached from the approve/reject links an
-approval-request email carries (services/platform/approvals.py). No auth: the token in the URL
-is the capability, and these must be clickable straight from an email on a phone with no
-dashboard login.
+"""Manager approval endpoints — two independent front doors onto the same
+`resolve_approval()` state machine (services/platform/approvals.py).
 
-GET renders a confirm page; the actual state mutation + real send only happens on POST. This
-split exists because mail clients and security scanners prefetch links for safe-link scanning
-— a plain GET that mutated state on load could fire before a human ever clicked it."""
+The email-click-through routes below are unauthenticated on purpose: the token in the URL is
+the capability, and these must stay clickable straight from an email on a phone with no
+dashboard login. GET renders a confirm page; the actual state mutation + real send only
+happens on POST — mail clients and security scanners prefetch links for safe-link scanning, so
+a plain GET that mutated state on load could fire before a human ever clicked it.
+
+The dashboard front door (`POST /{approval_id}/resolve`, near the bottom of this file) is the
+opposite shape on purpose: `require_firebase_auth`-gated JSON, no token in the URL at all — a
+signed-in manager approving from the Prudently UI already proved who they are, so this route
+authenticates the *person*, not a capability string, and reuses the approval's own Firestore
+doc ID (exposed to authenticated dashboard responses only — see services/redaction.py) as the
+lookup key into the identical `resolve_approval()` call the email path makes."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from html import escape
+from typing import Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
+from services.auth import require_firebase_auth
 from services.platform.approvals import resolve_approval
 from services.platform.email_templates import page_shell
 from services.platform.rate_limit import limiter
@@ -141,3 +151,32 @@ def reject(request: Request, token: str) -> HTMLResponse:
         "Rejected",
         f'<p style="color:{_INK_MUTED};">No email was sent.</p>',
     )
+
+
+class ResolvePayload(BaseModel):
+    decision: Literal["approved", "rejected"]
+
+
+_RESOLVE_ERROR_STATUS = {"not_found": 404, "already_decided": 409, "expired": 410}
+
+
+@router.post("/{approval_id}/resolve")
+@limiter.limit("20/minute")
+def resolve_from_dashboard(
+    request: Request,  # pylint: disable=unused-argument
+    approval_id: str,
+    payload: ResolvePayload,
+    _uid: str = Depends(require_firebase_auth),
+) -> dict:
+    """The in-app equivalent of clicking the approve/reject link in the email — same
+    `resolve_approval()`, same idempotent "already decided" handling, just reached from a
+    signed-in manager's dashboard instead of a mail client. JSON in, JSON out, unlike the
+    email path's rendered confirm pages, since the frontend updates the approvals list in
+    place rather than navigating to a new page."""
+    result = resolve_approval(approval_id, payload.decision)
+    if "error" in result:
+        raise HTTPException(
+            status_code=_RESOLVE_ERROR_STATUS.get(result["error"], 400),
+            detail=result["error"],
+        )
+    return result

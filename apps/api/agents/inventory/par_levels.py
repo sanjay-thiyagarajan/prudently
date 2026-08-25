@@ -81,6 +81,26 @@ def compute_par_levels(items: list[dict]) -> list[dict]:
                 "stock_status": status,
                 "primary_vendor_id": item.get("primary_vendor_id"),
                 "recommendation": _recommendation(status, item["name"], item["sku"], days_left),
+                # Item-master detail — real fields a hospital materials-management system
+                # carries per SKU (packages/datagen/datagen/inventory.py's own docstring names
+                # which systems), not derived from the stock math above. `.get(...)` throughout
+                # so a doc seeded before these fields existed degrades to None/empty rather than
+                # raising — this endpoint must keep serving pre-backfill data too.
+                "unit_cost": item.get("unit_cost"),
+                "manufacturer": item.get("manufacturer"),
+                "manufacturer_part_number": item.get("manufacturer_part_number"),
+                "gtin": item.get("gtin"),
+                "unspsc_code": item.get("unspsc_code"),
+                "storage_location": item.get("storage_location"),
+                "storage_condition": item.get("storage_condition"),
+                "package_quantity": item.get("package_quantity"),
+                "par_level_min": item.get("par_level_min"),
+                "par_level_max": item.get("par_level_max"),
+                "is_hazardous": item.get("is_hazardous", False),
+                "is_controlled_substance": item.get("is_controlled_substance", False),
+                "is_critical_item": item.get("is_critical_item", False),
+                "lot_number": item.get("lot_number"),
+                "expiration_date": item.get("expiration_date"),
             }
         )
 
