@@ -209,7 +209,13 @@ def get_approvals(limit: int = 20) -> list[dict]:
     """Most recent `approvals` docs, newest first — the dashboard's Approvals feed. Fetches
     unfiltered (no `where(status == ...)`) and lets the caller group by status in Python,
     matching every other feed in this file — a `where` combined with `order_by` would need a
-    composite Firestore index this project doesn't have."""
+    composite Firestore index this project doesn't have.
+
+    `id` (the doc's own key, which for this collection is the real approve/reject bearer
+    token — see write_approval) is attached like every other list-getter in this file, but
+    unlike those, this one is a real capability, not an opaque row identifier: routes/
+    dashboard.py's project_approval() and services/redaction.py both treat it as
+    authenticated-only before it ever reaches a public response."""
     docs = (
         get_client()
         .collection("approvals")
@@ -217,7 +223,7 @@ def get_approvals(limit: int = 20) -> list[dict]:
         .limit(limit)
         .stream()
     )
-    return [doc.to_dict() for doc in docs]
+    return [{**doc.to_dict(), "id": doc.id} for doc in docs]
 
 
 def write_email_log(record: dict) -> None:

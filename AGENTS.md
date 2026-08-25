@@ -1433,3 +1433,77 @@ of that. Verified both independently — `env -i` with no ADC and no override st
 cleanly (the real fix), and the same with the two backend env vars set the way CI now sets them
 (the belt-and-suspenders one). `ci.yml`'s own top comment, which cited the now-deleted
 `docs/threat-model.md`, was rewritten to describe the bug it just caught instead.
+
+## Agent detail page rebuilt; audit log; in-app approvals; real inventory item-master fields (Aug 25)
+
+Four user-directed passes, in order.
+
+**Agent detail page.** Was nearly empty per agent beyond a generic live-state panel. Added,
+per agent, from data already fetched by `GET /agents/{name}` (no new endpoints except the two
+below): a quick-vitals `StatStrip` (4 agent-specific numbers, e.g. Shift's staff-tracked/
+at-risk/fleet-initiated-checks/pending-approvals), a `MiniActivityList` isolating only
+fleet-watch-initiated entries, a domain-specific chart (`FatigueBurndownChart`,
+`SupplyRunwayChart`, `VendorReliabilityChart`, `CredentialComplianceDonut`,
+`ScreeningScoreboard`, `ExperimentScoreboard`, `ORTimelinePanel`, `CoordinatorRoutingPanel` —
+eight different chart shapes, deliberately not the same template repeated), a full sortable/
+paginated `RecordTable` (every row, not just the top flagged few), and a static `InfoCard`
+naming the agent's real approval-gated tool (or explaining honestly why it has none). Also
+fixed `surgical_scheduling_agent` falling through to a wrong "this agent delegates" message,
+and demoted `AgentIdentityPanel` out of the page's headline slot into the existing "System
+health (technical detail)" accordion with softer copy — it was reading as a badge, not
+information a manager asked for. New `GET /agents/{name}/memory` route
+(`routes/traces.py`) backs a "What it remembers" recall panel that runs the identical Memory
+Bank search each agent's own `recall_*` tool already runs.
+
+**Discovered while building this**: `lib/api/agents.ts`'s `useAgentDetail` never attached the
+Firebase ID token to its fetch — every signed-in manager was silently getting the anonymous,
+redacted payload (`shift.records: []`, etc.) on every agent detail page, this whole session,
+with no error to signal it. Fixed to match `lib/api/dashboard.ts`'s existing token-attached
+pattern; both hooks now also expose `refresh` (SWR's `mutate`) for callers that need to force
+a refetch after a mutation.
+
+**`/audit` page.** New `GET /audit/log` route (`routes/audit.py`) over the same `activity_log`
+collection every approval/routing-decision/screening/chaos-experiment call already writes to —
+auth-gated, unredacted, up to 1000 rows. `AuditTable`: search, filter by agent/type/initiated-by,
+sortable columns, pagination, a row click-through detail panel, CSV export of the *filtered* set.
+Added to the sidebar under Governance.
+
+**In-app approvals.** Every approve/reject was previously only reachable by clicking a link in
+the approval-request email — `routes/approvals.py`'s POST handlers had no auth, by design, since
+the token in the URL *is* the capability. Added a second, opposite-shaped front door:
+`POST /approvals/{approval_id}/resolve`, `require_firebase_auth`-gated JSON, no token in the URL,
+calling the identical `resolve_approval()`. The approval's own Firestore doc ID (which is the
+real bearer token) now rides along in `project_approval()`'s output — but only for an
+authenticated caller: `services/redaction.py` gained `_redact_approval_ids`, wired into both
+`redact_overview` and `redact_agent_detail`, so an anonymous request gets `id: null` and can't
+use it to resolve anything. `services/state.py`'s `get_approvals()` also had to start attaching
+`doc.id` at all — it was the one list-getter in that file that didn't. `ApprovalsFeed` grew
+Approve/Reject buttons that only render when a real `id` is present (i.e., signed in), calling
+the new route and then the page's `refresh()`.
+
+**Inventory item-master fields.** Each inventory item carried 9 fields, several of them derived
+stock math rather than descriptive detail — visibly thin next to Payroll/Staff/Vendors.
+`packages/datagen/datagen/inventory.py`'s `CATALOG` now carries the field set a real hospital
+materials-management system (Cerner/Oracle Health Supply Chain, Infor CloudSuite) tracks per SKU:
+manufacturer + part number, GTIN barcode, UNSPSC classification code, storage location/condition,
+package quantity, a par range (min/max, distinct from the existing single reorder point),
+hazardous/controlled-substance/critical-item flags, and a per-lot number + expiration date
+(generated on its own RNG stream, `_TIGHT_STOCK_DAYS_ON_HAND`'s and `unit_cost`'s draws
+untouched). Manufacturer/distributor names are invented, matching `VENDORS`' own existing
+convention — never a real company. `agents/inventory/par_levels.py`'s `compute_par_levels`
+(the only place a Firestore `inventory` doc's fields ever reach the API — it projects
+field-by-field, not `**item`) now carries all of it through, `.get(...)`-defaulted so a
+pre-backfill doc doesn't crash the endpoint. New one-off backfill script,
+`datagen/backfill_inventory_fields.py` (same "targeted `.update()`, `current_stock` and every
+other live-mutated field left alone" shape as the existing `backfill_inventory_cost.py`), run
+against the live `prudently-hackathon` Firestore project to push these fields onto the 8 already-
+seeded docs. Surfaced on the `/inventory` page's item drilldown (a proper spec-sheet block: flags,
+manufacturer/storage/lot/expiry/par-range rows, unit cost × on-hand value) and the agent page's
+inventory `RecordTable` and compact `InventoryPanel`.
+
+Verified live throughout, not just unit-tested: local `uvicorn` + curl against every new/changed
+route (auth-required routes 401 without a token, `/agents/inventory_management_agent` returns the
+full enriched item shape, `/dashboard/overview`'s approvals carry `id: null` when anonymous), and
+the backfill's actual effect read back from Firestore directly. `make test`/`make lint`
+(192 tests, pylint 10.00/10, black clean) and the web build (`tsc`, `eslint`, `next build`) all
+green.

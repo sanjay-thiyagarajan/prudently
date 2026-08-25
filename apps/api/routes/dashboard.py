@@ -42,8 +42,15 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 def project_approval(record: dict) -> dict:
     """Never expose the manager's real email address or full request/email bodies on a public
     route — shared by this module's overview() and routes/agents.py's per-agent detail
-    endpoint, both of which surface approvals publicly."""
+    endpoint, both of which surface approvals publicly.
+
+    `id` carries the real approve/reject bearer token (services/state.py's get_approvals), so
+    it's included here unconditionally — the same "build the full payload, redact it away for
+    an anonymous caller" split every other sensitive field in this response already follows
+    (see services/redaction.py's `_redact_approval_ids`, called from both redact_overview and
+    redact_agent_detail) rather than a second, inconsistent access-control path grown here."""
     return {
+        "id": record.get("id"),
         "task_type": record["task_type"],
         "status": record["status"],
         "recipient_label": record.get("recipient_label", record.get("to")),

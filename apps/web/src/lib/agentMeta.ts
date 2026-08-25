@@ -30,6 +30,20 @@ export interface AgentMeta {
   memoryScope: string | null;
   /** Whether the fleet watch can wake this agent up with nobody in the room. */
   autonomous: boolean;
+  /** The dedicated IAM service account this Reasoning Engine runs as — not a shared platform
+   * identity. Set via .agent_engine_config.json, confirmed live via effective_identity; see
+   * docs/threat-model.md's git history / AGENTS.md's Agent Identity entries for how this was
+   * verified. Project-qualified so it's copy-pasteable straight into the Cloud Console. */
+  serviceAccount: string;
+}
+
+const SA_DOMAIN = "prudently-hackathon.iam.gserviceaccount.com";
+const GCP_PROJECT = "prudently-hackathon";
+const GCP_REGION = "us-central1";
+
+/** Cloud Console deep link for a Reasoning Engine — same URL `adk deploy` itself prints. */
+export function reasoningEngineConsoleUrl(engineId: string): string {
+  return `https://console.cloud.google.com/vertex-ai/agents/agent-engines/locations/${GCP_REGION}/agent-engines/${engineId}?project=${GCP_PROJECT}`;
 }
 
 export const AGENT_ACCENT: Record<AgentKind, string> = {
@@ -48,6 +62,7 @@ export const AGENT_META: Record<string, AgentMeta> = {
     kind: "hub",
     memoryScope: null,
     autonomous: false,
+    serviceAccount: `coordinator-agent-sa@${SA_DOMAIN}`,
   },
   shift_allocation_agent: {
     label: "Shift Allocation",
@@ -56,6 +71,7 @@ export const AGENT_META: Record<string, AgentMeta> = {
     kind: "specialist",
     memoryScope: "per unit",
     autonomous: true,
+    serviceAccount: `shift-agent-sa@${SA_DOMAIN}`,
   },
   inventory_management_agent: {
     label: "Inventory",
@@ -64,14 +80,16 @@ export const AGENT_META: Record<string, AgentMeta> = {
     kind: "specialist",
     memoryScope: "per SKU",
     autonomous: false,
+    serviceAccount: `inventory-agent-sa@${SA_DOMAIN}`,
   },
   supply_chain_resiliency_agent: {
     label: "Supply Chain",
     icon: Truck,
     blurb: "Reorder quantities, vendor selection, stockout risk",
     kind: "specialist",
-    memoryScope: "per vendor",
+    memoryScope: "per SKU",
     autonomous: true,
+    serviceAccount: `supply-agent-sa@${SA_DOMAIN}`,
   },
   hr_agent: {
     label: "HR",
@@ -80,14 +98,16 @@ export const AGENT_META: Record<string, AgentMeta> = {
     kind: "specialist",
     memoryScope: "per unit",
     autonomous: true,
+    serviceAccount: `hr-agent-sa@${SA_DOMAIN}`,
   },
   chaos_continuity_agent: {
     label: "Chaos & Continuity",
     icon: Zap,
     blurb: "Ward what-if projections and fault injection against the fleet",
     kind: "specialist",
-    memoryScope: "per scenario",
+    memoryScope: "one shared store — fault-injection tests only",
     autonomous: false,
+    serviceAccount: `chaos-agent-sa@${SA_DOMAIN}`,
   },
   medical_representative_agent: {
     label: "Medical Representative",
@@ -96,14 +116,16 @@ export const AGENT_META: Record<string, AgentMeta> = {
     kind: "external",
     memoryScope: null,
     autonomous: false,
+    serviceAccount: `medrep-agent-sa@${SA_DOMAIN}`,
   },
   surgical_scheduling_agent: {
     label: "Surgical Scheduling",
     icon: Scissors,
     blurb: "OR/surgeon double-booking detection, patient status notifications",
     kind: "specialist",
-    memoryScope: null,
+    memoryScope: "per conflict",
     autonomous: true,
+    serviceAccount: `surgical-scheduling-agent-sa@${SA_DOMAIN}`,
   },
 };
 
@@ -116,6 +138,7 @@ export function agentMetaFor(agentName: string): AgentMeta {
       kind: "specialist",
       memoryScope: null,
       autonomous: false,
+      serviceAccount: "",
     }
   );
 }

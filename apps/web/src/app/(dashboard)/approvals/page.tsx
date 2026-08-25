@@ -6,7 +6,7 @@ import { ApprovalsFeed } from "@/components/workspace/ApprovalsFeed";
 import { useDashboardOverview } from "@/lib/api/dashboard";
 
 export default function ApprovalsPage() {
-  const { data, error, isLoading } = useDashboardOverview();
+  const { data, error, isLoading, refresh } = useDashboardOverview();
 
   return (
     <main className="min-h-screen px-8 py-10">
@@ -32,7 +32,7 @@ export default function ApprovalsPage() {
         </div>
       ) : (
         <div className="max-w-xl">
-          <ApprovalsFeed approvals={data.approvals} />
+          <ApprovalsFeed approvals={data.approvals} onResolved={() => refresh()} />
         </div>
       )}
     </main>

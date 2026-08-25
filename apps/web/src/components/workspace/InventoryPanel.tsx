@@ -38,11 +38,17 @@ export function InventoryPanel({
                 <div className="min-w-0">
                   <p className="truncate font-medium text-[var(--color-ink-primary)]">
                     {record.name}
+                    {record.is_critical_item && (
+                      <span className="ml-1.5 text-[10px] font-semibold text-[var(--color-critical)]">
+                        CRITICAL
+                      </span>
+                    )}
                   </p>
                   <p className="truncate text-xs text-[var(--color-ink-secondary)]">
                     {record.current_stock} {record.unit} on hand
                     {record.days_of_supply !== null &&
                       ` · ~${record.days_of_supply}d supply left`}
+                    {record.manufacturer && ` · ${record.manufacturer}`}
                   </p>
                 </div>
                 <StatusPill status={record.stock_status} />

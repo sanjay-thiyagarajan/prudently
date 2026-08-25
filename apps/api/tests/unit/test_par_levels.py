@@ -91,6 +91,31 @@ def test_records_with_no_days_of_supply_sort_last():
     assert records[1]["sku"] == "NODATA"
 
 
+def test_item_master_fields_pass_through_when_present():
+    record = item("A", current_stock=100, reorder_point=50)
+    record.update(
+        {
+            "manufacturer": "Meridian Medical",
+            "gtin": "10812345600014",
+            "is_critical_item": True,
+            "expiration_date": "2026-03-23",
+        }
+    )
+    records = compute_par_levels([record])
+    assert records[0]["manufacturer"] == "Meridian Medical"
+    assert records[0]["gtin"] == "10812345600014"
+    assert records[0]["is_critical_item"] is True
+    assert records[0]["expiration_date"] == "2026-03-23"
+
+
+def test_item_master_fields_degrade_gracefully_when_absent():
+    # A doc seeded before these fields existed must not crash this endpoint.
+    records = compute_par_levels([item("A", current_stock=100, reorder_point=50)])
+    assert records[0]["manufacturer"] is None
+    assert records[0]["is_critical_item"] is False
+    assert records[0]["expiration_date"] is None
+
+
 def test_category_summary_aggregates_status_counts():
     records = compute_par_levels(
         [

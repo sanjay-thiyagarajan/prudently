@@ -1,6 +1,15 @@
 "use client";
 
-import { CheckCircle2, Loader2, Package, Receipt, Search, TriangleAlert } from "lucide-react";
+import {
+  AlertOctagon,
+  CheckCircle2,
+  Loader2,
+  Package,
+  Receipt,
+  Search,
+  ShieldAlert,
+  TriangleAlert,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -17,6 +26,13 @@ import type { ParLevelRecord } from "@/lib/types/dashboard";
 const CATEGORY_ALL = "all";
 const STATUS_ALL = "all";
 
+const STORAGE_CONDITION_LABEL: Record<string, string> = {
+  room_temperature: "Room temperature",
+  refrigerated: "Refrigerated (2–8°C)",
+  controlled_substance_safe: "Controlled-substance safe",
+  compressed_gas: "Compressed gas",
+};
+
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "";
@@ -28,7 +44,97 @@ function timeAgo(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function ItemDrilldown({ sku, onClose }: { sku: string; onClose: () => void }) {
+function daysUntil(iso: string): number {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+}
+
+/** A field/value row, monospaced value — same treatment as AgentIdentityPanel's Row, the
+ * established "spec sheet" pattern for the technical detail this codebase already has. */
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-[var(--color-border-soft)] py-1.5 last:border-0">
+      <span className="text-xs text-[var(--color-ink-muted)]">{label}</span>
+      <span className="font-[family-name:var(--font-mono)] text-xs text-[var(--color-ink-primary)]">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function ItemDetail({ record }: { record: ParLevelRecord }) {
+  const expiryDays = record.expiration_date ? daysUntil(record.expiration_date) : null;
+  const expiryTone =
+    expiryDays !== null && expiryDays <= 0
+      ? "var(--color-critical)"
+      : expiryDays !== null && expiryDays <= 60
+        ? "var(--color-elevated)"
+        : undefined;
+  const totalValue =
+    record.unit_cost !== null ? (record.unit_cost * record.current_stock).toFixed(2) : null;
+
+  return (
+    <div className="mb-4 rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-sunk)] p-4">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        {record.is_critical_item && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-critical-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-critical)]">
+            <ShieldAlert size={10} /> Critical item
+          </span>
+        )}
+        {record.is_hazardous && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-elevated-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-elevated)]">
+            <AlertOctagon size={10} /> Hazardous
+          </span>
+        )}
+        {record.is_controlled_substance && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-elevated-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-elevated)]">
+            Controlled substance
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+        <div>
+          <Row label="Manufacturer">{record.manufacturer ?? "—"}</Row>
+          <Row label="Part number">{record.manufacturer_part_number ?? "—"}</Row>
+          <Row label="GTIN">{record.gtin ?? "—"}</Row>
+          <Row label="UNSPSC">{record.unspsc_code ?? "—"}</Row>
+          <Row label="Package">
+            {record.package_quantity ? `${record.package_quantity} / ${record.unit}` : "—"}
+          </Row>
+        </div>
+        <div>
+          <Row label="Storage">{record.storage_location ?? "—"}</Row>
+          <Row label="Condition">
+            {record.storage_condition ? STORAGE_CONDITION_LABEL[record.storage_condition] : "—"}
+          </Row>
+          <Row label="Par range">
+            {record.par_level_min !== null && record.par_level_max !== null
+              ? `${record.par_level_min}–${record.par_level_max} ${record.unit}`
+              : "—"}
+          </Row>
+          <Row label="Lot">{record.lot_number ?? "—"}</Row>
+          <Row label="Expires">
+            <span style={{ color: expiryTone }}>
+              {record.expiration_date
+                ? `${record.expiration_date}${expiryDays !== null ? ` (${expiryDays <= 0 ? "expired" : `${expiryDays}d`})` : ""}`
+                : "does not expire"}
+            </span>
+          </Row>
+        </div>
+      </div>
+      {record.unit_cost !== null && (
+        <div className="mt-2 flex items-center justify-between border-t border-[var(--color-border-soft)] pt-2 text-xs">
+          <span className="text-[var(--color-ink-muted)]">Unit cost / on-hand value</span>
+          <span className="tnum font-medium text-[var(--color-ink-primary)]">
+            ${record.unit_cost.toFixed(2)} · ${totalValue}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ItemDrilldown({ record, onClose }: { record: ParLevelRecord; onClose: () => void }) {
+  const sku = record.sku;
   const { transactions, isLoading } = useInventoryTransactions(sku);
   const { purchaseOrders } = usePurchaseOrders();
   const relatedOrders = purchaseOrders.filter((po) => po.sku === sku);
@@ -37,7 +143,7 @@ function ItemDrilldown({ sku, onClose }: { sku: string; onClose: () => void }) {
     <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)] p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-primary)]">
-          Movement history — {sku}
+          {record.name} — {sku}
         </h3>
         <button
           type="button"
@@ -47,6 +153,8 @@ function ItemDrilldown({ sku, onClose }: { sku: string; onClose: () => void }) {
           Close
         </button>
       </div>
+
+      <ItemDetail record={record} />
 
       {relatedOrders.length > 0 && (
         <div className="mb-4">
@@ -292,6 +400,12 @@ export default function InventoryPage() {
                         <span className="font-medium text-[var(--color-ink-primary)]">
                           {record.name}
                         </span>
+                        {record.is_critical_item && (
+                          <ShieldAlert
+                            size={12}
+                            className="shrink-0 text-[var(--color-critical)]"
+                          />
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-[var(--color-ink-secondary)]">
@@ -319,9 +433,13 @@ export default function InventoryPage() {
             </table>
           </div>
 
-          {selectedSku && (
-            <ItemDrilldown sku={selectedSku} onClose={() => setSelectedSku(null)} />
-          )}
+          {selectedSku &&
+            (() => {
+              const selectedRecord = records.find((r) => r.sku === selectedSku);
+              return selectedRecord ? (
+                <ItemDrilldown record={selectedRecord} onClose={() => setSelectedSku(null)} />
+              ) : null;
+            })()}
 
           <PurchaseOrdersSection />
         </div>

@@ -17,9 +17,27 @@ from google.cloud import logging as cloud_logging
 from google.cloud.trace_v1 import TraceServiceClient
 
 from services.auth import require_firebase_auth
+from services.memory import search as search_memory
 from services.state import FIRESTORE_PROJECT_ID, get_agent_registry
 
 router = APIRouter(tags=["observability"])
+
+# Which agents actually have a Memory Bank store, and what a fact is scoped *to* for each — see
+# services/memory.py's module docstring (per-agent engine, per-(unit|SKU|staff_id) isolation)
+# and services/fleet_watch.py/services/triggers.py for where each one is actually written.
+# Coordinator and Medical Representative are absent on purpose: Coordinator only delegates, and
+# wiring an adversarial-input agent to a memory store it could poison was the one thing Memory
+# Bank was deliberately never given (services/memory.py's own docstring).
+_MEMORY_SUBJECT_LABEL: dict[str, str] = {
+    "shift_allocation_agent": "unit",
+    "inventory_management_agent": "SKU",
+    "supply_chain_resiliency_agent": "SKU",
+    "hr_agent": "staff member",
+    "surgical_scheduling_agent": "conflict",
+    "chaos_continuity_agent": "experiment",
+}
+
+_DEFAULT_RECALL_QUERY = "what has changed here recently, and when"
 
 
 @router.get("/traces/{trace_id}")
@@ -92,3 +110,30 @@ def get_agent_logs(
         for log_entry in entries
     ]
     return {"agent_name": agent_name, "logs": logs}
+
+
+@router.get("/agents/{agent_name}/memory")
+async def get_agent_memory(
+    agent_name: str,
+    subject: str,
+    query: str = _DEFAULT_RECALL_QUERY,
+    _uid: str = Depends(require_firebase_auth),
+) -> dict:
+    """What this agent actually recalls for one subject — the same Memory Bank similarity
+    search its own `recall_*` tool runs (agents/shift/agent.py's `recall_unit_history` and
+    inventory's equivalent), just reachable from the dashboard instead of only from a model
+    turn. 404s for an agent with no memory store rather than a generic 502, so the frontend can
+    tell "nothing recalled yet" apart from "this agent doesn't have memory"."""
+    if agent_name not in _MEMORY_SUBJECT_LABEL:
+        raise HTTPException(status_code=404, detail=f"'{agent_name}' has no Memory Bank store.")
+    try:
+        facts = await search_memory(app_name=agent_name, user_id=subject, query=query)
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        raise HTTPException(status_code=502, detail=f"Memory Bank unavailable: {exc}") from exc
+    return {
+        "agent_name": agent_name,
+        "subject": subject,
+        "subject_label": _MEMORY_SUBJECT_LABEL[agent_name],
+        "query": query,
+        "facts": facts,
+    }

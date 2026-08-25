@@ -43,3 +43,27 @@ export function useAgentLogs(agentName: string | null) {
   );
   return { data, error, isLoading };
 }
+
+export interface AgentMemoryResult {
+  agent_name: string;
+  subject: string;
+  subject_label: string;
+  query: string;
+  facts: string[];
+}
+
+// Not a hook — recall is a discrete "ask" action (mirrors the agent's own recall_* tool being
+// called once per turn), not a polled feed. Callers manage their own loading/error state, same
+// pattern as surgicalSchedule.ts's updateCaseStatus/notifyPatient.
+export async function fetchAgentMemory(
+  idToken: string,
+  agentName: string,
+  subject: string,
+  query?: string,
+): Promise<AgentMemoryResult> {
+  const params = new URLSearchParams({ subject });
+  if (query) params.set("query", query);
+  return authedFetcher<AgentMemoryResult>(idToken)(
+    `${API_BASE_URL}/agents/${encodeURIComponent(agentName)}/memory?${params.toString()}`,
+  );
+}

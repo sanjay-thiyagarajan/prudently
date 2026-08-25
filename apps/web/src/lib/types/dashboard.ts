@@ -22,6 +22,12 @@ export interface BurndownRecord {
   recommendation: string | null;
 }
 
+export type StorageCondition =
+  | "room_temperature"
+  | "refrigerated"
+  | "controlled_substance_safe"
+  | "compressed_gas";
+
 export interface ParLevelRecord {
   sku: string;
   name: string;
@@ -34,6 +40,25 @@ export interface ParLevelRecord {
   stock_status: StockStatus;
   primary_vendor_id: string | null;
   recommendation: string | null;
+  // Item-master detail — see apps/api/agents/inventory/par_levels.py and
+  // packages/datagen/datagen/inventory.py's module docstring for which real hospital
+  // materials-management fields these mirror. Nullable throughout: a doc seeded before these
+  // existed degrades gracefully rather than the endpoint crashing on it.
+  unit_cost: number | null;
+  manufacturer: string | null;
+  manufacturer_part_number: string | null;
+  gtin: string | null;
+  unspsc_code: string | null;
+  storage_location: string | null;
+  storage_condition: StorageCondition | null;
+  package_quantity: number | null;
+  par_level_min: number | null;
+  par_level_max: number | null;
+  is_hazardous: boolean;
+  is_controlled_substance: boolean;
+  is_critical_item: boolean;
+  lot_number: string | null;
+  expiration_date: string | null;
 }
 
 export interface ReorderDecision {
@@ -78,6 +103,10 @@ export interface ArmorEvent {
 }
 
 export interface Approval {
+  /** The real approve/reject bearer token — present only for an authenticated caller (see
+   * apps/api/services/redaction.py's `_redact_approval_ids`); null when signed out or already
+   * withheld for another reason. Required to resolve from the dashboard (lib/api/approvals.ts). */
+  id: string | null;
   task_type: string;
   status: "pending" | "approved" | "rejected";
   recipient_label: string;
