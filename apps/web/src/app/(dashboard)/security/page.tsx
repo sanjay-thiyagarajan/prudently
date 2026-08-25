@@ -32,7 +32,7 @@ export default function SecurityPage() {
           Couldn&apos;t reach the Prudently API.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
           <ArmorFeed events={data.armor_events} />
           <ChaosReplay experiments={data.chaos_experiments} />
         </div>

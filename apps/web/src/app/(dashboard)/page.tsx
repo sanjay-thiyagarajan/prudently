@@ -163,7 +163,7 @@ export default function FleetPage() {
               )}
             />
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
             <ShiftPanel records={data.shift.records} unitSummary={data.shift.unit_summary} />
             <InventoryPanel
               records={data.inventory.records}

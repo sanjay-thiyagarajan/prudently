@@ -53,7 +53,7 @@ export default function StaffProfilePage() {
         </div>
       </div>
 
-      <div className="grid max-w-4xl grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid max-w-4xl grid-cols-1 items-start gap-5 lg:grid-cols-2">
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-panel)] p-5">
           <div className="mb-3 flex items-center gap-2.5">
             <CalendarClock size={16} className="text-[var(--color-safe)]" />

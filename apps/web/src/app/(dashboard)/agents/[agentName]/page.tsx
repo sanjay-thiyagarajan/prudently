@@ -145,7 +145,7 @@ function LiveState({
       unit_summary: Record<string, Record<CredentialStatus, number>>;
     };
     return (
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
         <HRPanel records={hr.records} unitSummary={hr.unit_summary} />
         <GuestDoctorHoursPanel
           hours={liveState.guest_doctor_hours as GuestDoctorHours[]}
@@ -577,12 +577,12 @@ export default function AgentDetailPage() {
         {stats.length > 0 && <StatStrip stats={stats} />}
 
         {subjectLabel && (
-          <section className="max-w-2xl">
+          <section>
             <AgentMemoryPanel agentName={agentName} subjectLabel={subjectLabel} subjects={memorySubjects} />
           </section>
         )}
 
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <section className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
           <MiniActivityList entries={data.activity_log} />
           {insight}
         </section>
@@ -596,7 +596,7 @@ export default function AgentDetailPage() {
 
         {recordTable && <section>{recordTable}</section>}
 
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <section className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
           <ActivityFeed
             entries={data.activity_log}
             onSelectTrace={(id, timestamp) => setSelectedTrace({ id, timestamp })}
@@ -604,7 +604,7 @@ export default function AgentDetailPage() {
           <ApprovalsFeed approvals={data.approvals} onResolved={() => refresh()} />
         </section>
 
-        <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <section className="max-w-xl space-y-4">
           {gateInfo}
           <AgentPolicyEditor taskType={data.policy?.task_type ?? null} />
         </section>
