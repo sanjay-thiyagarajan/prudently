@@ -27,7 +27,7 @@ jobs:
       ARMOR_BACKEND: local
       OBSERVABILITY_BACKEND: local
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - run: uv sync
       - run: uv run black --check .
@@ -41,7 +41,7 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 20
