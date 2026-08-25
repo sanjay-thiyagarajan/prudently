@@ -518,7 +518,9 @@ export default function AgentDetailPage() {
   const params = useParams<{ agentName: string }>();
   const agentName = decodeURIComponent(params.agentName);
   const { data, error, isLoading, refresh } = useAgentDetail(agentName);
-  const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
+  const [selectedTrace, setSelectedTrace] = useState<{ id: string; timestamp: string } | null>(
+    null,
+  );
 
   if (isLoading) {
     return (
@@ -597,7 +599,7 @@ export default function AgentDetailPage() {
         <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <ActivityFeed
             entries={data.activity_log}
-            onSelectTrace={setSelectedTraceId}
+            onSelectTrace={(id, timestamp) => setSelectedTrace({ id, timestamp })}
           />
           <ApprovalsFeed approvals={data.approvals} onResolved={() => refresh()} />
         </section>
@@ -624,10 +626,11 @@ export default function AgentDetailPage() {
         </details>
       </div>
 
-      {selectedTraceId && (
+      {selectedTrace && (
         <TraceViewer
-          traceId={selectedTraceId}
-          onClose={() => setSelectedTraceId(null)}
+          traceId={selectedTrace.id}
+          timestamp={selectedTrace.timestamp}
+          onClose={() => setSelectedTrace(null)}
         />
       )}
     </main>
