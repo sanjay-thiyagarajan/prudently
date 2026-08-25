@@ -81,6 +81,21 @@ class Settings(BaseSettings):
     # Same pattern as armor_backend/observability_backend: only flips to a real backend once
     # independently verified against the live service.
     email_backend: Literal["gmail", "local"] = "gmail"
+    # Unlike every backend above, defaults OFF ("local", a no-op) rather than to the real
+    # adapter — see services/platform/vendor_inbox.py's own docstring for why: this reads a
+    # real personal mailbox via IMAP, and this project's own convention (this same file's
+    # comment on email_backend) is "only flips to real once independently verified," which a
+    # brand-new integration hasn't earned yet just by existing in code. Set to "imap" to poll
+    # for genuine incoming vendor mail once IMAP access is confirmed enabled on the account.
+    vendor_inbox_backend: Literal["imap", "local"] = "local"
+    # A live check against the real account (Aug 25) found 33,000+ pre-existing unread messages
+    # sitting in raw INBOX — this account is a real personal mailbox, not a dedicated vendor
+    # address, and polling INBOX directly would screen a manager's entire unrelated backlog
+    # through Model Armor the moment this backend is switched on. Scoped to one Gmail label
+    # instead (selected as an IMAP folder, which Gmail supports once "Show in IMAP" is enabled
+    # for that label) — only mail the manager (or a filter) explicitly routes here is ever
+    # touched. See AGENTS.md's Gmail setup section for the one-time label creation step.
+    vendor_inbox_gmail_label: str = "Prudently-Vendor-Inbox"
 
     # Manager/approver defaults for the email-approval workflow. Same account for both sender
     # and default approver by deliberate choice — see AGENTS.md's Gmail setup section.

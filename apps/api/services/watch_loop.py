@@ -27,6 +27,7 @@ class WatchLoop:
         # Cumulative since process start (not reset daily) — a live status strip context, not
         # an audit record; get_autonomous_actions() is the real audit trail.
         self.triggers_fired_total = 0
+        self.vendor_messages_screened_total = 0
         self._task: asyncio.Task | None = None
 
     def start(self) -> None:
@@ -52,6 +53,7 @@ class WatchLoop:
         self.last_checked_at = datetime.now(timezone.utc)
         self.checks_run += 1
         self.triggers_fired_total += result.get("triggers_fired", 0)
+        self.vendor_messages_screened_total += result.get("vendor_messages_screened", 0)
         return result
 
     @property

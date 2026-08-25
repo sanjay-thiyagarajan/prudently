@@ -20,7 +20,12 @@ from .observability import get_observability_service  # pylint: disable=cyclic-i
 
 
 @lru_cache
-def _app_password() -> str:
+def gmail_app_password() -> str:
+    """The same app password `send()` below authenticates SMTP with — also imported by
+    vendor_inbox_imap.py to authenticate IMAP, since Gmail accepts one app password for both
+    protocols. Public (not the module-private `_app_password` it used to be) specifically so
+    that reuse is a real import, not a second Secret Manager fetch copy-pasted next to this
+    one."""
     settings = get_settings()
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{GCP_PROJECT_ID}/secrets/{settings.gmail_app_password_secret}/versions/latest"
@@ -82,7 +87,7 @@ class GmailEmailService:  # pylint: disable=too-few-public-methods
         # can surface honestly.
         try:
             with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-                smtp.login(sender, _app_password())
+                smtp.login(sender, gmail_app_password())
                 smtp.sendmail(sender, recipients, message.as_string())
         except Exception as exc:  # pylint: disable=broad-exception-caught
             return EmailSendResult(

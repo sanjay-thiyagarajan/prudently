@@ -1542,3 +1542,50 @@ activity's own timestamp (threaded through from `ActivityFeed`'s `onSelectTrace`
 has it) and only shows the "still exporting" message under a 2-minute grace window — past that,
 it says plainly that the trace is gone and names the Reasoning Engine sandbox as the likely
 reason, without hiding that the action itself is still on record in the activity log above it.
+
+## Real incoming vendor mail, over IMAP, scoped to a dedicated label (Aug 25)
+
+User-directed: "screen genuine incoming vendor email, not just conversation text a model or a
+script hands to `screen_vendor_message`," gated behind an env setting. Landed as a fourth
+adapter pair (`services/platform/vendor_inbox.py` / `vendor_inbox_imap.py` /
+`vendor_inbox_local.py`), matching `armor.py`/`email.py`'s own port/factory shape, plus one new
+stage in `services/fleet_watch.py`'s existing 5-stage cycle — independent of every other stage,
+same isolation guarantee the rest of that module already has.
+
+**IMAP, not OAuth, not SMTP** — worked through with the user directly before writing anything:
+OAuth's cost here (personal gmail.com, no Workspace domain) is a consent screen, refresh-token
+storage, and for a real push listener, a Pub/Sub topic plus re-arming `users.watch()` every 7
+days; SMTP has no read operation at all, submission-only regardless of credential. IMAP accepts
+the exact same app password already in Secret Manager for sending, so this cost nothing new to
+authenticate — `email_gmail.py`'s `_app_password()` became the public `gmail_app_password()`
+specifically so both adapters import the one fetch, not two copies of it.
+
+**The real finding that changed the design**: a live IMAP login against the actual account (this
+project's own "verify before building on top of it" discipline, same as email_gmail.py's and
+armor_vertex.py's own docstrings) found **33,000+ pre-existing unread messages already sitting
+in raw INBOX** — a real personal mailbox, not a dedicated vendor address. Polling INBOX directly
+would have screened a manager's entire unrelated backlog through Model Armor the moment this
+backend switched on — caught before any code shipped that would have done it, not after.
+Redesigned to `select()` one dedicated Gmail label (`vendor_inbox_gmail_label`, default
+`Prudently-Vendor-Inbox`) instead of INBOX — Gmail exposes a label as a real IMAP folder once
+"Show in IMAP" is on for it, so only mail explicitly routed there (by hand or by a filter) is
+ever touched. Self-mail (Prudently's own approval/notification sends looping back into this
+same account) is filtered by `email.py`'s `SUBJECT_TAG`, not sender address — a from-address
+filter would also exclude a human testing the feature by emailing themselves from the same
+account.
+
+Off by default (`VENDOR_INBOX_BACKEND=local`), unlike every other backend in `config.py`, all of
+which default to their real adapter — this is a brand-new integration with a real mailbox, and
+hadn't earned "verified" status yet just by existing in code, per this same file's own stated
+convention on `email_backend`.
+
+**Verified live, end to end, not just unit-tested** (this module has no automated test coverage
+by design — `services/platform/*_local.py`/`*_vertex.py` adapters never do, see `make test`'s
+own coverage scope): created the `Prudently-Vendor-Inbox` label for real via IMAP `CREATE`,
+`APPEND`ed two real synthetic messages into it (one a real prompt-injection payload, one benign
+vendor small talk), ran `services/fleet_watch.py`'s new `_check_vendor_inbox` stage directly
+against them, and confirmed real `armor_events` docs landed — the injection blocked
+(`pi_and_jailbreak`), the benign one accepted — plus confirmed the `\Seen`-flag read-tracking
+actually prevents re-fetching on a second poll. Both test messages deleted afterward; the label
+itself is left in place, empty, ready for real vendor mail — the one manual setup step (creating
+it) is already done on the live account, not just documented as a TODO for the user.

@@ -39,6 +39,7 @@ from config import get_settings
 from services.autonomy import run_triggers
 from services.inventory_sim import compute_consumption_delta
 from services.memory import write_fact
+from services.platform.vendor_inbox import get_vendor_inbox_service
 from services.state import (
     adjust_inventory_stock,
     get_inventory,
@@ -57,19 +58,24 @@ logger = logging.getLogger(__name__)
 async def run_watch_cycle() -> dict:
     """One real-time watch cycle. Returns a small status dict the background loop and
     POST /watch/check-now both report back to the caller."""
-    ctx: dict = {"triggers_fired": 0}
+    ctx: dict = {"triggers_fired": 0, "vendor_messages_screened": 0}
     for stage in (
         _load_watch_state,
         _apply_consumption_noise,
         _compute_snapshot,
         _write_memory_facts,
         _detect_and_act,
+        _check_vendor_inbox,
     ):
         try:
             await stage(ctx)
         except Exception:  # pylint: disable=broad-exception-caught
             logger.exception("Watch cycle: stage %s failed; continuing.", stage.__name__)
-    return {"triggers_fired": ctx["triggers_fired"], "checked_at": ctx.get("as_of")}
+    return {
+        "triggers_fired": ctx["triggers_fired"],
+        "vendor_messages_screened": ctx["vendor_messages_screened"],
+        "checked_at": ctx.get("as_of"),
+    }
 
 
 async def _load_watch_state(ctx: dict) -> None:
@@ -170,3 +176,27 @@ async def _detect_and_act(ctx: dict) -> None:
     ctx["triggers_fired"] = len(triggers)
     if triggers:
         await run_triggers(triggers)
+
+
+async def _check_vendor_inbox(ctx: dict) -> None:
+    """Independent of every other stage above — a mailbox outage or VENDOR_INBOX_BACKEND=local
+    (the default; see config.py) must never affect trigger detection, and vice versa.
+
+    Lazy import, same rationale as services/autonomy.py's `_agent_for`: this module is imported
+    at Cloud Run startup (app.py's lifespan), and agents/medrep/agent.py constructs a real
+    `Agent`/`FunctionTool` graph at import time — no reason to pay that cost on every process
+    that imports this file when VENDOR_INBOX_BACKEND is local (get_vendor_inbox_service()
+    already no-ops in that case, but the import itself shouldn't run either)."""
+    messages = get_vendor_inbox_service().fetch_new_messages()
+    if not messages:
+        return
+
+    # pylint: disable-next=import-outside-toplevel,cyclic-import
+    from agents.medrep.agent import screen_vendor_message
+
+    for message in messages:
+        # Subject *and* body — a real injection attempt is just as likely in the subject line
+        # as the body, and screen_vendor_message screens whatever text it's handed verbatim.
+        text = f"{message.subject}\n\n{message.body}" if message.subject else message.body
+        screen_vendor_message(message.vendor_name, text)
+        ctx["vendor_messages_screened"] += 1

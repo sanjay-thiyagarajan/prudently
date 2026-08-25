@@ -303,6 +303,9 @@ export interface WatchStatus {
   interval_seconds: number;
   checks_run: number;
   triggers_fired_total: number;
+  /** Cumulative since process start — 0 unless VENDOR_INBOX_BACKEND=imap (off by default; see
+   * config.py). */
+  vendor_messages_screened_total: number;
 }
 
 export interface AgentDetail {

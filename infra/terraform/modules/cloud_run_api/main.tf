@@ -25,6 +25,16 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "MEMORY_BANK_LOCATION"
         value = var.memory_bank_location
       }
+      # Every other backend toggle (EMAIL_BACKEND, ARMOR_BACKEND, OBSERVABILITY_BACKEND) is
+      # left unset here and falls back to config.py's own default — this one is the
+      # exception, set explicitly, because its default is "local" (off) on purpose (see
+      # services/platform/vendor_inbox.py's docstring: a brand-new mailbox integration that
+      # hadn't earned "on by default" yet). Setting it here, not by changing the default in
+      # code, keeps local dev/tests off by default while this specific deployment opts in.
+      env {
+        name  = "VENDOR_INBOX_BACKEND"
+        value = "imap"
+      }
 
       resources {
         limits = {

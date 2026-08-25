@@ -28,6 +28,7 @@ def status() -> dict:
         "interval_seconds": loop.interval_seconds,
         "checks_run": loop.checks_run,
         "triggers_fired_total": loop.triggers_fired_total,
+        "vendor_messages_screened_total": loop.vendor_messages_screened_total,
     }
 
 

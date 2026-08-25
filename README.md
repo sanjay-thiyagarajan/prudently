@@ -71,6 +71,12 @@ cp .env.example .env      # then edit — see step 1
 
 Gmail approvals are optional (`EMAIL_BACKEND=local` skips sending mail; approvals still work).
 
+Real incoming vendor mail is also optional (`VENDOR_INBOX_BACKEND=local`, the default, polls
+nothing). To screen genuine supplier email through Model Armor, create a Gmail label named
+`Prudently-Vendor-Inbox` with "Show in IMAP" enabled, route real vendor mail there (by hand or
+a filter), and set `VENDOR_INBOX_BACKEND=imap` — the fleet watch polls only that label over
+IMAP with the same app password approvals already use, never the raw inbox.
+
 ### 2. Infrastructure and data
 
 ```bash
