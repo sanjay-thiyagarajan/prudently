@@ -1,161 +1,307 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 1310" width="1760" height="1310" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1258" width="1800" height="1258" font-family="'Google Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif">
   <title>Prudently — Security Architecture</title>
   <desc>Defense-in-depth security controls across the Prudently hospital-operations agent fleet: perimeter, authentication, authorization, agent-fleet controls, data protection, and identity/IAM, plus the audit trail that spans all of them.</desc>
+
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#9db3b0"/></marker>
-    <marker id="arrowTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4c8"/></marker>
-    <marker id="arrowIndigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a78bfa"/></marker>
-    <marker id="arrowSafe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3ddc97"/></marker>
-    <marker id="arrowCrit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ff6b5c"/></marker>
+    <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#3c4043" flood-opacity="0.18"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#80868b"/>
+    </marker>
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#12879f"/>
+    </marker>
+    <marker id="arrowIndigo" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9334e6"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e37400"/>
+    </marker>
+
+    <style>
+      .lbl    { font-size: 10.5px; letter-spacing: 1.4px; fill: #3c4043; font-family: 'Google Sans Mono','Roboto Mono',ui-monospace,monospace; font-weight: 650; }
+      .name   { font-size: 14px; font-weight: 600; fill: #202124; }
+      .name13 { font-size: 12.5px; font-weight: 600; fill: #202124; }
+      .sub    { font-size: 11px; fill: #3c4043; font-weight: 500; }
+      .mono   { font-size: 10px; fill: #52555a; font-family: 'Google Sans Mono','Roboto Mono',ui-monospace,monospace; font-weight: 500; }
+      .edge   { font-size: 10.5px; fill: #3c4043; font-weight: 500; }
+      .card   { fill: #ffffff; stroke: #dadce0; stroke-width: 1; filter: url(#cardShadow); }
+      .zone   { fill: #f3e8fd; fill-opacity: 0.45; stroke: #9334e6; stroke-width: 1.5; stroke-dasharray: 5 4; }
+    </style>
+
+    <g id="icons" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="ic-person" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.3"/><path d="M5 20a7 6 0 0 1 14 0"/></symbol>
+      <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-13h-6z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-loop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v4.5h-4.5" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-hub" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="5.5" r="1.9"/><circle cx="19" cy="5.5" r="1.9"/><circle cx="12" cy="20" r="1.9"/><path d="M10.3 10.5 6 6.7M13.7 10.5 18 6.7M12 14.4V18"/></symbol>
+      <symbol id="ic-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.2V18l-3.6 2v-7.8z"/></symbol>
+      <symbol id="ic-bed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19V8M3 19h18v-4a2 2 0 0 0-2-2H5"/><circle cx="7.5" cy="11" r="1.6"/><path d="M12 13V9h9"/></symbol>
+      <symbol id="ic-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5 12 3z"/><path d="M3 7.5V16.5L12 21V12"/><path d="M21 7.5V16.5L12 21"/></symbol>
+      <symbol id="ic-badge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2"/><circle cx="12" cy="10.3" r="2.2"/><path d="M8.2 16.8a4 3 0 0 1 7.6 0"/></symbol>
+      <symbol id="ic-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9.5" width="12" height="7.5" rx="1"/><path d="M14 12h4l3.2 3v2h-7.2z"/><circle cx="7" cy="19" r="1.7"/><circle cx="17.2" cy="19" r="1.7"/></symbol>
+      <symbol id="ic-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 22 20H2z"/><path d="M12 9.5V14"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M7 3v4M17 3v4"/><path d="M10 15h4M12 13v4"/></symbol>
+      <symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/></symbol>
+      <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5.2c0 4.9-3.4 8.3-8 9.8-4.6-1.5-8-4.9-8-9.8V6z"/></symbol>
+      <symbol id="ic-shieldcheck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5.2c0 4.9-3.4 8.3-8 9.8-4.6-1.5-8-4.9-8-9.8V6z"/><path d="M8.7 12.2 11 14.6l4.6-5"/></symbol>
+      <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.4 10.8 15.2 16.3 9.4"/></symbol>
+      <symbol id="ic-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+      <symbol id="ic-memory" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9.5 7V4M14.5 7V4M9.5 20v-3M14.5 20v-3M7 9.5H4M7 14.5H4M20 9.5h-3M20 14.5h-3"/></symbol>
+      <symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 8 10 12.5 14 16.5 6 21 11.5"/></symbol>
+      <symbol id="ic-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="3.3"/><path d="M9.8 13.2 19 4M15.6 7.4l2.3 2.3M18.2 4.8l2.3 2.3"/></symbol>
+      <symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.3 7-12.5A7 7 0 0 0 5 8.5C5 13.7 12 21 12 21z"/><circle cx="12" cy="8.5" r="2.4"/></symbol>
+      <symbol id="ic-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-7.9 5.2 5.2 0 0 1 10.1-1.7A4.4 4.4 0 0 1 16.6 18z"/></symbol>
+      <symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="11" width="13" height="9.5" rx="1.7"/><path d="M8 11V7.8a4 4 0 0 1 8 0V11"/></symbol>
+      <symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></symbol>
+      <symbol id="ic-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16a8 8 0 0 1 16 0"/><path d="M12 16 16 10"/><circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-eyeoff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/><path d="M4 4 20 20"/></symbol>
+    </g>
   </defs>
-  <rect width="1760" height="1310" fill="#090d0e"/>
-  <text x="48" y="46" font-size="24" font-weight="700" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Prudently — Security Architecture</text>
-  <text x="48" y="70" font-size="12.5" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Defense-in-depth, layer by layer — perimeter through data protection to identity.</text>
-  <rect x="1300" y="20" width="420" height="40" rx="6" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <line x1="1314" y1="40" x2="1342" y2="40" stroke="#a78bfa" stroke-width="1.6" fill="none" marker-end="url(#arrowIndigo)"/>
-  <text x="1350" y="43" font-size="10" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">audit / evidence trail</text>
-  <text x="48" y="108" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">PERIMETER — first thing an anonymous request touches</text>
-  <rect x="48" y="122" width="357.5" height="118" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="146" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Public internet</text>
-  <text x="62" y="163" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Anonymous browser, signed-in manager,</text>
-  <text x="62" y="180" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">or an unrelated third-party origin</text>
-  <text x="62" y="199.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">no request is trusted by default</text>
-  <rect x="419.5" y="122" width="357.5" height="118" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="433.5" y="146" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">CORS allowlist</text>
-  <text x="433.5" y="163" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Explicit origin list — dashboard URL</text>
-  <text x="433.5" y="180" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">+ localhost dev — not "*"</text>
-  <text x="433.5" y="199.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">app.py — CORSMiddleware</text>
-  <rect x="791.0" y="122" width="357.5" height="118" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="805.0" y="146" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Rate limiting (slowapi)</text>
-  <text x="805.0" y="163" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Real client IP via X-Forwarded-For,</text>
-  <text x="805.0" y="180" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">endpoint-keyed (not URL-keyed)</text>
-  <text x="805.0" y="199.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">services/platform/rate_limit.py</text>
-  <rect x="1162.5" y="122" width="357.5" height="118" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1176.5" y="146" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Cloud Run ingress</text>
-  <text x="1176.5" y="163" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Managed TLS, autoscaled 0→3</text>
-  <text x="1176.5" y="180" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">cap is a cost ceiling, not a throttle</text>
-  <text x="1176.5" y="199.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">us-central1</text>
-  <text x="48" y="274" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">AUTHENTICATION — establishing who is asking</text>
-  <rect x="48" y="288" width="412.57142857142856" height="128" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="312" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Firebase Authentication</text>
-  <text x="62" y="329" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Email/Password provider,</text>
-  <text x="62" y="346" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">one demo/judge account</text>
-  <text x="62" y="365.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">role custom claim set by admin script</text>
-  <rect x="474.57142857142856" y="288" width="495.0857142857143" height="128" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="488.57142857142856" y="312" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Token verification</text>
-  <text x="488.57142857142856" y="329" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">verify_id_token(check_revoked=True)</text>
-  <text x="488.57142857142856" y="346" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">generic 401 — no verifier internals leaked</text>
-  <text x="488.57142857142856" y="365.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">services/auth.py::_verify</text>
-  <rect x="983.6571428571428" y="288" width="536.3428571428572" height="128" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="997.6571428571428" y="312" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Session hardening</text>
-  <text x="997.6571428571428" y="329" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">15-min client idle timeout</text>
-  <text x="997.6571428571428" y="346" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">POST /auth/sign-out-everywhere</text>
-  <text x="997.6571428571428" y="363" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">→ revoke_refresh_tokens(uid)</text>
-  <text x="997.6571428571428" y="382.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">force ID-token refresh on sign-in</text>
-  <text x="48" y="450" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">AUTHORIZATION — what a verified caller may see</text>
-  <rect x="48" y="464" width="527.1746031746031" height="132" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="488" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Three auth postures</text>
-  <text x="62" y="505" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">require_firebase_auth — hard 401</text>
-  <text x="62" y="522" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">require_role(*roles) — 401 / 403</text>
-  <text x="62" y="539" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">optional_firebase_auth — redact, never reject</text>
-  <text x="62" y="558.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">services/auth.py</text>
-  <rect x="589.1746031746031" y="464" width="458.41269841269843" height="132" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="603.1746031746031" y="488" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">RBAC — custom claims</text>
-  <text x="603.1746031746031" y="505" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">role: admin | clinician | ops</text>
-  <text x="603.1746031746031" y="522" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">no claim → rejected, not defaulted</text>
-  <text x="603.1746031746031" y="541.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">gates patient-identity routes only</text>
-  <rect x="1061.5873015873017" y="464" width="458.41269841269843" height="132" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1075.5873015873017" y="488" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Public-feed redaction</text>
-  <text x="1075.5873015873017" y="505" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Strips per-employee rows + agent</text>
-  <text x="1075.5873015873017" y="522" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">free-text prose for anon callers</text>
-  <text x="1075.5873015873017" y="541.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">services/redaction.py</text>
-  <text x="48" y="630" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">AGENT FLEET CONTROLS — every internal and external agent call</text>
-  <rect x="48" y="644" width="344.578313253012" height="138" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="668" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Agent Gateway</text>
-  <text x="62" y="685" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">before_tool_callback on every</text>
-  <text x="62" y="702" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Coordinator → specialist call</text>
-  <text x="62" y="721.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">registry lookup → policy → trace span</text>
-  <rect x="406.578313253012" y="644" width="344.578313253012" height="138" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="420.578313253012" y="668" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Model Armor</text>
-  <text x="420.578313253012" y="685" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Screens inbound vendor mail twice:</text>
-  <text x="420.578313253012" y="702" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">pre-LLM + re-screen of the excerpt</text>
-  <text x="420.578313253012" y="721.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">blocked → never reaches a model</text>
-  <rect x="765.156626506024" y="644" width="344.578313253012" height="138" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="779.156626506024" y="668" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">A2A shared secret</text>
-  <text x="779.156626506024" y="685" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">X-A2A-Shared-Secret header,</text>
-  <text x="779.156626506024" y="702" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Secret-Manager-backed, fail-closed</text>
-  <text x="779.156626506024" y="721.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">app.py::SharedSecretASGIMiddleware</text>
-  <rect x="1123.734939759036" y="644" width="396.26506024096375" height="138" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1137.734939759036" y="668" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Approval gate</text>
-  <text x="1137.734939759036" y="685" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">perform_or_request — nothing consequential</text>
-  <text x="1137.734939759036" y="702" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">runs unattended. 14-day token expiry.</text>
-  <text x="1137.734939759036" y="719" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">confirm page: html.escape() everywhere</text>
-  <text x="1137.734939759036" y="738.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">services/platform/approvals.py</text>
-  <text x="48" y="816" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">DATA PROTECTION — patient PII, once real data exists</text>
-  <rect x="48" y="830" width="382.44186046511624" height="132" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="854" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Field-level encryption</text>
-  <text x="62" y="871" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Direct Cloud KMS encrypt/decrypt on</text>
-  <text x="62" y="888" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">name · DOB · email · phone</text>
-  <text x="62" y="907.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">services/platform/crypto.py — real key,</text>
-  <text x="62" y="922.0" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">90-day rotation, narrow IAM grant</text>
-  <rect x="444.44186046511624" y="830" width="382.44186046511624" height="132" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="458.44186046511624" y="854" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Application access control</text>
-  <text x="458.44186046511624" y="871" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Self-declared caller vs. an explicit</text>
-  <text x="458.44186046511624" y="888" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">allowlist before any patients/</text>
-  <text x="458.44186046511624" y="905" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">surgical_cases read or write</text>
-  <text x="458.44186046511624" y="924.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">backed by real per-agent identity,</text>
-  <text x="458.44186046511624" y="939.0" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">not a self-declared caller on shared IAM</text>
-  <rect x="840.8837209302325" y="830" width="332.5581395348837" height="132" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="854.8837209302325" y="854" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Firestore at rest</text>
-  <text x="854.8837209302325" y="871" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">GCP-managed encryption baseline</text>
-  <text x="854.8837209302325" y="888" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">under every field-level control above</text>
-  <rect x="1187.4418604651162" y="830" width="332.5581395348837" height="132" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1201.4418604651162" y="854" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Secret Manager</text>
-  <text x="1201.4418604651162" y="871" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Gemini key, Gmail app password,</text>
-  <text x="1201.4418604651162" y="888" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">A2A shared secret — never logged</text>
-  <text x="48" y="996" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">IDENTITY, IAM &amp; SUPPLY CHAIN</text>
-  <rect x="48" y="1010" width="408.57142857142856" height="138" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="1034" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Per-agent Reasoning Engine identity</text>
-  <text x="62" y="1051" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Every deployed agent runs as its</text>
-  <text x="62" y="1068" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">own dedicated service account</text>
-  <text x="62" y="1087.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">.agent_engine_config.json's service_account —</text>
-  <text x="62" y="1102.0" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">confirmed live via effective_identity</text>
-  <rect x="470.57142857142856" y="1010" width="340.4761904761905" height="138" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="484.57142857142856" y="1034" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Scoped IAM</text>
-  <text x="484.57142857142856" y="1051" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Zero roles/editor, roles/owner,</text>
-  <text x="484.57142857142856" y="1068" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">or wildcard grants anywhere</text>
-  <text x="484.57142857142856" y="1087.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">no shared identity holds app grants</text>
-  <rect x="825.047619047619" y="1010" width="340.4761904761905" height="138" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="839.047619047619" y="1034" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">KMS key IAM</text>
-  <text x="839.047619047619" y="1051" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Grants limited to surgical-scheduling-sa</text>
-  <text x="839.047619047619" y="1068" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">+ coordinator-sa — two named identities</text>
-  <text x="839.047619047619" y="1087.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">narrower than the general secrets set</text>
-  <rect x="1179.5238095238096" y="1010" width="340.4761904761905" height="138" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1193.5238095238096" y="1034" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">CI + Dependabot</text>
-  <text x="1193.5238095238096" y="1051" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">make lint / make test on every PR</text>
-  <text x="1193.5238095238096" y="1068" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">npm + pip, weekly, automated</text>
-  <text x="1193.5238095238096" y="1087.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">.github/</text>
-  <rect x="1552" y="108" width="160" height="1040" rx="10" fill="#0e1416" fill-opacity="0.55" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4 5"/>
-  <text x="1552" y="98" font-size="10" font-weight="400" fill="#a78bfa" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.3px">AUDIT &amp; EVIDENCE</text>
-  <text x="1568" y="142" font-size="10.6" font-weight="600" fill="#a78bfa" font-family="'JetBrains Mono', ui-monospace, monospace">activity_log</text>
-  <text x="1568" y="157" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">every agent action,</text>
-  <text x="1568" y="170" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">gateway decision</text>
-  <text x="1568" y="197" font-size="10.6" font-weight="600" fill="#a78bfa" font-family="'JetBrains Mono', ui-monospace, monospace">autonomous_actions</text>
-  <text x="1568" y="212" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">fleet-watch-triggered</text>
-  <text x="1568" y="225" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">turns</text>
-  <text x="1568" y="252" font-size="10.6" font-weight="600" fill="#a78bfa" font-family="'JetBrains Mono', ui-monospace, monospace">armor_events</text>
-  <text x="1568" y="267" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">every screening</text>
-  <text x="1568" y="280" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">outcome</text>
-  <text x="1568" y="307" font-size="10.6" font-weight="600" fill="#a78bfa" font-family="'JetBrains Mono', ui-monospace, monospace">patient_notification_log</text>
-  <text x="1568" y="322" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">PHI-adjacent,</text>
-  <text x="1568" y="335" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">separate trail</text>
-  <text x="1568" y="362" font-size="10.6" font-weight="600" fill="#a78bfa" font-family="'JetBrains Mono', ui-monospace, monospace">Cloud Trace spans</text>
-  <text x="1568" y="377" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">one trace, every hop,</text>
-  <text x="1568" y="390" font-size="9.3" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">every block</text>
-  <line x1="1520" y1="300" x2="1552" y2="300" stroke="#a78bfa" stroke-width="1.2" fill="none" stroke-dasharray="3 4"/>
-  <line x1="1520" y1="620" x2="1552" y2="620" stroke="#a78bfa" stroke-width="1.2" fill="none" stroke-dasharray="3 4"/>
-  <line x1="1520" y1="960" x2="1552" y2="960" stroke="#a78bfa" stroke-width="1.2" fill="none" stroke-dasharray="3 4"/>
-  <line x1="48" y1="1188" x2="1712" y2="1188" stroke="#1e2c2e" stroke-width="1" fill="none"/>
-  <text x="48" y="1214" font-size="11" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Every layer above is live and independently verifiable — real GCP identities, real encryption keys, real audit records, not diagram conventions.</text>
-  <text x="48" y="1234" font-size="10" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">Real Google Cloud security products in this diagram: Cloud KMS · Secret Manager · IAM · Firebase Authentication · Model Armor · Cloud Trace/Logging · Cloud Run (managed TLS).</text>
+
+  <rect width="1800" height="1258" fill="#fbfcfd"/>
+
+  <text x="44" y="42" font-size="23" font-weight="700" fill="#202124">Prudently — Security Architecture</text>
+  <text x="44" y="64" class="sub" font-size="12.5">Defense-in-depth, layer by layer — perimeter through data protection to identity.</text>
+
+  <g transform="translate(1330,24)">
+    <rect x="0" y="0" width="214" height="40" rx="8" fill="#ffffff" stroke="#e8eaed"/>
+    <line x1="14" y1="20" x2="42" y2="20" stroke="#9334e6" stroke-width="1.6" fill="none" stroke-dasharray="4 3" marker-end="url(#arrowIndigo)"/>
+    <text x="50" y="24" class="edge">audit / evidence trail</text>
+  </g>
+
+  <text x="48" y="108" class="lbl" fill="#5f6368">PERIMETER — first thing an anonymous request touches</text>
+  <g transform="translate(48,124)">
+    <rect class="card" x="0" y="0" width="357.5" height="104" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-globe" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Public internet</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Anonymous browser, signed-in manager,</text>
+    <text x="12" y="66" class="sub" font-size="10.6">or an unrelated third-party origin</text>
+    <text x="12" y="85" class="mono" font-size="9.3">no request is trusted by default</text>
+  </g>
+  <g transform="translate(419.5,124)">
+    <rect class="card" x="0" y="0" width="357.5" height="104" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e2f4f2"/>
+    <use href="#ic-filter" x="16" y="16" width="18" height="18" style="color:#0e6f7d"/>
+    <text x="48" y="29" class="name13" fill="#202124">CORS allowlist</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Explicit origin list — dashboard URL</text>
+    <text x="12" y="66" class="sub" font-size="10.6">+ localhost dev — not "*"</text>
+    <text x="12" y="85" class="mono" font-size="9.3">app.py — CORSMiddleware</text>
+  </g>
+  <g transform="translate(791.0,124)">
+    <rect class="card" x="0" y="0" width="357.5" height="104" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-gauge" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Rate limiting (slowapi)</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Real client IP via X-Forwarded-For,</text>
+    <text x="12" y="66" class="sub" font-size="10.6">endpoint-keyed (not URL-keyed)</text>
+    <text x="12" y="85" class="mono" font-size="9.3">services/platform/rate_limit.py</text>
+  </g>
+  <g transform="translate(1162.5,124)">
+    <rect class="card" x="0" y="0" width="357.5" height="104" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-cloud" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Cloud Run ingress</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Managed TLS, autoscaled 0→3</text>
+    <text x="12" y="66" class="sub" font-size="10.6">cap is a cost ceiling, not a throttle</text>
+    <text x="12" y="85" class="mono" font-size="9.3">us-central1</text>
+  </g>
+  <text x="48" y="274" class="lbl" fill="#5f6368">AUTHENTICATION — establishing who is asking</text>
+  <g transform="translate(48,290)">
+    <rect class="card" x="0" y="0" width="412.571" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-person" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Firebase Authentication</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Email/Password provider,</text>
+    <text x="12" y="66" class="sub" font-size="10.6">one demo/judge account</text>
+    <text x="12" y="85" class="mono" font-size="9.3">role custom claim set by admin script</text>
+  </g>
+  <g transform="translate(474.571,290)">
+    <rect class="card" x="0" y="0" width="495.086" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-check" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Token verification</text>
+    <text x="12" y="50" class="sub" font-size="10.6">verify_id_token(check_revoked=True)</text>
+    <text x="12" y="66" class="sub" font-size="10.6">generic 401 — no verifier internals leaked</text>
+    <text x="12" y="85" class="mono" font-size="9.3">services/auth.py::_verify</text>
+  </g>
+  <g transform="translate(983.657,290)">
+    <rect class="card" x="0" y="0" width="536.343" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-lock" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Session hardening</text>
+    <text x="12" y="50" class="sub" font-size="10.6">15-min client idle timeout</text>
+    <text x="12" y="66" class="sub" font-size="10.6">POST /auth/sign-out-everywhere</text>
+    <text x="12" y="82" class="sub" font-size="10.6">→ revoke_refresh_tokens(uid)</text>
+    <text x="12" y="101" class="mono" font-size="9.3">force ID-token refresh on sign-in</text>
+  </g>
+  <text x="48" y="456" class="lbl" fill="#5f6368">AUTHORIZATION — what a verified caller may see</text>
+  <g transform="translate(48,472)">
+    <rect class="card" x="0" y="0" width="527.175" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-badge" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Three auth postures</text>
+    <text x="12" y="50" class="sub" font-size="10.6">require_firebase_auth — hard 401</text>
+    <text x="12" y="66" class="sub" font-size="10.6">require_role(*roles) — 401 / 403</text>
+    <text x="12" y="82" class="sub" font-size="10.6">optional_firebase_auth — redact, never reject</text>
+    <text x="12" y="101" class="mono" font-size="9.3">services/auth.py</text>
+  </g>
+  <g transform="translate(589.175,472)">
+    <rect class="card" x="0" y="0" width="458.413" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-hub" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">RBAC — custom claims</text>
+    <text x="12" y="50" class="sub" font-size="10.6">role: admin | clinician | ops</text>
+    <text x="12" y="66" class="sub" font-size="10.6">no claim → rejected, not defaulted</text>
+    <text x="12" y="85" class="mono" font-size="9.3">gates patient-identity routes only</text>
+  </g>
+  <g transform="translate(1061.587,472)">
+    <rect class="card" x="0" y="0" width="458.413" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-eyeoff" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Public-feed redaction</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Strips per-employee rows + agent</text>
+    <text x="12" y="66" class="sub" font-size="10.6">free-text prose for anon callers</text>
+    <text x="12" y="85" class="mono" font-size="9.3">services/redaction.py</text>
+  </g>
+  <text x="48" y="638" class="lbl" fill="#5f6368">AGENT FLEET CONTROLS — every internal and external agent call</text>
+  <g transform="translate(48,654)">
+    <rect class="card" x="0" y="0" width="344.578" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e2f4f2"/>
+    <use href="#ic-filter" x="16" y="16" width="18" height="18" style="color:#0e6f7d"/>
+    <text x="48" y="29" class="name13" fill="#202124">Agent Gateway</text>
+    <text x="12" y="50" class="sub" font-size="10.6">before_tool_callback on every</text>
+    <text x="12" y="66" class="sub" font-size="10.6">Coordinator → specialist call</text>
+    <text x="12" y="85" class="mono" font-size="9.3">registry lookup → policy → trace span</text>
+  </g>
+  <g transform="translate(406.578,654)">
+    <rect class="card" x="0" y="0" width="344.578" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#fce8e6"/>
+    <use href="#ic-shieldcheck" x="16" y="16" width="18" height="18" style="color:#c5221f"/>
+    <text x="48" y="29" class="name13" fill="#a50e0e">Model Armor</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Screens inbound vendor mail twice:</text>
+    <text x="12" y="66" class="sub" font-size="10.6">pre-LLM + re-screen of the excerpt</text>
+    <text x="12" y="85" class="mono" font-size="9.3">blocked → never reaches a model</text>
+  </g>
+  <g transform="translate(765.157,654)">
+    <rect class="card" x="0" y="0" width="344.578" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#fce8e6"/>
+    <use href="#ic-key" x="16" y="16" width="18" height="18" style="color:#c5221f"/>
+    <text x="48" y="29" class="name13" fill="#202124">A2A shared secret</text>
+    <text x="12" y="50" class="sub" font-size="10.6">X-A2A-Shared-Secret header,</text>
+    <text x="12" y="66" class="sub" font-size="10.6">Secret-Manager-backed, fail-closed</text>
+    <text x="12" y="85" class="mono" font-size="9.3">app.py::SharedSecretASGIMiddleware</text>
+  </g>
+  <g transform="translate(1123.735,654)">
+    <rect class="card" x="0" y="0" width="396.265" height="120" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#feefe0"/>
+    <use href="#ic-check" x="16" y="16" width="18" height="18" style="color:#b45c00"/>
+    <text x="48" y="29" class="name13" fill="#202124">Approval gate</text>
+    <text x="12" y="50" class="sub" font-size="10.6">perform_or_request — nothing consequential</text>
+    <text x="12" y="66" class="sub" font-size="10.6">runs unattended. 14-day token expiry.</text>
+    <text x="12" y="82" class="sub" font-size="10.6">confirm page: html.escape() everywhere</text>
+    <text x="12" y="101" class="mono" font-size="9.3">services/platform/approvals.py</text>
+  </g>
+  <text x="48" y="820" class="lbl" fill="#5f6368">DATA PROTECTION — patient PII, once real data exists</text>
+  <g transform="translate(48,836)">
+    <rect class="card" x="0" y="0" width="382.442" height="134" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#fce8e6"/>
+    <use href="#ic-lock" x="16" y="16" width="18" height="18" style="color:#c5221f"/>
+    <text x="48" y="29" class="name13" fill="#202124">Field-level encryption</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Direct Cloud KMS encrypt/decrypt on</text>
+    <text x="12" y="66" class="sub" font-size="10.6">name · DOB · email · phone</text>
+    <text x="12" y="85" class="mono" font-size="9.3">services/platform/crypto.py — real key,</text>
+    <text x="12" y="99" class="mono" font-size="9.3">90-day rotation, narrow IAM grant</text>
+  </g>
+  <g transform="translate(444.442,836)">
+    <rect class="card" x="0" y="0" width="382.442" height="134" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-shield" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="48" y="29" class="name13" fill="#202124">Application access control</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Self-declared caller vs. an explicit</text>
+    <text x="12" y="66" class="sub" font-size="10.6">allowlist before any patients/</text>
+    <text x="12" y="82" class="sub" font-size="10.6">surgical_cases read or write</text>
+    <text x="12" y="101" class="mono" font-size="9.3">backed by real per-agent identity,</text>
+    <text x="12" y="115" class="mono" font-size="9.3">not a self-declared caller on shared IAM</text>
+  </g>
+  <g transform="translate(840.884,836)">
+    <rect class="card" x="0" y="0" width="332.558" height="134" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e6f4ea"/>
+    <use href="#ic-database" x="16" y="16" width="18" height="18" style="color:#188038"/>
+    <text x="48" y="29" class="name13" fill="#202124">Firestore at rest</text>
+    <text x="12" y="50" class="sub" font-size="10.6">GCP-managed encryption baseline</text>
+    <text x="12" y="66" class="sub" font-size="10.6">under every field-level control above</text>
+  </g>
+  <g transform="translate(1187.442,836)">
+    <rect class="card" x="0" y="0" width="332.558" height="134" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#fce8e6"/>
+    <use href="#ic-key" x="16" y="16" width="18" height="18" style="color:#c5221f"/>
+    <text x="48" y="29" class="name13" fill="#202124">Secret Manager</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Gemini key, Gmail app password,</text>
+    <text x="12" y="66" class="sub" font-size="10.6">A2A shared secret — never logged</text>
+  </g>
+  <text x="48" y="1016" class="lbl" fill="#5f6368">IDENTITY, IAM &amp; SUPPLY CHAIN</text>
+  <g transform="translate(48,1032)">
+    <rect class="card" x="0" y="0" width="408.571" height="118" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8eefd"/>
+    <use href="#ic-hub" x="16" y="16" width="18" height="18" style="color:#3355cc"/>
+    <text x="48" y="29" class="name13" fill="#202124">Per-agent Reasoning Engine identity</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Every deployed agent runs as its</text>
+    <text x="12" y="66" class="sub" font-size="10.6">own dedicated service account</text>
+    <text x="12" y="85" class="mono" font-size="9.3">.agent_engine_config.json's service_account —</text>
+    <text x="12" y="99" class="mono" font-size="9.3">confirmed live via effective_identity</text>
+  </g>
+  <g transform="translate(470.571,1032)">
+    <rect class="card" x="0" y="0" width="340.476" height="118" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#fce8e6"/>
+    <use href="#ic-key" x="16" y="16" width="18" height="18" style="color:#c5221f"/>
+    <text x="48" y="29" class="name13" fill="#202124">Scoped IAM</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Zero roles/editor, roles/owner,</text>
+    <text x="12" y="66" class="sub" font-size="10.6">or wildcard grants anywhere</text>
+    <text x="12" y="85" class="mono" font-size="9.3">no shared identity holds app grants</text>
+  </g>
+  <g transform="translate(825.048,1032)">
+    <rect class="card" x="0" y="0" width="340.476" height="118" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#fce8e6"/>
+    <use href="#ic-key" x="16" y="16" width="18" height="18" style="color:#c5221f"/>
+    <text x="48" y="29" class="name13" fill="#202124">KMS key IAM</text>
+    <text x="12" y="50" class="sub" font-size="10.6">Grants limited to surgical-scheduling-sa</text>
+    <text x="12" y="66" class="sub" font-size="10.6">+ coordinator-sa — two named identities</text>
+    <text x="12" y="85" class="mono" font-size="9.3">narrower than the general secrets set</text>
+  </g>
+  <g transform="translate(1179.524,1032)">
+    <rect class="card" x="0" y="0" width="340.476" height="118" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#f1f3f4"/>
+    <use href="#ic-loop" x="16" y="16" width="18" height="18" style="color:#5f6368"/>
+    <text x="48" y="29" class="name13" fill="#202124">CI + Dependabot</text>
+    <text x="12" y="50" class="sub" font-size="10.6">make lint / make test on every PR</text>
+    <text x="12" y="66" class="sub" font-size="10.6">npm + pip, weekly, automated</text>
+    <text x="12" y="85" class="mono" font-size="9.3">.github/</text>
+  </g>
+
+  <rect class="zone" x="1544" y="98" width="180" height="1072" rx="12"/>
+  <text x="1544" y="88" class="lbl" fill="#7a1fc9">AUDIT &amp; EVIDENCE</text>
+  <text x="1560" y="150" font-size="10.8" font-weight="700" fill="#7a1fc9" font-family="&#39;Google Sans Mono&#39;,&#39;Roboto Mono&#39;,ui-monospace,monospace">activity_log</text>
+  <text x="1560" y="166" class="sub" font-size="9.6">every agent action,</text>
+  <text x="1560" y="179" class="sub" font-size="9.6">gateway decision</text>
+  <text x="1560" y="238" font-size="10.8" font-weight="700" fill="#7a1fc9" font-family="&#39;Google Sans Mono&#39;,&#39;Roboto Mono&#39;,ui-monospace,monospace">autonomous_actions</text>
+  <text x="1560" y="254" class="sub" font-size="9.6">fleet-watch-triggered</text>
+  <text x="1560" y="267" class="sub" font-size="9.6">turns</text>
+  <text x="1560" y="326" font-size="10.8" font-weight="700" fill="#7a1fc9" font-family="&#39;Google Sans Mono&#39;,&#39;Roboto Mono&#39;,ui-monospace,monospace">armor_events</text>
+  <text x="1560" y="342" class="sub" font-size="9.6">every screening</text>
+  <text x="1560" y="355" class="sub" font-size="9.6">outcome</text>
+  <text x="1560" y="414" font-size="10.8" font-weight="700" fill="#7a1fc9" font-family="&#39;Google Sans Mono&#39;,&#39;Roboto Mono&#39;,ui-monospace,monospace">patient_notification_log</text>
+  <text x="1560" y="430" class="sub" font-size="9.6">PHI-adjacent,</text>
+  <text x="1560" y="443" class="sub" font-size="9.6">separate trail</text>
+  <text x="1560" y="502" font-size="10.8" font-weight="700" fill="#7a1fc9" font-family="&#39;Google Sans Mono&#39;,&#39;Roboto Mono&#39;,ui-monospace,monospace">Cloud Trace spans</text>
+  <text x="1560" y="518" class="sub" font-size="9.6">one trace, every hop,</text>
+  <text x="1560" y="531" class="sub" font-size="9.6">every block</text>
+  <line x1="1520" y1="350" x2="1544" y2="350" stroke="#9334e6" stroke-width="1.2" fill="none" stroke-dasharray="3 4"/>
+  <line x1="1520" y1="714" x2="1544" y2="714" stroke="#9334e6" stroke-width="1.2" fill="none" stroke-dasharray="3 4"/>
+  <line x1="1520" y1="1090" x2="1544" y2="1090" stroke="#9334e6" stroke-width="1.2" fill="none" stroke-dasharray="3 4"/>
+
+  <line x1="48" y1="1190" x2="1752" y2="1190" stroke="#dadce0" stroke-width="1" fill="none"/>
+  <text x="48" y="1212" class="sub" font-size="11.5">Every layer above is live and independently verifiable — real GCP identities, real encryption keys, real audit records, not diagram conventions.</text>
+  <text x="48" y="1232" class="mono" font-size="10">Real Google Cloud security products in this diagram: Cloud KMS · Secret Manager · IAM · Firebase Authentication · Model Armor · Cloud Trace/Logging · Cloud Run (managed TLS).</text>
 </svg>

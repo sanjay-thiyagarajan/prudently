@@ -1,189 +1,312 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2080 1330" width="2080" height="1330" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2180 1315" width="2180" height="1315" font-family="'Google Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif">
   <title>Prudently — Deployment &amp; Connectivity Architecture</title>
   <desc>Every deployed component of the Prudently hospital-operations agent fleet on Google Cloud (us-central1): two Cloud Run services, eight Vertex AI Agent Engine Reasoning Engines, Firestore, Cloud KMS, Secret Manager, Firebase Authentication, Gmail SMTP, Model Armor, and the CI/Terraform path that provisions and ships it all — with the one genuine network-hop Agent2Agent call called out explicitly.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#9db3b0"/></marker>
-    <marker id="arrowTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4c8"/></marker>
-    <marker id="arrowIndigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a78bfa"/></marker>
-    <marker id="arrowSafe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3ddc97"/></marker>
-    <marker id="arrowCrit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ff6b5c"/></marker>
+    <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#3c4043" flood-opacity="0.18"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#80868b"/>
+    </marker>
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#12879f"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9334e6"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e37400"/>
+    </marker>
+
+    <style>
+      .lbl    { font-size: 10.5px; letter-spacing: 1.4px; fill: #3c4043; font-family: 'Google Sans Mono','Roboto Mono',ui-monospace,monospace; font-weight: 650; }
+      .name   { font-size: 14px; font-weight: 600; fill: #202124; }
+      .name13 { font-size: 12.5px; font-weight: 600; fill: #202124; }
+      .sub    { font-size: 11px; fill: #3c4043; font-weight: 500; }
+      .mono   { font-size: 10px; fill: #52555a; font-family: 'Google Sans Mono','Roboto Mono',ui-monospace,monospace; font-weight: 500; }
+      .edge   { font-size: 10.5px; fill: #3c4043; font-weight: 500; }
+      .edgeB  { font-size: 10.5px; fill: #3c4043; font-weight: 700; }
+      .card   { fill: #ffffff; stroke: #dadce0; stroke-width: 1; filter: url(#cardShadow); }
+      .zone   { fill: #fdece9; fill-opacity: 0.55; stroke: #d93025; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .gczone { fill: #f8fafd; stroke: #c7d2e0; stroke-width: 1.4; stroke-dasharray: 6 5; }
+      .flow   { stroke: #80868b; stroke-width: 1.5; fill: none; }
+      .flowTeal   { stroke: #12879f; stroke-width: 1.7; fill: none; }
+      .flowPurple { stroke: #9334e6; stroke-width: 1.7; fill: none; }
+      .flowAmber  { stroke: #e37400; stroke-width: 1.5; fill: none; }
+      .flowDotted { stroke: #80868b; stroke-width: 1.3; stroke-dasharray: 2 4; fill: none; }
+      .step   { fill: #1a73e8; }
+      .stepTx { fill: #ffffff; font-size: 11px; font-weight: 700; text-anchor: middle; font-family: 'Google Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif; }
+      .wake   { fill: #9334e6; }
+    </style>
+
+    <g id="icons" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="ic-person" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.3"/><path d="M5 20a7 6 0 0 1 14 0"/></symbol>
+      <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-13h-6z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-loop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v4.5h-4.5" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-hub" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="5.5" r="1.9"/><circle cx="19" cy="5.5" r="1.9"/><circle cx="12" cy="20" r="1.9"/><path d="M10.3 10.5 6 6.7M13.7 10.5 18 6.7M12 14.4V18"/></symbol>
+      <symbol id="ic-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.2V18l-3.6 2v-7.8z"/></symbol>
+      <symbol id="ic-bed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19V8M3 19h18v-4a2 2 0 0 0-2-2H5"/><circle cx="7.5" cy="11" r="1.6"/><path d="M12 13V9h9"/></symbol>
+      <symbol id="ic-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5 12 3z"/><path d="M3 7.5V16.5L12 21V12"/><path d="M21 7.5V16.5L12 21"/></symbol>
+      <symbol id="ic-badge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2"/><circle cx="12" cy="10.3" r="2.2"/><path d="M8.2 16.8a4 3 0 0 1 7.6 0"/></symbol>
+      <symbol id="ic-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9.5" width="12" height="7.5" rx="1"/><path d="M14 12h4l3.2 3v2h-7.2z"/><circle cx="7" cy="19" r="1.7"/><circle cx="17.2" cy="19" r="1.7"/></symbol>
+      <symbol id="ic-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 22 20H2z"/><path d="M12 9.5V14"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M7 3v4M17 3v4"/><path d="M10 15h4M12 13v4"/></symbol>
+      <symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/></symbol>
+      <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5.2c0 4.9-3.4 8.3-8 9.8-4.6-1.5-8-4.9-8-9.8V6z"/></symbol>
+      <symbol id="ic-shieldcheck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5.2c0 4.9-3.4 8.3-8 9.8-4.6-1.5-8-4.9-8-9.8V6z"/><path d="M8.7 12.2 11 14.6l4.6-5"/></symbol>
+      <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.4 10.8 15.2 16.3 9.4"/></symbol>
+      <symbol id="ic-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+      <symbol id="ic-memory" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9.5 7V4M14.5 7V4M9.5 20v-3M14.5 20v-3M7 9.5H4M7 14.5H4M20 9.5h-3M20 14.5h-3"/></symbol>
+      <symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 8 10 12.5 14 16.5 6 21 11.5"/></symbol>
+      <symbol id="ic-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="3.3"/><path d="M9.8 13.2 19 4M15.6 7.4l2.3 2.3M18.2 4.8l2.3 2.3"/></symbol>
+      <symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.3 7-12.5A7 7 0 0 0 5 8.5C5 13.7 12 21 12 21z"/><circle cx="12" cy="8.5" r="2.4"/></symbol>
+      <symbol id="ic-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-7.9 5.2 5.2 0 0 1 10.1-1.7A4.4 4.4 0 0 1 16.6 18z"/></symbol>
+      <symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="11" width="13" height="9.5" rx="1.7"/><path d="M8 11V7.8a4 4 0 0 1 8 0V11"/></symbol>
+      <symbol id="ic-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 3 12 8 18"/><path d="M16 6 21 12 16 18"/></symbol>
+      <symbol id="ic-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 21 8 12 12 3 8Z"/><path d="M3 12 12 16 21 12"/><path d="M3 16 12 20 21 16"/></symbol>
+      <symbol id="ic-window" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8.5h18"/><circle cx="6.3" cy="6.2" r="0.55" fill="currentColor" stroke="none"/><circle cx="8.6" cy="6.2" r="0.55" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9 11 12 7 15"/><path d="M13 15h4"/></symbol>
+      <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 15.5 5.5 12.5a3.5 3.5 0 0 1 5-5l2 2"/><path d="M15.5 8.5 18.5 11.5a3.5 3.5 0 0 1-5 5l-2-2"/></symbol>
+    </g>
   </defs>
-  <rect width="2080" height="1330" fill="#090d0e"/>
-  <text x="48" y="46" font-size="24" font-weight="700" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Prudently — Deployment &amp; Connectivity Architecture</text>
-  <text x="48" y="70" font-size="12.5" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Every deployed component and every real connection between them. All Google Cloud resources live in us-central1.</text>
-  <rect x="1400" y="18" width="632" height="62" rx="6" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <line x1="1414" y1="36" x2="1442" y2="36" stroke="#9db3b0" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-  <text x="1450" y="40" font-size="10" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">request / call</text>
-  <line x1="1414" y1="56" x2="1442" y2="56" stroke="#2dd4c8" stroke-width="1.6" fill="none" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
-  <text x="1450" y="60" font-size="10" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">real network hop (HTTPS)</text>
-  <line x1="1630" y1="36" x2="1658" y2="36" stroke="#a78bfa" stroke-width="1.6" fill="none" marker-end="url(#arrowIndigo)"/>
-  <text x="1666" y="40" font-size="10" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">in-process (no network)</text>
-  <line x1="1630" y1="56" x2="1658" y2="56" stroke="#617975" stroke-width="1.6" fill="none" stroke-dasharray="3 4"/>
-  <text x="1666" y="60" font-size="10" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">verification / manual only</text>
-  <rect x="1860" y="30" width="11" height="11" rx="2" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1879" y="39" font-size="10" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">deployed component</text>
-  <rect x="1860" y="50" width="11" height="11" rx="2" fill="#111a1c" stroke="#f2b84e" stroke-width="2"/>
-  <text x="1879" y="59" font-size="10" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">one-off / human-triggered</text>
-  <text x="48" y="118" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">SOURCE &amp; CI</text>
-  <rect x="48" y="132" width="300" height="96" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="156" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">GitHub repo</text>
-  <text x="62" y="173" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">push / PR</text>
-  <text x="62" y="192.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">.github/workflows/ci.yml</text>
-  <text x="62" y="207.0" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">dependabot.yml — npm + pip, weekly</text>
-  <rect x="48" y="246" width="300" height="78" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="270" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Terraform</text>
-  <text x="62" y="287" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">infra/terraform — provisions everything below</text>
-  <text x="62" y="306.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">cloud_run_api · iam · secrets · kms</text>
-  <line x1="198" y1="228" x2="198" y2="246" stroke="#9db3b0" stroke-width="1.6" fill="none" marker-end="url(#arrow)"/>
-  <text x="430" y="118" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">CLIENT</text>
-  <rect x="430" y="132" width="300" height="96" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="444" y="156" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Browser</text>
-  <text x="444" y="173" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Manager / clinician / ops / judge</text>
-  <text x="444" y="192.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">signed-in or anonymous (public feed)</text>
-  <rect x="430" y="246" width="300" height="78" rx="8" fill="#111a1c" stroke="#2dd4c8" stroke-width="2"/>
-  <text x="444" y="270" font-size="13.5" font-weight="650" fill="#2dd4c8" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Firebase Authentication</text>
-  <text x="444" y="287" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Email/Password provider, one demo account</text>
-  <text x="444" y="306.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">mints &amp; refreshes ID tokens, client SDK</text>
-  <line x1="580" y1="228" x2="580" y2="246" stroke="#2dd4c8" stroke-width="1.6" fill="none" marker-end="url(#arrowTeal)"/>
-  <text x="590" y="242" font-size="9.3" font-weight="400" fill="#2dd4c8" font-family="'JetBrains Mono', ui-monospace, monospace">direct, no API hop</text>
-  <text x="812" y="118" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">CLOUD RUN — WEB</text>
-  <rect x="812" y="132" width="300" height="96" rx="8" fill="#111a1c" stroke="#2dd4c8" stroke-width="2"/>
-  <text x="826" y="156" font-size="13.5" font-weight="650" fill="#2dd4c8" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">prudently-web</text>
-  <text x="826" y="173" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Next.js dashboard, App Router</text>
-  <text x="826" y="192.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">deployed via gcloud run deploy --source</text>
-  <line x1="730" y1="180" x2="812" y2="180" stroke="#2dd4c8" stroke-width="1.6" fill="none" marker-end="url(#arrowTeal)"/>
-  <text x="736" y="172" font-size="9.3" font-weight="400" fill="#2dd4c8" font-family="'JetBrains Mono', ui-monospace, monospace">HTTPS</text>
-  <text x="812" y="262" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">CLOUD RUN — API  (FastAPI + ADK, us-central1)</text>
-  <rect x="812" y="276" width="700" height="522" rx="10" fill="#111a1c" stroke="#2dd4c8" stroke-width="2"/>
-  <text x="828" y="302" font-size="14.5" font-weight="700" fill="#2dd4c8" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">prudently-api</text>
-  <text x="828" y="320" font-size="10" font-weight="400" fill="#617975" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">deployed via gcloud run deploy --source=apps/api</text>
-  <line x1="962" y1="228" x2="962" y2="276" stroke="#2dd4c8" stroke-width="1.6" fill="none" marker-end="url(#arrowTeal)"/>
-  <text x="972" y="250" font-size="9.3" font-weight="400" fill="#2dd4c8" font-family="'JetBrains Mono', ui-monospace, monospace">HTTPS + Bearer ID token</text>
-  <rect x="828" y="334" width="322" height="150" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="842" y="358" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">REST routes</text>
-  <text x="842" y="375" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">dashboard · agents · staff · payroll</text>
-  <text x="842" y="392" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">inventory · vendors · approvals</text>
-  <text x="842" y="409" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">watch · traces · auth · job-sheets</text>
-  <text x="842" y="426" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">surgical-schedule · policy</text>
-  <text x="842" y="445.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">require_firebase_auth / require_role /</text>
-  <text x="842" y="460.0" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">optional_firebase_auth per route</text>
-  <rect x="1166" y="334" width="330" height="150" rx="8" fill="#111a1c" stroke="#a78bfa" stroke-width="2"/>
-  <text x="1180" y="358" font-size="13.5" font-weight="650" fill="#a78bfa" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Background watch loop</text>
-  <text x="1180" y="375" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">asyncio, always on</text>
-  <text x="1180" y="392" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">every WATCH_INTERVAL_SECONDS</text>
-  <text x="1180" y="409" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">fleet_watch.py → autonomy.py</text>
-  <text x="1180" y="428.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">in-process ADK Runner — runs the</text>
-  <text x="1180" y="443.0" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">SAME agent objects the Reasoning</text>
-  <text x="1180" y="457.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">Engines serve, not a network call</text>
-  <text x="828" y="510" font-size="10" font-weight="400" fill="#2dd4c8" font-family="'JetBrains Mono', ui-monospace, monospace">Supply Chain's agent object (running in-process, inside the watch loop above) makes one</text>
-  <text x="828" y="526" font-size="10" font-weight="400" fill="#2dd4c8" font-family="'JetBrains Mono', ui-monospace, monospace">genuine Agent2Agent call — a real outbound HTTPS request back to this same service's</text>
-  <text x="828" y="542" font-size="10" font-weight="400" fill="#2dd4c8" font-family="'JetBrains Mono', ui-monospace, monospace">own public URL, authenticated with the shared secret below, not an in-process shortcut.</text>
-  <path d="M 1436 484 C 1472 514 1472 534 1480 560" stroke="#2dd4c8" stroke-width="1.6" fill="none" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
-  <rect x="828" y="560" width="668" height="92" rx="8" fill="#111a1c" stroke="#2dd4c8" stroke-width="2"/>
-  <text x="842" y="584" font-size="13.5" font-weight="650" fill="#2dd4c8" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">A2A mount — /a2a/medrep</text>
-  <text x="842" y="601" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Starlette sub-app (ADK to_a2a) running medrep_agent in-process, plus SharedSecretASGIMiddleware</text>
-  <text x="842" y="620.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">X-A2A-Shared-Secret required, fail-closed if Secret Manager is unreachable</text>
-  <rect x="828" y="672" width="668" height="96" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="842" y="696" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Cross-cutting middleware</text>
-  <text x="842" y="713" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">CORS allowlist · slowapi rate limiting (per-IP, endpoint-keyed)</text>
-  <text x="842" y="730" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">OpenTelemetry ASGI instrumentation — every request traced end to end</text>
-  <text x="1560" y="118" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">VERTEX AI AGENT ENGINE — 8 deployed Reasoning Engines</text>
-  <rect x="1560" y="132" width="472" height="440" rx="10" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1576" y="158" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Reasoning Engines</text>
-  <text x="1576" y="176" font-size="9.7" font-weight="400" fill="#617975" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">each independently deployed + smoke-tested via stream_query</text>
-  <rect x="1576.0" y="190" width="212.0" height="64" rx="8" fill="#111a1c" stroke="#2dd4c8" stroke-width="2"/>
-  <text x="1590.0" y="214" font-size="10.6" font-weight="650" fill="#2dd4c8" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Coordinator</text>
-  <text x="1590.0" y="231" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">root — bundles 6 specialists</text>
-  <text x="1590.0" y="250.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">as in-process AgentTool copies</text>
-  <rect x="1804.0" y="190" width="212.0" height="64" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1818.0" y="214" font-size="10.6" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Shift Allocation</text>
-  <text x="1818.0" y="231" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">fatigue / overtime burndown</text>
-  <text x="1818.0" y="250.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">memory: per unit</text>
-  <rect x="1576.0" y="262" width="212.0" height="64" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1590.0" y="286" font-size="10.6" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Inventory Management</text>
-  <text x="1590.0" y="303" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">par levels, stock status</text>
-  <text x="1590.0" y="322.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">memory: per SKU</text>
-  <rect x="1804.0" y="262" width="212.0" height="64" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1818.0" y="286" font-size="10.6" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Supply Chain Resiliency</text>
-  <text x="1818.0" y="303" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">reorder, vendor selection</text>
-  <text x="1818.0" y="322.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">memory: per vendor</text>
-  <rect x="1576.0" y="334" width="212.0" height="64" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1590.0" y="358" font-size="10.6" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">HR</text>
-  <text x="1590.0" y="375" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">credentialing, per-diem cover</text>
-  <text x="1590.0" y="394.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">memory: per unit</text>
-  <rect x="1804.0" y="334" width="212.0" height="64" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1818.0" y="358" font-size="10.6" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Chaos &amp; Continuity</text>
-  <text x="1818.0" y="375" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">what-ifs + fault injection</text>
-  <text x="1818.0" y="394.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">memory: per scenario</text>
-  <rect x="1576.0" y="406" width="212.0" height="64" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1590.0" y="430" font-size="10.6" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Surgical Scheduling</text>
-  <text x="1590.0" y="447" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">OR/surgeon conflicts, notify</text>
-  <text x="1590.0" y="466.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">newest — patient PII via KMS</text>
-  <rect x="1804.0" y="406" width="212.0" height="64" rx="8" fill="#111a1c" stroke="#f2b84e" stroke-width="2"/>
-  <text x="1818.0" y="430" font-size="10.6" font-weight="650" fill="#f2b84e" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Medical Representative</text>
-  <text x="1818.0" y="447" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">vendor liaison, Armor gate</text>
-  <text x="1818.0" y="466.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">standalone deploy, own memory</text>
-  <text x="1576" y="504" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">Live autonomous traffic runs in-process inside prudently-api (above), not by calling out</text>
-  <text x="1576" y="518" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">to these engines — each is independently verified live via stream_query instead.</text>
-  <text x="48" y="850" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">DATA &amp; STORAGE</text>
-  <rect x="48" y="866" width="336" height="116" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="890" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Firestore</text>
-  <text x="62" y="907" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">staff_roster · shift_history · inventory</text>
-  <text x="62" y="924" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">vendors · patients (KMS-encrypted)</text>
-  <text x="62" y="941" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">surgical_cases · approvals · activity_log</text>
-  <text x="62" y="958" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">agent_registry · approval_policy · job_sheets</text>
-  <rect x="400" y="866" width="336" height="116" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="414" y="890" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Cloud KMS</text>
-  <text x="414" y="907" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">prudently-patient-data / patient-pii</text>
-  <text x="414" y="924" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">90-day rotation</text>
-  <text x="414" y="943.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">field-level encrypt/decrypt only —</text>
-  <text x="414" y="958.0" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">never a bulk export</text>
-  <rect x="700" y="866" width="336" height="116" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="714" y="890" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Secret Manager</text>
-  <text x="714" y="907" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Gemini API key</text>
-  <text x="714" y="924" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Gmail app password</text>
-  <text x="714" y="941" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">A2A shared secret</text>
-  <rect x="1000" y="866" width="336" height="116" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1014" y="890" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Vertex AI Memory Bank</text>
-  <text x="1014" y="907" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">one store per agent, scoped to</text>
-  <text x="1014" y="924" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">that agent's own Reasoning Engine</text>
-  <text x="1014" y="943.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">written every real change, read on recall</text>
-  <path d="M 872 798 C 712 830 216.0 830 216.0 866" stroke="#9db3b0" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <path d="M 872 798 C 712 830 568.0 830 568.0 866" stroke="#9db3b0" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <path d="M 872 798 C 712 830 868.0 830 868.0 866" stroke="#9db3b0" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <path d="M 1660 572 C 1360 910 1168.0 830 1168.0 866" stroke="#9db3b0" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <text x="48" y="1024" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">EXTERNAL INTEGRATIONS &amp; OBSERVABILITY</text>
-  <rect x="48" y="1040" width="336" height="116" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="62" y="1064" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Gmail SMTP</text>
-  <text x="62" y="1081" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Real email — approvals, PO documents,</text>
-  <text x="62" y="1098" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">job sheets, patient notifications</text>
-  <text x="62" y="1115" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">all HTML + plain-text alternative</text>
-  <rect x="400" y="1040" width="336" height="116" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="414" y="1064" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Model Armor</text>
-  <text x="414" y="1081" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Content screening on Medical Rep's</text>
-  <text x="414" y="1098" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">inbound boundary — pre-LLM + re-screen</text>
-  <text x="414" y="1117.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">blocked → never reaches a model</text>
-  <rect x="700" y="1040" width="336" height="116" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="714" y="1064" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Cloud Trace + Cloud Logging</text>
-  <text x="714" y="1081" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">One trace spans Coordinator → Gateway</text>
-  <text x="714" y="1098" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">→ A2A hop → Model Armor → email send</text>
-  <rect x="1000" y="1040" width="336" height="116" rx="8" fill="#111a1c" stroke="#1e2c2e" stroke-width="1.5"/>
-  <text x="1014" y="1064" font-size="13.5" font-weight="650" fill="#eaf4f2" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Gemini API (Vertex AI)</text>
-  <text x="1014" y="1081" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Model calls from every agent —</text>
-  <text x="1014" y="1098" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">in-process Runner and deployed engines alike</text>
-  <line x1="216.0" y1="1014" x2="216.0" y2="1040" stroke="#9db3b0" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <line x1="568.0" y1="1014" x2="568.0" y2="1040" stroke="#9db3b0" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <line x1="868.0" y1="1014" x2="868.0" y2="1040" stroke="#9db3b0" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <line x1="1168.0" y1="1014" x2="1168.0" y2="1040" stroke="#9db3b0" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <text x="1360" y="1024" font-size="10.5" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace" letter-spacing="1.6px">LOCAL / ONE-OFF TOOLING — human-triggered, not runtime</text>
-  <rect x="1360" y="1040" width="672" height="116" rx="8" fill="#111a1c" stroke="#f2b84e" stroke-width="2"/>
-  <text x="1374" y="1064" font-size="13.5" font-weight="650" fill="#f2b84e" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">packages/datagen + apps/api/scripts</text>
-  <text x="1374" y="1081" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">seed.py · backfill_patients.py · seed_registry.py</text>
-  <text x="1374" y="1098" font-size="10.8" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">seed_policy.py · set_user_role.py · verify_deploys.py · demo_reset.py</text>
-  <text x="1374" y="1117.5" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">run against real Firestore/Firebase from a developer's own gcloud ADC —</text>
-  <text x="1374" y="1132.0" font-size="9.3" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">never part of the deployed request path</text>
-  <path d="M 1410 1040 C 1220 996.7 324 996.7 374 982" stroke="#f2b84e" stroke-width="1.3" fill="none" stroke-dasharray="3 4" marker-end="url(#arrow)"/>
-  <line x1="48" y1="1186" x2="2032" y2="1186" stroke="#1e2c2e" stroke-width="1" fill="none"/>
-  <text x="48" y="1212" font-size="11" font-weight="400" fill="#9db3b0" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">Region lock: Cloud Run, Firestore, every Reasoning Engine, Memory Bank, KMS, and Model Armor all live in us-central1.</text>
-  <text x="48" y="1232" font-size="10" font-weight="400" fill="#617975" font-family="'JetBrains Mono', ui-monospace, monospace">Real Google Cloud products deployed: Cloud Run · Vertex AI Agent Engine · Vertex AI Memory Bank · Model Armor · Cloud KMS · Secret Manager · Firestore · Cloud Trace · Cloud Logging · Firebase Authentication.</text>
+  <rect width="2180" height="1315" fill="#fbfcfd"/>
+  <!-- Header -->
+  <text x="44" y="42" font-size="23" font-weight="700" fill="#202124">Prudently — Deployment &amp; Connectivity Architecture</text>
+  <text x="44" y="64.0" class="sub" font-size="12.5">Every deployed component and every real connection between them. All Google Cloud resources live in us-central1.</text>
+  <g transform="translate(1300,24)">
+    <rect x="0" y="0" width="836" height="54" rx="8" fill="#ffffff" stroke="#e8eaed"/>
+    <line x1="14" y1="17" x2="40" y2="17" class="flow" marker-end="url(#arrow)"/>
+    <text x="47" y="21" class="edge">request / call</text>
+    <line x1="14" y1="37" x2="40" y2="37" class="flowTeal" stroke-dasharray="4 3" marker-end="url(#arrowTeal)"/>
+    <text x="47" y="41" class="edge">real network hop (HTTPS)</text>
+    <line x1="230" y1="17" x2="256" y2="17" class="flowPurple" marker-end="url(#arrowPurple)"/>
+    <text x="263" y="21" class="edge">in-process (no network)</text>
+    <line x1="230" y1="37" x2="256" y2="37" class="flowDotted"/>
+    <text x="263" y="41" class="edge">verification / manual only</text>
+    <rect x="470" y="11" width="13" height="13" rx="2" fill="#ffffff" stroke="#dadce0"/>
+    <text x="491" y="21" class="edge">deployed component</text>
+    <rect x="470" y="31" width="13" height="13" rx="2" fill="#ffffff" stroke="#e37400" stroke-width="2"/>
+    <text x="491" y="41" class="edge">one-off / human-triggered</text>
+  </g>
+  <text x="48" y="118.0" class="lbl">SOURCE &amp; CI</text>
+  <rect class="card" x="48" y="132" width="300" height="104" rx="10"/>
+  <rect x="62" y="146" width="26" height="26" rx="7" fill="#f1f3f4"/>
+  <use href="#ic-code" x="66.0" y="150.0" width="18" height="18" style="color:#5f6368"/>
+  <text x="100" y="165.0" class="name">GitHub repo</text>
+  <text x="62" y="184.0" class="sub">push / PR</text>
+  <text x="62" y="205.0" class="mono">.github/workflows/ci.yml</text>
+  <text x="62" y="220.0" class="mono">dependabot.yml — npm + pip, weekly</text>
+  <line x1="198" y1="236" x2="198" y2="258" class="flow" marker-end="url(#arrow)"/>
+  <rect class="card" x="48" y="258" width="300" height="89" rx="10"/>
+  <rect x="62" y="272" width="26" height="26" rx="7" fill="#f1f3f4"/>
+  <use href="#ic-layers" x="66.0" y="276.0" width="18" height="18" style="color:#5f6368"/>
+  <text x="100" y="291.0" class="name">Terraform</text>
+  <text x="62" y="310.0" class="sub">infra/terraform — provisions everything below</text>
+  <text x="62" y="331.0" class="mono">cloud_run_api · iam · secrets · kms</text>
+  <text x="430" y="118.0" class="lbl">CLIENT</text>
+  <rect class="card" x="430" y="132" width="300" height="89" rx="10"/>
+  <rect x="444" y="146" width="26" height="26" rx="7" fill="#f1f3f4"/>
+  <use href="#ic-window" x="448.0" y="150.0" width="18" height="18" style="color:#5f6368"/>
+  <text x="482" y="165.0" class="name">Browser</text>
+  <text x="444" y="184.0" class="sub">Manager / clinician / ops / judge</text>
+  <text x="444" y="205.0" class="mono">signed-in or anonymous (public feed)</text>
+  <line x1="580" y1="221" x2="580" y2="243" class="flowTeal" marker-end="url(#arrowTeal)"/>
+  <text x="588" y="237.0" class="mono" fill="#12879f" font-size="9.3">direct, no API hop</text>
+  <rect class="card" x="430" y="243" width="300" height="89" rx="10" stroke="#12879f" stroke-width="2"/>
+  <rect x="444" y="257" width="26" height="26" rx="7" fill="#e2f4f2"/>
+  <use href="#ic-shieldcheck" x="448.0" y="261.0" width="18" height="18" style="color:#0e6f7d"/>
+  <text x="482" y="276.0" class="name" fill="#12879f">Firebase Authentication</text>
+  <text x="444" y="295.0" class="sub">Email/Password provider, one demo account</text>
+  <text x="444" y="316.0" class="mono">mints &amp; refreshes ID tokens, client SDK</text>
+  <text x="812" y="118.0" class="lbl">CLOUD RUN — WEB</text>
+  <rect class="card" x="812" y="132" width="300" height="89" rx="10" stroke="#12879f" stroke-width="2"/>
+  <rect x="826" y="146" width="26" height="26" rx="7" fill="#e2f4f2"/>
+  <use href="#ic-cloud" x="830.0" y="150.0" width="18" height="18" style="color:#0e6f7d"/>
+  <text x="864" y="165.0" class="name" fill="#12879f">prudently-web</text>
+  <text x="826" y="184.0" class="sub">Next.js dashboard, App Router</text>
+  <text x="826" y="205.0" class="mono">deployed via gcloud run deploy --source</text>
+  <line x1="730" y1="171" x2="812" y2="171" class="flowTeal" marker-end="url(#arrowTeal)"/>
+  <text x="738" y="163.0" class="mono" fill="#12879f" font-size="9.3">HTTPS</text>
+  <text x="812" y="262.0" class="lbl">CLOUD RUN — API  (FastAPI + ADK, us-central1)</text>
+  <line x1="962" y1="221" x2="962" y2="276" class="flowTeal" marker-end="url(#arrowTeal)"/>
+  <text x="972" y="248.5" class="mono" fill="#12879f" font-size="9.3">HTTPS + Bearer ID token</text>
+  <rect class="card" x="812" y="276" width="700" height="538" rx="10" stroke="#12879f" stroke-width="2"/>
+  <rect x="826" y="296" width="30" height="30" rx="8" fill="#e2f4f2"/>
+  <use href="#ic-cloud" x="831.0" y="301.0" width="20" height="20" style="color:#0e6f7d"/>
+  <text x="868" y="315.0" class="name" fill="#12879f" font-size="14.5" font-weight="700">prudently-api</text>
+  <text x="826" y="334.0" class="mono" font-size="10">deployed via gcloud run deploy --source=apps/api</text>
+  <rect class="card" x="828" y="348" width="322" height="155" rx="10"/>
+  <rect x="842" y="362" width="26" height="26" rx="7" fill="#e8f0fe"/>
+  <use href="#ic-hub" x="846.0" y="366.0" width="18" height="18" style="color:#1a73e8"/>
+  <text x="880" y="381.0" class="name">REST routes</text>
+  <text x="842" y="400.0" class="sub">dashboard · agents · staff · payroll</text>
+  <text x="842" y="417.0" class="sub">inventory · vendors · approvals</text>
+  <text x="842" y="434.0" class="sub">watch · traces · auth · job-sheets</text>
+  <text x="842" y="451.0" class="sub">surgical-schedule · policy</text>
+  <text x="842" y="472.0" class="mono">require_firebase_auth / require_role /</text>
+  <text x="842" y="487.0" class="mono">optional_firebase_auth per route</text>
+  <rect class="card" x="1166" y="348" width="336" height="153" rx="10" stroke="#9334e6" stroke-width="2"/>
+  <rect x="1180" y="362" width="26" height="26" rx="7" fill="#f3e8fd"/>
+  <use href="#ic-loop" x="1184.0" y="366.0" width="18" height="18" style="color:#7a1fc9"/>
+  <text x="1218" y="381.0" class="name" fill="#9334e6">Background watch loop</text>
+  <text x="1180" y="400.0" class="sub">asyncio, always on</text>
+  <text x="1180" y="417.0" class="sub">every WATCH_INTERVAL_SECONDS</text>
+  <text x="1180" y="434.0" class="sub">fleet_watch.py → autonomy.py</text>
+  <text x="1180" y="455.0" class="mono">in-process ADK Runner — runs the</text>
+  <text x="1180" y="470.0" class="mono">SAME agent objects the Reasoning</text>
+  <text x="1180" y="485.0" class="mono">Engines serve, not a network call</text>
+  <text x="828" y="533.0" class="mono" fill="#12879f" font-size="10">Supply Chain's agent object (running in-process, inside the watch loop above) makes one</text>
+  <text x="828" y="549.0" class="mono" fill="#12879f" font-size="10">genuine Agent2Agent call — a real outbound HTTPS request back to this same service's</text>
+  <text x="828" y="565.0" class="mono" fill="#12879f" font-size="10">own public URL, authenticated with the shared secret below, not an in-process shortcut.</text>
+  <path d="M 1472 501 C 1492 551 1492 563 1448 583" class="flowTeal" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
+  <rect class="card" x="828" y="583" width="668" height="106" rx="10" stroke="#12879f" stroke-width="2"/>
+  <rect x="842" y="597" width="26" height="26" rx="7" fill="#e2f4f2"/>
+  <use href="#ic-link" x="846.0" y="601.0" width="18" height="18" style="color:#0e6f7d"/>
+  <text x="880" y="616.0" class="name" fill="#12879f">A2A mount — /a2a/medrep</text>
+  <text x="842" y="635.0" class="sub">Starlette sub-app (ADK to_a2a) running medrep_agent in-process,</text>
+  <text x="842" y="652.0" class="sub">plus SharedSecretASGIMiddleware</text>
+  <text x="842" y="673.0" class="mono">X-A2A-Shared-Secret required, fail-closed if Secret Manager is unreachable</text>
+  <rect class="card" x="828" y="709" width="668" height="85" rx="10"/>
+  <rect x="842" y="723" width="26" height="26" rx="7" fill="#f1f3f4"/>
+  <use href="#ic-layers" x="846.0" y="727.0" width="18" height="18" style="color:#5f6368"/>
+  <text x="880" y="742.0" class="name">Cross-cutting middleware</text>
+  <text x="842" y="761.0" class="sub">CORS allowlist · slowapi rate limiting (per-IP, endpoint-keyed)</text>
+  <text x="842" y="778.0" class="sub">OpenTelemetry ASGI instrumentation — every request traced end to end</text>
+  <text x="1560" y="118.0" class="lbl">VERTEX AI AGENT ENGINE — 8 deployed Reasoning Engines</text>
+  <rect class="card" x="1560" y="132" width="548" height="505" rx="10"/>
+  <rect x="1574" y="146" width="30" height="30" rx="8" fill="#e8f0fe"/>
+  <use href="#ic-hub" x="1579.0" y="151.0" width="20" height="20" style="color:#1a73e8"/>
+  <text x="1616" y="165.0" class="name">Reasoning Engines</text>
+  <text x="1574" y="184.0" class="sub" font-size="10.3">each independently deployed + smoke-tested via stream_query</text>
+  <rect class="card" x="1576" y="206" width="250" height="84" rx="10" stroke="#12879f" stroke-width="2"/>
+  <rect x="1588" y="218" width="26" height="26" rx="7" fill="#e2f4f2"/>
+  <use href="#ic-hub" x="1592.0" y="222.0" width="18" height="18" style="color:#0e6f7d"/>
+  <text x="1622" y="233.0" class="name13" fill="#12879f">Coordinator</text>
+  <text x="1588" y="254.0" class="sub" font-size="10.3">root — bundles 6 specialists</text>
+  <text x="1588" y="270.0" class="mono" font-size="9.3">as in-process AgentTool copies</text>
+  <rect class="card" x="1842" y="206" width="250" height="84" rx="10"/>
+  <rect x="1854" y="218" width="26" height="26" rx="7" fill="#e8f0fe"/>
+  <use href="#ic-bed" x="1858.0" y="222.0" width="18" height="18" style="color:#1a73e8"/>
+  <text x="1888" y="233.0" class="name13">Shift Allocation</text>
+  <text x="1854" y="254.0" class="sub" font-size="10.3">fatigue / overtime burndown</text>
+  <text x="1854" y="270.0" class="mono" font-size="9.3">memory: per unit</text>
+  <rect class="card" x="1576" y="302" width="250" height="84" rx="10"/>
+  <rect x="1588" y="314" width="26" height="26" rx="7" fill="#e8f0fe"/>
+  <use href="#ic-box" x="1592.0" y="318.0" width="18" height="18" style="color:#1a73e8"/>
+  <text x="1622" y="329.0" class="name13">Inventory Management</text>
+  <text x="1588" y="350.0" class="sub" font-size="10.3">par levels, stock status</text>
+  <text x="1588" y="366.0" class="mono" font-size="9.3">memory: per SKU</text>
+  <rect class="card" x="1842" y="302" width="250" height="84" rx="10"/>
+  <rect x="1854" y="314" width="26" height="26" rx="7" fill="#e8f0fe"/>
+  <use href="#ic-truck" x="1858.0" y="318.0" width="18" height="18" style="color:#1a73e8"/>
+  <text x="1888" y="329.0" class="name13">Supply Chain Resiliency</text>
+  <text x="1854" y="350.0" class="sub" font-size="10.3">reorder, vendor selection</text>
+  <text x="1854" y="366.0" class="mono" font-size="9.3">memory: per vendor</text>
+  <rect class="card" x="1576" y="398" width="250" height="84" rx="10"/>
+  <rect x="1588" y="410" width="26" height="26" rx="7" fill="#e8f0fe"/>
+  <use href="#ic-badge" x="1592.0" y="414.0" width="18" height="18" style="color:#1a73e8"/>
+  <text x="1622" y="425.0" class="name13">HR</text>
+  <text x="1588" y="446.0" class="sub" font-size="10.3">credentialing, per-diem cover</text>
+  <text x="1588" y="462.0" class="mono" font-size="9.3">memory: per unit</text>
+  <rect class="card" x="1842" y="398" width="250" height="84" rx="10"/>
+  <rect x="1854" y="410" width="26" height="26" rx="7" fill="#e8f0fe"/>
+  <use href="#ic-warning" x="1858.0" y="414.0" width="18" height="18" style="color:#1a73e8"/>
+  <text x="1888" y="425.0" class="name13">Chaos &amp; Continuity</text>
+  <text x="1854" y="446.0" class="sub" font-size="10.3">what-ifs + fault injection</text>
+  <text x="1854" y="462.0" class="mono" font-size="9.3">memory: per scenario</text>
+  <rect class="card" x="1576" y="494" width="250" height="84" rx="10"/>
+  <rect x="1588" y="506" width="26" height="26" rx="7" fill="#e8f0fe"/>
+  <use href="#ic-calendar" x="1592.0" y="510.0" width="18" height="18" style="color:#1a73e8"/>
+  <text x="1622" y="521.0" class="name13">Surgical Scheduling</text>
+  <text x="1588" y="542.0" class="sub" font-size="10.3">OR/surgeon conflicts, notify</text>
+  <text x="1588" y="558.0" class="mono" font-size="9.3">newest — patient PII via KMS</text>
+  <rect class="card" x="1842" y="494" width="250" height="84" rx="10" stroke="#e37400" stroke-width="2"/>
+  <rect x="1854" y="506" width="26" height="26" rx="7" fill="#feefe0"/>
+  <use href="#ic-mail" x="1858.0" y="510.0" width="18" height="18" style="color:#b45c00"/>
+  <text x="1888" y="521.0" class="name13" fill="#b45c00">Medical Representative</text>
+  <text x="1854" y="542.0" class="sub" font-size="10.3">vendor liaison, Armor gate</text>
+  <text x="1854" y="558.0" class="mono" font-size="9.3">standalone deploy, own memory</text>
+  <text x="1576" y="604.0" class="mono" font-size="9.3">Live autonomous traffic runs in-process inside prudently-api (above), not by calling out</text>
+  <text x="1576" y="619.0" class="mono" font-size="9.3">to these engines — each is independently verified live via stream_query instead.</text>
+  <text x="48" y="864.0" class="lbl">DATA &amp; STORAGE</text>
+  <rect class="card" x="48" y="880" width="348" height="119" rx="10"/>
+  <rect x="62" y="894" width="26" height="26" rx="7" fill="#e6f4ea"/>
+  <use href="#ic-database" x="66.0" y="898.0" width="18" height="18" style="color:#188038"/>
+  <text x="100" y="913.0" class="name">Firestore</text>
+  <text x="62" y="932.0" class="sub">staff_roster · shift_history · inventory</text>
+  <text x="62" y="949.0" class="sub">vendors · patients (KMS-encrypted)</text>
+  <text x="62" y="966.0" class="sub">surgical_cases · approvals · activity_log</text>
+  <text x="62" y="983.0" class="sub">agent_registry · approval_policy · job_sheets</text>
+  <rect class="card" x="420" y="880" width="348" height="121" rx="10"/>
+  <rect x="434" y="894" width="26" height="26" rx="7" fill="#fce8e6"/>
+  <use href="#ic-lock" x="438.0" y="898.0" width="18" height="18" style="color:#c5221f"/>
+  <text x="472" y="913.0" class="name">Cloud KMS</text>
+  <text x="434" y="932.0" class="sub">prudently-patient-data / patient-pii</text>
+  <text x="434" y="949.0" class="sub">90-day rotation</text>
+  <text x="434" y="970.0" class="mono">field-level encrypt/decrypt only —</text>
+  <text x="434" y="985.0" class="mono">never a bulk export</text>
+  <rect class="card" x="792" y="880" width="348" height="102" rx="10"/>
+  <rect x="806" y="894" width="26" height="26" rx="7" fill="#fce8e6"/>
+  <use href="#ic-key" x="810.0" y="898.0" width="18" height="18" style="color:#c5221f"/>
+  <text x="844" y="913.0" class="name">Secret Manager</text>
+  <text x="806" y="932.0" class="sub">Gemini API key</text>
+  <text x="806" y="949.0" class="sub">Gmail app password</text>
+  <text x="806" y="966.0" class="sub">A2A shared secret</text>
+  <rect class="card" x="1164" y="880" width="348" height="106" rx="10"/>
+  <rect x="1178" y="894" width="26" height="26" rx="7" fill="#e8eefd"/>
+  <use href="#ic-memory" x="1182.0" y="898.0" width="18" height="18" style="color:#3355cc"/>
+  <text x="1216" y="913.0" class="name">Vertex AI Memory Bank</text>
+  <text x="1178" y="932.0" class="sub">one store per agent, scoped to</text>
+  <text x="1178" y="949.0" class="sub">that agent's own Reasoning Engine</text>
+  <text x="1178" y="970.0" class="mono">written every real change, read on recall</text>
+  <path d="M 1162 814 C 1082 844 222.0 850 222.0 880" class="flow" marker-end="url(#arrow)"/>
+  <path d="M 1162 814 C 1082 844 594.0 850 594.0 880" class="flow" marker-end="url(#arrow)"/>
+  <path d="M 1162 814 C 1082 844 966.0 850 966.0 880" class="flow" marker-end="url(#arrow)"/>
+  <path d="M 1162 814 C 1082 844 1338.0 850 1338.0 880" class="flow" marker-end="url(#arrow)"/>
+  <path d="M 2048 637 C 2048 697 1458.0 830 1338.0 880" class="flow" marker-end="url(#arrow)"/>
+  <text x="48" y="1047.0" class="lbl">EXTERNAL INTEGRATIONS &amp; OBSERVABILITY</text>
+  <rect class="card" x="48" y="1063" width="348" height="102" rx="10"/>
+  <rect x="62" y="1077" width="26" height="26" rx="7" fill="#f1f3f4"/>
+  <use href="#ic-mail" x="66.0" y="1081.0" width="18" height="18" style="color:#5f6368"/>
+  <text x="100" y="1096.0" class="name">Gmail SMTP</text>
+  <text x="62" y="1115.0" class="sub">Real email — approvals, PO documents,</text>
+  <text x="62" y="1132.0" class="sub">job sheets, patient notifications</text>
+  <text x="62" y="1149.0" class="sub">all HTML + plain-text alternative</text>
+  <rect class="card" x="420" y="1063" width="348" height="106" rx="10"/>
+  <rect x="434" y="1077" width="26" height="26" rx="7" fill="#fce8e6"/>
+  <use href="#ic-shieldcheck" x="438.0" y="1081.0" width="18" height="18" style="color:#c5221f"/>
+  <text x="472" y="1096.0" class="name">Model Armor</text>
+  <text x="434" y="1115.0" class="sub">Content screening on Medical Rep's</text>
+  <text x="434" y="1132.0" class="sub">inbound boundary — pre-LLM + re-screen</text>
+  <text x="434" y="1153.0" class="mono">blocked → never reaches a model</text>
+  <rect class="card" x="792" y="1063" width="348" height="85" rx="10"/>
+  <rect x="806" y="1077" width="26" height="26" rx="7" fill="#f1f3f4"/>
+  <use href="#ic-chart" x="810.0" y="1081.0" width="18" height="18" style="color:#5f6368"/>
+  <text x="844" y="1096.0" class="name">Cloud Trace + Cloud Logging</text>
+  <text x="806" y="1115.0" class="sub">One trace spans Coordinator → Gateway</text>
+  <text x="806" y="1132.0" class="sub">→ A2A hop → Model Armor → email send</text>
+  <rect class="card" x="1164" y="1063" width="348" height="85" rx="10"/>
+  <rect x="1178" y="1077" width="26" height="26" rx="7" fill="#e8f0fe"/>
+  <use href="#ic-hub" x="1182.0" y="1081.0" width="18" height="18" style="color:#1a73e8"/>
+  <text x="1216" y="1096.0" class="name">Gemini API (Vertex AI)</text>
+  <text x="1178" y="1115.0" class="sub">Model calls from every agent —</text>
+  <text x="1178" y="1132.0" class="sub">in-process Runner and deployed engines alike</text>
+  <line x1="222.0" y1="1001" x2="222.0" y2="1063" class="flow" marker-end="url(#arrow)"/>
+  <line x1="594.0" y1="1001" x2="594.0" y2="1063" class="flow" marker-end="url(#arrow)"/>
+  <line x1="966.0" y1="1001" x2="966.0" y2="1063" class="flow" marker-end="url(#arrow)"/>
+  <line x1="1338.0" y1="1001" x2="1338.0" y2="1063" class="flow" marker-end="url(#arrow)"/>
+  <text x="1560" y="1047.0" class="lbl" fill="#b45c00">LOCAL / ONE-OFF TOOLING — human-triggered, not runtime</text>
+  <rect class="card" x="1560" y="1063" width="548" height="138" rx="10" stroke="#e37400" stroke-width="2"/>
+  <rect x="1574" y="1077" width="26" height="26" rx="7" fill="#feefe0"/>
+  <use href="#ic-terminal" x="1578.0" y="1081.0" width="18" height="18" style="color:#b45c00"/>
+  <text x="1612" y="1096.0" class="name" fill="#b45c00">packages/datagen + apps/api/scripts</text>
+  <text x="1574" y="1115.0" class="sub">seed.py · backfill_patients.py · seed_registry.py</text>
+  <text x="1574" y="1132.0" class="sub">seed_policy.py · set_user_role.py</text>
+  <text x="1574" y="1149.0" class="sub">verify_deploys.py · demo_reset.py</text>
+  <text x="1574" y="1170.0" class="mono">run against real Firestore/Firebase from a developer's own gcloud ADC —</text>
+  <text x="1574" y="1185.0" class="mono">never part of the deployed request path</text>
+  <path d="M 1620 1201 L 1620 1225 L 20 1225 L 20 1011 L 88 1011 L 88 1001" class="flowAmber" stroke-dasharray="3 4" marker-end="url(#arrowAmber)"/>
+  <line x1="48" y1="1245" x2="2108" y2="1245" stroke="#e8eaed" stroke-width="1"/>
+  <text x="48" y="1273.0" class="sub" font-size="11.5">Region lock: Cloud Run, Firestore, every Reasoning Engine, Memory Bank, KMS, and Model Armor all live in us-central1.</text>
+  <text x="48" y="1293.0" class="mono" font-size="10">Real Google Cloud products deployed: Cloud Run · Vertex AI Agent Engine · Vertex AI Memory Bank · Model Armor · Cloud KMS · Secret Manager · Firestore · Cloud Trace · Cloud Logging · Firebase Authentication.</text>
 </svg>

@@ -1,227 +1,336 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 940" width="1420" height="940" font-family="'Instrument Sans','Helvetica Neue',Arial,sans-serif">
-  <title>Prudently — Fortified Enterprise Fleet architecture</title>
-  <desc>A hospital operations agent fleet on Google Cloud: a Coordinator on Vertex AI Agent Engine routes through an Agent Gateway to six specialists; Supply Chain reaches a Medical Representative agent across a trust boundary over Agent2Agent, where Model Armor screens inbound vendor mail before any model sees it. A real-time fleet watch runs continuously and wakes an agent the moment stock, fatigue, a credential, or a surgical schedule conflict crosses a line — no scripted timeline, no human input — and every consequential action is still gated behind manager approval. Every deployed Reasoning Engine runs under its own dedicated Agent Identity.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 980" width="1440" height="980" font-family="'Google Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <title>Prudently — Agent Fleet Architecture</title>
+  <desc>A hospital operations agent fleet on Google Cloud, us-central1. A Coordinator on Vertex AI Agent Engine routes every call through an Agent Gateway to six specialists. Supply Chain reaches a Medical Representative agent across an external trust boundary over Agent2Agent, where Model Armor screens inbound vendor mail twice before any model sees it. A fleet watch runs continuously and wakes an agent the moment stock, fatigue, a credential, or a surgical schedule conflict crosses a line — no human input — and every consequential action is still gated behind manager approval in the loop. Firestore, Vertex AI Memory Bank, Cloud Trace and Logging, Secret Manager, Cloud KMS and IAM back every agent.</desc>
 
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9db3b0"/>
+    <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#3c4043" flood-opacity="0.18"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#80868b"/>
     </marker>
-    <marker id="arrowTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4c8"/>
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#12879f"/>
     </marker>
-    <marker id="arrowIndigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a78bfa"/>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9334e6"/>
     </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#e37400"/>
+    </marker>
+
     <style>
-      .lbl   { font-size: 10px; letter-spacing: 1.3px; fill: #617975; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-      .name  { font-size: 14px; font-weight: 600; fill: #eaf4f2; }
-      .sub   { font-size: 11.5px; fill: #9db3b0; }
-      .mono  { font-size: 10.5px; fill: #7fa39d; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-      .edge  { font-size: 10.5px; fill: #9db3b0; }
-      .card  { fill: #111a1c; stroke: #1e2c2e; stroke-width: 1.5; }
-      .zone  { fill: #0e1416; fill-opacity: 0.65; stroke: #2dd4c8; stroke-width: 1.5; stroke-dasharray: 4 5; }
-      .flow  { stroke: #526661; stroke-width: 1.6; fill: none; }
-      .flowT { stroke: #2dd4c8; stroke-width: 1.8; fill: none; }
-      .flowI { stroke: #a78bfa; stroke-width: 1.8; fill: none; }
+      .lbl    { font-size: 10.5px; letter-spacing: 1.4px; fill: #3c4043; font-family: 'Google Sans Mono','Roboto Mono',ui-monospace,monospace; font-weight: 650; }
+      .name   { font-size: 14px; font-weight: 600; fill: #202124; }
+      .name13 { font-size: 12.5px; font-weight: 600; fill: #202124; }
+      .sub    { font-size: 11px; fill: #3c4043; font-weight: 500; }
+      .mono   { font-size: 10px; fill: #52555a; font-family: 'Google Sans Mono','Roboto Mono',ui-monospace,monospace; font-weight: 500; }
+      .edge   { font-size: 10.5px; fill: #3c4043; font-weight: 500; }
+      .edgeB  { font-size: 10.5px; fill: #3c4043; font-weight: 700; }
+      .card   { fill: #ffffff; stroke: #dadce0; stroke-width: 1; filter: url(#cardShadow); }
+      .zone   { fill: #fdece9; fill-opacity: 0.55; stroke: #d93025; stroke-width: 1.5; stroke-dasharray: 5 4; }
+      .gczone { fill: #f8fafd; stroke: #c7d2e0; stroke-width: 1.4; stroke-dasharray: 6 5; }
+      .flow   { stroke: #80868b; stroke-width: 1.5; fill: none; }
+      .flowTeal   { stroke: #12879f; stroke-width: 1.7; fill: none; }
+      .flowPurple { stroke: #9334e6; stroke-width: 1.7; fill: none; }
+      .flowAmber  { stroke: #e37400; stroke-width: 1.5; fill: none; }
+      .step   { fill: #1a73e8; }
+      .stepTx { fill: #ffffff; font-size: 11px; font-weight: 700; text-anchor: middle; font-family: 'Google Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif; }
+      .wake   { fill: #9334e6; }
     </style>
+
+    <!-- ── icon symbols (24x24, stroke=currentColor) ─────────────────────── -->
+    <g id="icons" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="ic-person" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.3"/><path d="M5 20a7 6 0 0 1 14 0"/></symbol>
+      <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-13h-6z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-loop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v4.5h-4.5" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-hub" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="5.5" r="1.9"/><circle cx="19" cy="5.5" r="1.9"/><circle cx="12" cy="20" r="1.9"/><path d="M10.3 10.5 6 6.7M13.7 10.5 18 6.7M12 14.4V18"/></symbol>
+      <symbol id="ic-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.2V18l-3.6 2v-7.8z"/></symbol>
+      <symbol id="ic-bed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19V8M3 19h18v-4a2 2 0 0 0-2-2H5"/><circle cx="7.5" cy="11" r="1.6"/><path d="M12 13V9h9"/></symbol>
+      <symbol id="ic-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 21 7.5 12 12 3 7.5 12 3z"/><path d="M3 7.5V16.5L12 21V12"/><path d="M21 7.5V16.5L12 21"/></symbol>
+      <symbol id="ic-badge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2"/><circle cx="12" cy="10.3" r="2.2"/><path d="M8.2 16.8a4 3 0 0 1 7.6 0"/></symbol>
+      <symbol id="ic-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9.5" width="12" height="7.5" rx="1"/><path d="M14 12h4l3.2 3v2h-7.2z"/><circle cx="7" cy="19" r="1.7"/><circle cx="17.2" cy="19" r="1.7"/></symbol>
+      <symbol id="ic-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 22 20H2z"/><path d="M12 9.5V14"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M7 3v4M17 3v4"/><path d="M10 15h4M12 13v4"/></symbol>
+      <symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/></symbol>
+      <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5.2c0 4.9-3.4 8.3-8 9.8-4.6-1.5-8-4.9-8-9.8V6z"/></symbol>
+      <symbol id="ic-shieldcheck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5.2c0 4.9-3.4 8.3-8 9.8-4.6-1.5-8-4.9-8-9.8V6z"/><path d="M8.7 12.2 11 14.6l4.6-5"/></symbol>
+      <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.4 10.8 15.2 16.3 9.4"/></symbol>
+      <symbol id="ic-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+      <symbol id="ic-memory" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9.5 7V4M14.5 7V4M9.5 20v-3M14.5 20v-3M7 9.5H4M7 14.5H4M20 9.5h-3M20 14.5h-3"/></symbol>
+      <symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 8 10 12.5 14 16.5 6 21 11.5"/></symbol>
+      <symbol id="ic-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="3.3"/><path d="M9.8 13.2 19 4M15.6 7.4l2.3 2.3M18.2 4.8l2.3 2.3"/></symbol>
+      <symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-7.3 7-12.5A7 7 0 0 0 5 8.5C5 13.7 12 21 12 21z"/><circle cx="12" cy="8.5" r="2.4"/></symbol>
+      <symbol id="ic-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-7.9 5.2 5.2 0 0 1 10.1-1.7A4.4 4.4 0 0 1 16.6 18z"/></symbol>
+      <symbol id="ic-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="11" width="13" height="9.5" rx="1.7"/><path d="M8 11V7.8a4 4 0 0 1 8 0V11"/></symbol>
+    </g>
   </defs>
 
-  <rect width="1420" height="940" fill="#090d0e"/>
+  <rect width="1440" height="980" fill="#fbfcfd"/>
 
-  <text x="48" y="52" font-size="25" font-weight="700" fill="#eaf4f2">Prudently — Fortified Enterprise Fleet</text>
-  <text x="48" y="76" class="sub" font-size="13">Agent-monitored hospital operations. Every box below is deployed and running in us-central1.</text>
+  <!-- ── Header ───────────────────────────────────────────────────────── -->
+  <text x="44" y="42" font-size="23" font-weight="700" fill="#202124">Prudently — Agent Fleet Architecture</text>
+  <text x="44" y="63" class="sub" font-size="12.5">Hospital operations agent fleet. Every box below is deployed and running on Google Cloud, us-central1.</text>
 
   <!-- Legend -->
-  <g transform="translate(1000,34)">
-    <rect x="0" y="0" width="372" height="56" rx="6" fill="#111a1c" stroke="#1e2c2e"/>
-    <line x1="16" y1="20" x2="44" y2="20" class="flow" marker-end="url(#arrow)"/>
-    <text x="52" y="24" class="edge">in-process call</text>
-    <line x1="16" y1="40" x2="44" y2="40" class="flowT" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
-    <text x="52" y="44" class="edge">network hop (A2A)</text>
-    <line x1="196" y1="20" x2="224" y2="20" class="flowI" marker-end="url(#arrowIndigo)"/>
-    <text x="232" y="24" class="edge">fleet-initiated</text>
-    <rect x="196" y="34" width="12" height="12" rx="2" fill="#111a1c" stroke="#1e2c2e"/>
-    <text x="232" y="44" class="edge">deployed component</text>
+  <g transform="translate(918,26)">
+    <rect x="0" y="0" width="478" height="44" rx="8" fill="#ffffff" stroke="#e8eaed"/>
+    <line x1="14" y1="15" x2="40" y2="15" class="flow" marker-end="url(#arrow)"/>
+    <text x="47" y="19" class="edge">in-process call</text>
+    <line x1="14" y1="32" x2="40" y2="32" class="flowTeal" stroke-dasharray="4 3" marker-end="url(#arrowTeal)"/>
+    <text x="47" y="36" class="edge">network hop (A2A)</text>
+    <line x1="182" y1="15" x2="208" y2="15" class="flowPurple" stroke-dasharray="4 3" marker-end="url(#arrowPurple)"/>
+    <text x="215" y="19" class="edge">autonomous trigger</text>
+    <circle cx="195" cy="32" r="8" class="step"/>
+    <text x="195" y="35.5" class="stepTx">1</text>
+    <text x="215" y="36" class="edge">workflow step</text>
+    <circle cx="356" cy="15" r="4.5" class="wake"/>
+    <text x="367" y="19" class="edge">fleet watch can wake</text>
+    <line x1="349" y1="32" x2="349" y2="32" />
+    <rect x="349" y="27" width="12" height="10" rx="2" fill="#ffffff" stroke="#dadce0"/>
+    <text x="367" y="36" class="edge">deployed component</text>
   </g>
 
-  <!-- ── Column 1: who starts things ─────────────────────────────────────── -->
-  <text x="48" y="128" class="lbl">WHO STARTS THINGS</text>
-
-  <g transform="translate(48,144)">
-    <rect class="card" x="0" y="0" width="230" height="88" rx="8"/>
-    <text x="16" y="28" class="name">Operations manager</text>
-    <text x="16" y="48" class="sub">Next.js dashboard on Cloud Run</text>
-    <text x="16" y="67" class="mono">Firebase Auth · signed-in view</text>
-    <text x="16" y="81" class="mono">public view redacts staff rows</text>
+  <!-- ── Outer Google Cloud boundary ──────────────────────────────────── -->
+  <rect class="gczone" x="24" y="108" width="1392" height="808" rx="14"/>
+  <g transform="translate(40,96)">
+    <rect x="0" y="0" width="182" height="22" rx="5" fill="#fbfcfd"/>
+    <use href="#ic-cloud" x="0" y="2" width="16" height="16" style="color:#5f6368"/>
+    <text x="21" y="14.5" class="lbl" fill="#5f6368">GOOGLE CLOUD · US-CENTRAL1</text>
   </g>
 
-  <g transform="translate(48,268)">
-    <rect class="card" x="0" y="0" width="230" height="86" rx="8" stroke="#a78bfa"/>
-    <text x="16" y="27" class="name" fill="#a78bfa">Fleet watch</text>
-    <text x="16" y="46" class="sub">Edge-triggered, no human input</text>
-    <text x="16" y="64" class="mono">stock · fatigue · credential</text>
-    <text x="16" y="78" class="mono">triggers.py + fleet_watch.py</text>
+  <!-- ── Column 1: triggers ───────────────────────────────────────────── -->
+  <text x="64" y="146" class="lbl">WHO STARTS THINGS</text>
+
+  <g transform="translate(64,160)">
+    <rect class="card" x="0" y="0" width="260" height="94" rx="10"/>
+    <rect x="14" y="14" width="30" height="30" rx="8" fill="#e8f0fe"/>
+    <use href="#ic-person" x="19" y="19" width="20" height="20" style="color:#1a73e8"/>
+    <text x="56" y="33" class="name">Operations manager</text>
+    <text x="14" y="60" class="sub">Next.js dashboard on Cloud Run</text>
+    <text x="14" y="77" class="mono">Firebase Auth · signed-in view</text>
+    <text x="14" y="90" class="mono">public view redacts staff rows</text>
   </g>
 
-  <g transform="translate(48,390)">
-    <rect class="card" x="0" y="0" width="230" height="72" rx="8"/>
-    <text x="16" y="26" class="name" font-size="13">Watch loop</text>
-    <text x="16" y="45" class="sub" font-size="10.5">Background loop, always on</text>
-    <text x="16" y="61" class="mono" font-size="9.5">services/watch_loop.py</text>
-  </g>
-  <line x1="163" y1="390" x2="163" y2="360" class="flowI" marker-end="url(#arrowIndigo)"/>
-  <text x="173" y="380" class="edge" fill="#a78bfa">every ~90s</text>
-  <text x="173" y="392" class="mono" font-size="9">or on demand</text>
-
-  <line x1="278" y1="188" x2="356" y2="188" class="flow" marker-end="url(#arrow)"/>
-  <text x="288" y="180" class="edge">asks</text>
-  <path d="M 278 311 C 322 311 322 218 356 208" class="flowI" marker-end="url(#arrowIndigo)"/>
-  <text x="288" y="307" class="edge" fill="#a78bfa">wakes an agent</text>
-
-  <!-- ── Column 2: Coordinator + Gateway + specialists ───────────────────── -->
-  <text x="356" y="128" class="lbl">SINGLE ENTRY POINT</text>
-  <g transform="translate(356,144)">
-    <rect class="card" x="0" y="0" width="252" height="88" rx="8" stroke="#2dd4c8" stroke-width="2"/>
-    <text x="16" y="28" class="name">Coordinator</text>
-    <text x="16" y="48" class="sub">Root ADK agent — delegates only</text>
-    <text x="16" y="70" class="mono">Vertex AI Agent Engine</text>
+  <g transform="translate(64,290)">
+    <rect class="card" x="0" y="0" width="260" height="90" rx="10" stroke="#9334e6" stroke-width="1.4"/>
+    <rect x="14" y="14" width="30" height="30" rx="8" fill="#f3e8fd"/>
+    <use href="#ic-bolt" x="19" y="19" width="20" height="20" style="color:#9334e6"/>
+    <text x="56" y="33" class="name" fill="#7a1fc9">Fleet watch</text>
+    <text x="14" y="59" class="sub">Edge-triggered · no human input</text>
+    <text x="14" y="76" class="mono">stock · fatigue · credential</text>
+    <text x="14" y="90" class="mono">triggers.py + fleet_watch.py</text>
   </g>
 
-  <line x1="482" y1="232" x2="482" y2="272" class="flow" marker-end="url(#arrow)"/>
-  <g transform="translate(320,272)">
-    <rect class="card" x="0" y="0" width="326" height="94" rx="8"/>
-    <text x="16" y="27" class="name">Agent Gateway</text>
-    <text x="16" y="47" class="sub">ADK before_tool_callback — every internal call</text>
-    <text x="16" y="68" class="mono">registry lookup → policy check → trace span</text>
-    <text x="16" y="84" class="mono">blocks unregistered · inactive · unauthorized</text>
+  <g transform="translate(64,416)">
+    <rect class="card" x="0" y="0" width="260" height="76" rx="10"/>
+    <rect x="14" y="12" width="26" height="26" rx="7" fill="#f1f3f4"/>
+    <use href="#ic-loop" x="18" y="16" width="18" height="18" style="color:#5f6368"/>
+    <text x="50" y="29" class="name13">Watch loop</text>
+    <text x="14" y="50" class="sub" font-size="10.5">Background loop, always on</text>
+    <text x="14" y="65" class="mono" font-size="9.5">services/watch_loop.py</text>
   </g>
-  <line x1="482" y1="366" x2="482" y2="410" class="flow" marker-end="url(#arrow)"/>
+  <path d="M 194 416 C 194 402 194 396 194 380" class="flowPurple" marker-end="url(#arrowPurple)"/>
+  <text x="204" y="404" class="edge" fill="#7a1fc9">every ~90s</text>
+  <text x="204" y="417" class="mono" font-size="9">or on demand</text>
 
-  <text x="320" y="402" class="lbl">SIX SPECIALISTS</text>
+  <circle cx="309" cy="205" r="9" class="step"/><text x="309" y="208.5" class="stepTx">1</text>
+  <line x1="324" y1="205" x2="360" y2="205" class="flow" marker-end="url(#arrow)"/>
+  <text x="323" y="196" class="edge">asks</text>
+  <path d="M 324 328 C 348 328 340 240 366 216" class="flowPurple" marker-end="url(#arrowPurple)"/>
+  <text x="332" y="322" class="edge" fill="#7a1fc9">wakes an agent</text>
 
-  <g transform="translate(320,414)">
-    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
-    <text x="14" y="27" class="name" font-size="13">Shift Allocation</text>
-    <text x="14" y="45" class="sub" font-size="10.5">Fatigue burndown</text>
-    <text x="14" y="62" class="mono" font-size="9.5">memory: per unit</text>
-    <circle cx="139" cy="15" r="4.5" fill="#a78bfa"/>
-  </g>
-  <g transform="translate(492,414)">
-    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
-    <text x="14" y="27" class="name" font-size="13">Inventory</text>
-    <text x="14" y="45" class="sub" font-size="10.5">Par levels, stock</text>
-    <text x="14" y="62" class="mono" font-size="9.5">memory: per SKU</text>
-  </g>
-  <g transform="translate(320,498)">
-    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
-    <text x="14" y="27" class="name" font-size="13">HR</text>
-    <text x="14" y="45" class="sub" font-size="10.5">Credentialing</text>
-    <text x="14" y="62" class="mono" font-size="9.5">memory: per unit</text>
-    <circle cx="139" cy="15" r="4.5" fill="#a78bfa"/>
-  </g>
-  <g transform="translate(492,498)">
-    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
-    <text x="14" y="27" class="name" font-size="13">Supply Chain</text>
-    <text x="14" y="45" class="sub" font-size="10.5">Reorder, vendors</text>
-    <text x="14" y="62" class="mono" font-size="9.5">memory: per vendor</text>
-    <circle cx="139" cy="15" r="4.5" fill="#a78bfa"/>
-  </g>
-  <g transform="translate(320,582)">
-    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
-    <text x="14" y="27" class="name" font-size="12">Chaos &amp; Continuity</text>
-    <text x="14" y="45" class="sub" font-size="10.5">What-ifs, fault inject</text>
-    <text x="14" y="62" class="mono" font-size="9.5">kill · latency · poison</text>
-  </g>
-  <g transform="translate(492,582)">
-    <rect class="card" x="0" y="0" width="154" height="74" rx="8"/>
-    <text x="14" y="27" class="name" font-size="12">Surgical Scheduling</text>
-    <text x="14" y="45" class="sub" font-size="10.5">OR/surgeon conflicts</text>
-    <text x="14" y="62" class="mono" font-size="9.5">patients: KMS-encrypted</text>
-    <circle cx="139" cy="15" r="4.5" fill="#a78bfa"/>
-  </g>
-  <text x="320" y="674" class="mono" font-size="9.5">● = the fleet watch can wake this agent unprompted</text>
-  <text x="320" y="690" class="mono" font-size="9.5">In-process AgentTools; each is also its own Reasoning Engine.</text>
-
-  <!-- ── Column 3: trust boundary ────────────────────────────────────────── -->
-  <rect class="zone" x="762" y="396" width="336" height="272" rx="10"/>
-  <text x="762" y="386" class="lbl" fill="#2dd4c8">EXTERNAL TRUST BOUNDARY — UNTRUSTED BY DEFAULT</text>
-
-  <line x1="646" y1="543" x2="762" y2="543" class="flowT" stroke-dasharray="5 4" marker-end="url(#arrowTeal)"/>
-  <text x="652" y="534" class="edge" fill="#2dd4c8">Agent2Agent</text>
-  <text x="652" y="562" class="mono" font-size="9.5">public URL</text>
-
-  <g transform="translate(780,414)">
-    <rect class="card" x="0" y="0" width="300" height="86" rx="8" stroke="#2dd4c8" stroke-dasharray="4 3"/>
-    <text x="16" y="28" class="name">Medical Representative</text>
-    <text x="16" y="48" class="sub">Vendor liaison — separately deployed</text>
-    <text x="16" y="69" class="mono">own engine + Cloud Run A2A mount</text>
+  <!-- ── Column 2: Coordinator + Gateway + specialists ────────────────── -->
+  <text x="364" y="146" class="lbl">SINGLE ENTRY POINT</text>
+  <g transform="translate(364,160)">
+    <rect class="card" x="0" y="0" width="364" height="92" rx="10" stroke="#12879f" stroke-width="2"/>
+    <rect x="14" y="14" width="30" height="30" rx="8" fill="#e2f4f2"/>
+    <use href="#ic-hub" x="19" y="19" width="20" height="20" style="color:#0e6f7d"/>
+    <text x="56" y="33" class="name">Coordinator</text>
+    <text x="14" y="60" class="sub">Root ADK agent — delegates only</text>
+    <text x="14" y="78" class="mono">Vertex AI Agent Engine</text>
   </g>
 
-  <line x1="930" y1="500" x2="930" y2="530" class="flow" marker-end="url(#arrow)"/>
-  <g transform="translate(780,530)">
-    <rect class="card" x="0" y="0" width="300" height="94" rx="8" stroke="#ff6b5c"/>
-    <text x="16" y="27" class="name" fill="#ff6b5c">Model Armor</text>
-    <text x="16" y="46" class="sub">Screens inbound vendor mail — twice</text>
-    <text x="16" y="67" class="mono">1 · before_model_callback (pre-LLM)</text>
-    <text x="16" y="83" class="mono">2 · re-screen of the quoted excerpt</text>
-  </g>
-  <text x="780" y="646" class="mono" font-size="9.5" fill="#ff6b5c">A blocked message never reaches a model,</text>
-  <text x="780" y="660" class="mono" font-size="9.5" fill="#ff6b5c">Memory Bank, or Supply Chain.</text>
+  <circle cx="546" cy="270" r="9" class="step"/><text x="546" y="273.5" class="stepTx">2</text>
+  <line x1="546" y1="279" x2="546" y2="296" class="flow" marker-end="url(#arrow)"/>
 
-  <!-- ── Column 4: approval gate ─────────────────────────────────────────── -->
-  <text x="1140" y="128" class="lbl">NOTHING RUNS UNATTENDED</text>
-  <g transform="translate(1140,144)">
-    <rect class="card" x="0" y="0" width="232" height="160" rx="8"/>
-    <text x="16" y="28" class="name">Approval gate</text>
-    <text x="16" y="48" class="sub">Contacting a vendor, notifying</text>
-    <text x="16" y="64" class="sub">staff, replying to a vendor</text>
-    <text x="16" y="88" class="mono">fails closed — no policy set</text>
-    <text x="16" y="102" class="mono">means approval is required</text>
-    <text x="16" y="120" class="mono">GET renders · POST mutates</text>
-    <text x="16" y="138" class="mono">manager clicks approve or</text>
-    <text x="16" y="152" class="mono">reject from their inbox</text>
-  </g>
-  <path d="M 646 430 C 706 376 900 300 1140 244" class="flow" marker-end="url(#arrow)"/>
-  <text x="856" y="306" class="edge">requests approval</text>
-
-  <!-- ── Platform row ────────────────────────────────────────────────────── -->
-  <text x="48" y="748" class="lbl">GOOGLE CLOUD — DATA, MEMORY, AND EVIDENCE</text>
-  <g transform="translate(48,762)">
-    <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
-    <text x="16" y="27" class="name" font-size="13">Firestore</text>
-    <text x="16" y="46" class="sub" font-size="10.5">Roster, shifts, inventory, vendors,</text>
-    <text x="16" y="62" class="sub" font-size="10.5">approvals, activity log, armor events,</text>
-    <text x="16" y="78" class="sub" font-size="10.5">patients (KMS-encrypted), surgical cases</text>
-  </g>
-  <g transform="translate(320,762)">
-    <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
-    <text x="16" y="27" class="name" font-size="13">Vertex AI Memory Bank</text>
-    <text x="16" y="46" class="sub" font-size="10.5">One store per agent, on that</text>
-    <text x="16" y="62" class="sub" font-size="10.5">agent&#8217;s own engine. Written on</text>
-    <text x="16" y="78" class="sub" font-size="10.5">every real change, read on recall.</text>
-  </g>
-  <g transform="translate(592,762)">
-    <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
-    <text x="16" y="27" class="name" font-size="13">Cloud Trace + Logging</text>
-    <text x="16" y="46" class="sub" font-size="10.5">One trace spans Coordinator →</text>
-    <text x="16" y="62" class="sub" font-size="10.5">Gateway → A2A hop → Model Armor.</text>
-    <text x="16" y="78" class="sub" font-size="10.5">Pivot from any blocked event.</text>
-  </g>
-  <g transform="translate(864,762)">
-    <rect class="card" x="0" y="0" width="248" height="94" rx="8"/>
-    <text x="16" y="27" class="name" font-size="13">Secret Manager + IAM</text>
-    <text x="16" y="46" class="sub" font-size="10.5">Gemini key, Gmail app password.</text>
-    <text x="16" y="62" class="sub" font-size="10.5">Every Reasoning Engine now runs</text>
-    <text x="16" y="78" class="sub" font-size="10.5">as its own dedicated service account.</text>
-  </g>
-  <g transform="translate(1136,762)">
-    <rect class="card" x="0" y="0" width="236" height="94" rx="8"/>
-    <text x="16" y="27" class="name" font-size="13">Region lock</text>
-    <text x="16" y="46" class="sub" font-size="10.5">us-central1 across Cloud Run,</text>
-    <text x="16" y="62" class="sub" font-size="10.5">Firestore, every Reasoning Engine,</text>
-    <text x="16" y="78" class="sub" font-size="10.5">Memory Bank, and Model Armor.</text>
+  <g transform="translate(364,298)">
+    <rect class="card" x="0" y="0" width="364" height="100" rx="10"/>
+    <rect x="14" y="14" width="30" height="30" rx="8" fill="#e2f4f2"/>
+    <use href="#ic-filter" x="19" y="19" width="20" height="20" style="color:#0e6f7d"/>
+    <text x="56" y="33" class="name">Agent Gateway</text>
+    <text x="14" y="60" class="sub">ADK before_tool_callback — every internal call</text>
+    <text x="14" y="78" class="mono">registry lookup → policy check → trace span</text>
+    <text x="14" y="93" class="mono">blocks unregistered · inactive · unauthorized</text>
   </g>
 
-  <text x="48" y="892" class="mono" font-size="10">Real Google Cloud products: Agent Engine · Memory Bank · Model Armor · Cloud Run · Firestore · Cloud Trace · Cloud Logging · Secret Manager · Cloud KMS · IAM · Firebase Auth</text>
-  <text x="48" y="912" class="mono" font-size="10">Built on ADK primitives where no distinct product exists: Agent Registry (Firestore catalog) · Agent Gateway (before_tool_callback) — Agent Identity is real per-agent IAM, each engine its own dedicated service account</text>
+  <circle cx="546" cy="410" r="9" class="step"/><text x="546" y="413.5" class="stepTx">3</text>
+  <line x1="546" y1="419" x2="546" y2="436" class="flow" marker-end="url(#arrow)"/>
+
+  <text x="364" y="450" class="lbl">SIX SPECIALISTS</text>
+
+  <g transform="translate(364,462)">
+    <rect class="card" x="0" y="0" width="176" height="82" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-bed" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="46" y="29" class="name13">Shift Allocation</text>
+    <text x="12" y="52" class="sub" font-size="10">Fatigue burndown</text>
+    <text x="12" y="68" class="mono" font-size="9">memory: per unit</text>
+    <circle cx="162" cy="14" r="4.5" class="wake"/>
+  </g>
+  <g transform="translate(552,462)">
+    <rect class="card" x="0" y="0" width="176" height="82" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-box" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="46" y="29" class="name13">Inventory</text>
+    <text x="12" y="52" class="sub" font-size="10">Par levels, stock</text>
+    <text x="12" y="68" class="mono" font-size="9">memory: per SKU</text>
+  </g>
+  <g transform="translate(364,554)">
+    <rect class="card" x="0" y="0" width="176" height="82" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-badge" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="46" y="29" class="name13">HR</text>
+    <text x="12" y="52" class="sub" font-size="10">Credentialing</text>
+    <text x="12" y="68" class="mono" font-size="9">memory: per unit</text>
+    <circle cx="162" cy="14" r="4.5" class="wake"/>
+  </g>
+  <g transform="translate(552,554)">
+    <rect class="card" x="0" y="0" width="176" height="82" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-truck" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="46" y="29" class="name13">Supply Chain</text>
+    <text x="12" y="52" class="sub" font-size="10">Reorder, vendors</text>
+    <text x="12" y="68" class="mono" font-size="9">memory: per vendor</text>
+    <circle cx="162" cy="14" r="4.5" class="wake"/>
+  </g>
+  <g transform="translate(364,646)">
+    <rect class="card" x="0" y="0" width="176" height="82" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-warning" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="46" y="29" class="name13" font-size="11.3">Chaos &amp; Continuity</text>
+    <text x="12" y="52" class="sub" font-size="10">What-ifs, fault inject</text>
+    <text x="12" y="68" class="mono" font-size="9">kill · latency · poison</text>
+  </g>
+  <g transform="translate(552,646)">
+    <rect class="card" x="0" y="0" width="176" height="82" rx="10"/>
+    <rect x="12" y="12" width="26" height="26" rx="7" fill="#e8f0fe"/>
+    <use href="#ic-calendar" x="16" y="16" width="18" height="18" style="color:#1a73e8"/>
+    <text x="46" y="29" class="name13" font-size="11.3">Surgical Scheduling</text>
+    <text x="12" y="52" class="sub" font-size="10">OR/surgeon conflicts</text>
+    <text x="12" y="68" class="mono" font-size="9">patients: KMS-encrypted</text>
+    <circle cx="162" cy="14" r="4.5" class="wake"/>
+  </g>
+  <text x="364" y="746" class="mono" font-size="9.5">● = the fleet watch can wake this agent unprompted</text>
+  <text x="364" y="761" class="mono" font-size="9.5">In-process AgentTools; each is also its own Reasoning Engine.</text>
+
+  <!-- ── Column 3: trust boundary ─────────────────────────────────────── -->
+  <rect class="zone" x="758" y="440" width="360" height="292" rx="12"/>
+  <g transform="translate(758,398)">
+    <use href="#ic-lock" x="0" y="0" width="15" height="15" style="color:#c5221f"/>
+    <text x="19" y="12" class="lbl" fill="#c5221f">EXTERNAL TRUST BOUNDARY — UNTRUSTED BY DEFAULT</text>
+    <text x="19" y="27" class="mono" font-size="9.5" fill="#a50e0e">Supply Chain reaches in over Agent2Agent, a public URL</text>
+  </g>
+
+  <circle cx="743" cy="595" r="8" class="step"/><text x="743" y="598.3" class="stepTx" font-size="10">4</text>
+  <line x1="728" y1="595" x2="735" y2="595" class="flowTeal" stroke-dasharray="4 3"/>
+  <line x1="751" y1="595" x2="758" y2="595" class="flowTeal" stroke-dasharray="4 3" marker-end="url(#arrowTeal)"/>
+
+  <g transform="translate(778,462)">
+    <rect class="card" x="0" y="0" width="320" height="92" rx="10" stroke="#12879f" stroke-dasharray="4 3" stroke-width="1.4"/>
+    <rect x="14" y="14" width="30" height="30" rx="8" fill="#e2f4f2"/>
+    <use href="#ic-mail" x="19" y="19" width="20" height="20" style="color:#0e6f7d"/>
+    <text x="56" y="33" class="name">Medical Representative</text>
+    <text x="14" y="60" class="sub">Vendor liaison — separately deployed</text>
+    <text x="14" y="78" class="mono">own engine + Cloud Run A2A mount</text>
+  </g>
+
+  <line x1="938" y1="554" x2="938" y2="586" class="flow" marker-end="url(#arrow)"/>
+  <g transform="translate(778,586)">
+    <rect class="card" x="0" y="0" width="320" height="104" rx="10" stroke="#d93025" stroke-width="1.4"/>
+    <rect x="14" y="14" width="30" height="30" rx="8" fill="#fce8e6"/>
+    <use href="#ic-shieldcheck" x="19" y="19" width="20" height="20" style="color:#c5221f"/>
+    <text x="56" y="33" class="name" fill="#a50e0e">Model Armor</text>
+    <text x="14" y="59" class="sub">Screens inbound vendor mail — twice</text>
+    <text x="14" y="77" class="mono">1 · before_model_callback (pre-LLM)</text>
+    <text x="14" y="92" class="mono">2 · re-screen of the quoted excerpt</text>
+  </g>
+  <text x="778" y="710" class="mono" font-size="9.5" fill="#a50e0e">A blocked message never reaches a model,</text>
+  <text x="778" y="724" class="mono" font-size="9.5" fill="#a50e0e">Memory Bank, or Supply Chain.</text>
+
+  <!-- ── Column 4: approval gate ───────────────────────────────────────── -->
+  <text x="1144" y="146" class="lbl">NOTHING RUNS UNATTENDED</text>
+  <g transform="translate(1144,160)">
+    <rect class="card" x="0" y="0" width="252" height="172" rx="10" stroke="#e37400" stroke-width="1.4"/>
+    <rect x="14" y="14" width="30" height="30" rx="8" fill="#feefe0"/>
+    <use href="#ic-check" x="19" y="19" width="20" height="20" style="color:#b45c00"/>
+    <text x="56" y="33" class="name">Approval gate</text>
+    <text x="14" y="60" class="sub">Contacting a vendor, notifying</text>
+    <text x="14" y="76" class="sub">staff, replying to a vendor</text>
+    <text x="14" y="100" class="mono">fails closed — no policy set</text>
+    <text x="14" y="114" class="mono">means approval is required</text>
+    <text x="14" y="132" class="mono">GET renders · POST mutates</text>
+    <text x="14" y="150" class="mono">manager clicks approve or</text>
+    <text x="14" y="164" class="mono">reject from their inbox</text>
+  </g>
+  <path d="M 728 348 C 820 292 980 250 1144 224" class="flowAmber" marker-end="url(#arrowAmber)"/>
+  <circle cx="900" cy="266" r="9" class="step"/><text x="900" y="269.5" class="stepTx">5</text>
+  <text x="916" y="256" class="edge" fill="#b45c00">requests approval</text>
+
+  <!-- ── Platform row ─────────────────────────────────────────────────── -->
+  <g transform="translate(64,798)">
+    <use href="#ic-database" x="0" y="-2" width="14" height="14" style="color:#5f6368"/>
+    <text x="19" y="8" class="lbl">DATA, MEMORY &amp; OBSERVABILITY</text>
+  </g>
+  <circle cx="1332" cy="802" r="9" class="step"/><text x="1332" y="805.5" class="stepTx">6</text>
+  <text x="1290" y="798" class="edge" text-anchor="end">persists &amp; recalls</text>
+
+  <g transform="translate(64,814)">
+    <rect class="card" x="0" y="0" width="254" height="100" rx="10"/>
+    <rect x="14" y="14" width="26" height="26" rx="7" fill="#e6f4ea"/>
+    <use href="#ic-database" x="18" y="18" width="18" height="18" style="color:#188038"/>
+    <text x="48" y="31" class="name13">Firestore</text>
+    <text x="14" y="52" class="sub" font-size="10">Roster, shifts, inventory, vendors,</text>
+    <text x="14" y="67" class="sub" font-size="10">approvals, activity log, armor events,</text>
+    <text x="14" y="82" class="sub" font-size="10">patients (KMS-encrypted), surgical cases</text>
+  </g>
+  <g transform="translate(334,814)">
+    <rect class="card" x="0" y="0" width="254" height="100" rx="10"/>
+    <rect x="14" y="14" width="26" height="26" rx="7" fill="#e8eefd"/>
+    <use href="#ic-memory" x="18" y="18" width="18" height="18" style="color:#3355cc"/>
+    <text x="48" y="31" class="name13">Vertex AI Memory Bank</text>
+    <text x="14" y="52" class="sub" font-size="10">One store per agent, on that</text>
+    <text x="14" y="67" class="sub" font-size="10">agent&#8217;s own engine. Written on</text>
+    <text x="14" y="82" class="sub" font-size="10">every real change, read on recall.</text>
+  </g>
+  <g transform="translate(604,814)">
+    <rect class="card" x="0" y="0" width="254" height="100" rx="10"/>
+    <rect x="14" y="14" width="26" height="26" rx="7" fill="#f1f3f4"/>
+    <use href="#ic-chart" x="18" y="18" width="18" height="18" style="color:#5f6368"/>
+    <text x="48" y="31" class="name13">Cloud Trace + Logging</text>
+    <text x="14" y="52" class="sub" font-size="10">One trace spans Coordinator →</text>
+    <text x="14" y="67" class="sub" font-size="10">Gateway → A2A hop → Model Armor.</text>
+    <text x="14" y="82" class="sub" font-size="10">Pivot from any blocked event.</text>
+  </g>
+  <g transform="translate(874,814)">
+    <rect class="card" x="0" y="0" width="254" height="100" rx="10"/>
+    <rect x="14" y="14" width="26" height="26" rx="7" fill="#fce8e6"/>
+    <use href="#ic-key" x="18" y="18" width="18" height="18" style="color:#c5221f"/>
+    <text x="48" y="31" class="name13">Secret Manager + IAM</text>
+    <text x="14" y="52" class="sub" font-size="10">Gemini key, Gmail app password.</text>
+    <text x="14" y="67" class="sub" font-size="10">Every Reasoning Engine now runs</text>
+    <text x="14" y="82" class="sub" font-size="10">as its own dedicated service account.</text>
+  </g>
+  <g transform="translate(1144,814)">
+    <rect class="card" x="0" y="0" width="252" height="100" rx="10"/>
+    <rect x="14" y="14" width="26" height="26" rx="7" fill="#f1f3f4"/>
+    <use href="#ic-pin" x="18" y="18" width="18" height="18" style="color:#5f6368"/>
+    <text x="48" y="31" class="name13">Region lock</text>
+    <text x="14" y="52" class="sub" font-size="10">us-central1 across Cloud Run,</text>
+    <text x="14" y="67" class="sub" font-size="10">Firestore, every Reasoning Engine,</text>
+    <text x="14" y="82" class="sub" font-size="10">Memory Bank, and Model Armor.</text>
+  </g>
+
+  <text x="44" y="938" class="mono" font-size="10">Real Google Cloud products: Agent Engine · Memory Bank · Model Armor · Cloud Run · Firestore · Cloud Trace · Cloud Logging · Secret Manager · Cloud KMS · IAM · Firebase Auth</text>
+  <text x="44" y="956" class="mono" font-size="10">Built on ADK primitives where no distinct product exists: Agent Registry (Firestore catalog) · Agent Gateway (before_tool_callback) — Agent Identity is real per-agent IAM, each engine its own dedicated service account</text>
 </svg>
