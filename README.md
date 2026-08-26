@@ -1,7 +1,7 @@
 # Prudently
 
 [![CI](https://github.com/sanjay-thiyagarajan/prudently/actions/workflows/ci.yml/badge.svg)](https://github.com/sanjay-thiyagarajan/prudently/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: All Rights Reserved](https://img.shields.io/badge/license-All%20Rights%20Reserved-red.svg)](LICENSE)
 
 **Agent-monitored hospital operations.**
 
