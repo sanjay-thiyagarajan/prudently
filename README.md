@@ -3,9 +3,7 @@
 [![CI](https://github.com/sanjay-thiyagarajan/prudently/actions/workflows/ci.yml/badge.svg)](https://github.com/sanjay-thiyagarajan/prudently/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Agent-monitored hospital operations.** Built for the
-[All Things Agentic Hackathon](https://allthingsagentichackathon.devpost.com/),
-Fortified Enterprise Fleet track.
+**Agent-monitored hospital operations.**
 
 Eight agents run a hospital's staffing, supplies, vendor relationships, and surgical schedule.
 A Coordinator routes every call through an Agent Gateway to six specialists; a seventh sits
@@ -44,7 +42,7 @@ dedicated identity.
 - `apps/web` — Next.js dashboard
 - `packages/datagen` — synthetic hospital data generator
 - `infra/terraform` — GCP infra as code (IAM, secrets, KMS, Cloud Run)
-- `docs` — architecture, build plan, demo script
+- `docs` — architecture and design notes
 
 ---
 
@@ -145,17 +143,14 @@ From `apps/api/`:
 
 ```bash
 make verify-deploys ARGS="--query"   # confirm every engine actually works, live
-make demo-reset ARGS="--restock"     # clean slate so a replay fires triggers again
+make demo-reset ARGS="--restock"     # clear watch state so triggers fire again on the next pass
 ```
 
-## Driving a demo
+## The fleet watch
 
 A background loop checks live state every `WATCH_INTERVAL_SECONDS` (90s default) from the
-moment the API starts. **Run fleet check now** in the dashboard's top strip pulls the next
-check forward on demand. `make demo-reset` clears what the watch has already seen, so a fresh
-take fires the same triggers again.
-
-[`docs/demo.md`](docs/demo.md) has the shot-by-shot script.
+moment the API starts, and opens a real agent turn for anything that crosses a threshold.
+**Run fleet check now** in the dashboard's top strip pulls the next check forward on demand.
 
 ## Known limits
 
@@ -170,4 +165,4 @@ take fires the same triggers again.
 - **The autonomous watch runs in-process**, not through the Agent Engine transport —
   `stream_query` was flaky from this environment. The deployed Reasoning Engines are real and
   independently verified (`make verify-deploys ARGS="--query"`), just not what serves the live
-  demo behavior.
+  autonomous behavior.

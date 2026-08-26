@@ -48,3 +48,7 @@ build/
 # Next.js/TypeScript incremental build cache — machine-local, never committed.
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# Local-only notes — kept on disk, never committed
+docs/demo.md
+docs/devpost-writeup.md
