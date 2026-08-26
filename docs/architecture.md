@@ -2,8 +2,9 @@
 
 ![Prudently architecture](./architecture.svg)
 
-`architecture.svg` is the source of truth; `architecture.png` is a raster for the Devpost form.
-Two companion diagrams go deeper on one layer each: [`security-architecture.png`](./security-architecture.png)
+`architecture.svg` is the source of truth; `architecture.png` is a pre-rendered raster for
+places that can't render SVG. Two companion diagrams go deeper on one layer each:
+[`security-architecture.png`](./security-architecture.png)
 (every control, perimeter through identity) and
 [`deployment-architecture.png`](./deployment-architecture.png) (every deployed component and
 real connection, including the one genuine Agent2Agent network hop).
