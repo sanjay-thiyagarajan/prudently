@@ -152,17 +152,18 @@ A background loop checks live state every `WATCH_INTERVAL_SECONDS` (90s default)
 moment the API starts, and opens a real agent turn for anything that crosses a threshold.
 **Run fleet check now** in the dashboard's top strip pulls the next check forward on demand.
 
-## Known limits
+## What's next
 
-- **Specialists aren't decoupled from the Coordinator.** They're in-process `AgentTool`s copied
-  into its image at deploy time — `coordinator-agent-sa` necessarily holds the union of every
-  specialist's grants, including KMS decrypt.
-- **Firestore has no per-collection IAM.** Every agent identity is real and independently
-  auditable, but `roles/datastore.user` is project-wide; `services/platform/access_control.py`'s
-  application-layer allowlist is what actually restricts patient-data access.
-- **Registry and Gateway are ADK primitives**, not distinct Google Cloud products. Agent
-  Identity used to be on this list too — it isn't anymore.
-- **The autonomous watch runs in-process**, not through the Agent Engine transport —
-  `stream_query` was flaky from this environment. The deployed Reasoning Engines are real and
-  independently verified (`make verify-deploys ARGS="--query"`), just not what serves the live
-  autonomous behavior.
+- **Decouple specialists from the Coordinator's deployed image.** They currently run in-process
+  as `AgentTool`s bundled in at deploy time, which means `coordinator-agent-sa` carries the
+  union of every specialist's grants, KMS decrypt included. Splitting them into independently
+  invoked services would let each carry only its own.
+- **Move patient-data access control off the application layer.** Firestore has no
+  per-collection IAM, so `services/platform/access_control.py`'s allowlist is currently the only
+  thing standing between an arbitrary caller and `patients`/`surgical_cases` reads. A boundary
+  enforced closer to the data is the natural next layer, on top of the field-level KMS encryption
+  already in place.
+- **Route the fleet watch through the deployed Reasoning Engines.** It runs through an in-process
+  ADK Runner today rather than calling out to the engines that are already deployed and
+  independently verified (`make verify-deploys ARGS="--query"`), because `stream_query` proved
+  unreliable from this environment. Revisiting that would collapse two code paths into one.
